@@ -1,0 +1,679 @@
+{
+  "molecules": {
+    "water": {
+      "name": "Acqua",
+      "description": "Il solvente universale essenziale per tutte le forme di vita conosciute.",
+      "category": "simple",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Covalente polare",
+        "Legame a idrogeno"
+      ],
+      "uses": [
+        "Solvente biologico universale",
+        "Sistemi industriali di raffreddamento",
+        "Generazione di energia idroelettrica",
+        "Mezzo per reazioni chimiche"
+      ],
+      "funFacts": [
+        "L'acqua è l'unica sostanza naturale che esiste in tutti e tre gli stati fisici a temperature normalmente presenti sulla Terra.",
+        "Una molecola d'acqua resta nell'atmosfera solo circa 9 giorni prima di cadere come precipitazione.",
+        "L'acqua calda può congelarsi più rapidamente dell'acqua fredda: questo è noto come effetto Mpemba."
+      ]
+    },
+    "methane": {
+      "name": "Metano",
+      "description": "L'idrocarburo più semplice e un potente gas serra.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Covalente non polare",
+        "Tetraedrico"
+      ],
+      "uses": [
+        "Combustibile a gas naturale per riscaldamento e cucina",
+        "Generazione di elettricità nelle centrali",
+        "Produzione di gas idrogeno",
+        "Materia prima per la sintesi chimica"
+      ],
+      "funFacts": [
+        "Il metano è 80 volte più potente del CO₂ come gas serra in un periodo di 20 anni.",
+        "La sua forma tetraedrica perfetta conferisce ai quattro legami C–H la stessa lunghezza (1,09 Å).",
+        "Le archee metanogene producono metano nei sedimenti oceanici profondi e nell'apparato digerente del bestiame."
+      ]
+    },
+    "glucose": {
+      "name": "Glucosio",
+      "description": "Principale fonte di energia per le cellule e zucchero fondamentale in biologia.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Covalente",
+        "Legami C–O polari",
+        "Struttura ad anello"
+      ],
+      "uses": [
+        "Principale fonte di energia cellulare tramite glicolisi",
+        "Perfusioni endovenose di glucosio in ambito medico",
+        "Bevande sportive ed energetiche",
+        "Fermentazione per produrre etanolo e CO₂"
+      ],
+      "funFacts": [
+        "Il cervello consuma circa 120 g di glucosio al giorno — circa il 60 % dell'utilizzo totale di glucosio.",
+        "Il glucosio esiste in due forme: α-glucosio e β-glucosio, che differiscono solo nell'orientamento di un gruppo idrossilo.",
+        "Un grammo di glucosio rilascia circa 4 calorie quando viene metabolizzato."
+      ]
+    },
+    "caffeine": {
+      "name": "Caffeina",
+      "description": "Stimolante del sistema nervoso centrale presente in caffè e tè.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Anello aromatico",
+        "Amide C=O",
+        "N-metilazione"
+      ],
+      "uses": [
+        "Stimolante in caffè, tè e bevande energetiche",
+        "Farmaco antidolorifico (in combinazione con aspirina)",
+        "Trattamento dell'apnea nei neonati prematuri",
+        "Potenziatore delle prestazioni negli sport di resistenza"
+      ],
+      "funFacts": [
+        "La caffeina blocca i recettori dell'adenosina nel cervello, impedendo la sensazione di stanchezza.",
+        "Una tazza media di espresso contiene circa 63 mg di caffeina — una dose letale richiederebbe circa 80 tazze consumate molto rapidamente.",
+        "La caffeina è la sostanza psicoattiva più consumata al mondo."
+      ]
+    },
+    "dna-fragment": {
+      "name": "Coppia di basi del DNA",
+      "description": "Una coppia di basi unita da legami a idrogeno che forma i gradini della doppia elica del DNA.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Aromatico",
+        "Legame a idrogeno (×2 A–T)",
+        "Legame glicosidico"
+      ],
+      "uses": [
+        "Archiviazione delle informazioni genetiche in tutti gli organismi viventi",
+        "Modello per la trascrizione dell'mRNA",
+        "Siti bersaglio dell'editing genico CRISPR-Cas9",
+        "Impronta genetica nelle scienze forensi"
+      ],
+      "funFacts": [
+        "L'adenina si accoppia sempre con la timina tramite 2 legami a idrogeno: questo è l'accoppiamento di basi di Watson-Crick.",
+        "Se il DNA di tutte le tue cellule fosse srotolato e disposto capo a capo, raggiungerebbe dalla Terra al Sole e ritorno circa 600 volte.",
+        "Il genoma umano contiene circa 3 miliardi di coppie di basi."
+      ]
+    },
+    "protein-fragment": {
+      "name": "Legame peptidico",
+      "description": "Un frammento di dipeptide che mostra il legame peptidico fondamentale.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Legame peptidico (C–N)",
+        "Risonanza ammidica",
+        "Legami del carbonio α"
+      ],
+      "uses": [
+        "Unità fondamentale di tutte le strutture proteiche",
+        "Modello per la progettazione di farmaci peptidici sintetici",
+        "Segnalazione cellulare tramite ormoni peptidici",
+        "Agenti aromatizzanti alimentari (es. l'aspartame è un dipeptide)"
+      ],
+      "funFacts": [
+        "Il legame peptidico ha carattere di doppio legame parziale per risonanza: è planare e non ruota liberamente.",
+        "Esistono 20 amminoacidi standard, e la vita li combina per costruire oltre 100 000 proteine umane distinte.",
+        "Il ribosoma sintetizza un nuovo legame peptidico circa ogni 0,05 secondi."
+      ]
+    },
+    "ethanol": {
+      "name": "Etanolo",
+      "description": "Il familiare alcol a due atomi di carbonio dietro birra, vino e gel antisettici: piccolo, polare e sorprendentemente influente sia nei laboratori di chimica sia nella vita quotidiana.",
+      "category": "organic",
+      "disciplineTag": "VITA QUOTIDIANA",
+      "bondTypes": [
+        "Covalente polare (C–O, O–H)",
+        "C–C / C–H non polari",
+        "Legami a idrogeno (tra molecole)"
+      ],
+      "uses": [
+        "Bevande alcoliche (soluzioni diluite)",
+        "Solvente in laboratori e tinture",
+        "Antisettico e additivi per biocarburanti"
+      ],
+      "funFacts": [
+        "Il fegato converte l'etanolo in acetaldeide prima di trasformarlo in acetato: il ritmo conta.",
+        "L'etanolo altera la fluidità delle membrane e la struttura delle proteine, il che spiega in parte il suo ampio ruolo come solvente biologico."
+      ]
+    },
+    "aspirin": {
+      "name": "Aspirina",
+      "description": "Acido acetilsalicilico: un classico antidolorifico che modifica in modo irreversibile la chimica piastrinica — medicina, storia e sintesi organica in una piccola compressa.",
+      "category": "organic",
+      "disciplineTag": "MEDICINA",
+      "bondTypes": [
+        "Aromatico (anello benzenico)",
+        "Legame estere",
+        "Acido carbossilico"
+      ],
+      "uses": [
+        "Analgesico (dolore) e antipiretico (febbre)",
+        "Antinfiammatorio (FANS)",
+        "Terapia antipiastrinica a basso dosaggio (sotto guida medica)"
+      ],
+      "funFacts": [
+        "La salicina nella corteccia di salice è l'antenato vegetale di questa superstar sintetica.",
+        "Il suo gruppo acetile gli permette di resistere meglio all'acido gastrico rispetto al solo acido salicilico."
+      ]
+    },
+    "capsaicin": {
+      "name": "Capsaicina",
+      "description": "Il vanilloide piccante che dà il morso ai peperoncini: deterrente evolutivo per i mammiferi e punto di partenza preferito dei neuroscienziati che studiano il TRPV1.",
+      "category": "organic",
+      "disciplineTag": "ORGANICO",
+      "bondTypes": [
+        "Nucleo aromatico fenolico",
+        "Legame ammidico",
+        "Etere (metossi) e catena alifatica"
+      ],
+      "uses": [
+        "Piccantezza culinaria e miscele di capsaicinoidi",
+        "Creme analgesiche topiche (modulazione del TRPV1)",
+        "Formulazioni repellenti per parassiti"
+      ],
+      "funFacts": [
+        "Gli uccelli spesso non hanno la sensibilità recettoriale dei mammiferi: così i semi di peperoncino si diffondono più lontano.",
+        "Il «piccante» non è un gusto sulla mappa della lingua; è teatro dei nocicettori."
+      ]
+    },
+    "serotonin": {
+      "name": "Serotonina",
+      "description": "5-HT: un segnale monoaminergico con un curriculum che spazia dall'umore al sonno e alla motilità intestinale — prova che uno stesso scheletro può indossare molti cappelli biologici.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENZE",
+      "bondTypes": [
+        "Indolo aromatico",
+        "Amina primaria",
+        "Idrossile fenolico"
+      ],
+      "uses": [
+        "Neurotrasmissione e neuromodulazione",
+        "Bersagli farmacologici (es. gli SSRI agiscono a monte nelle vie)",
+        "Ruoli periferici nel sistema nervoso enterico"
+      ],
+      "funFacts": [
+        "La maggior parte della serotonina del corpo non è «nel tuo umore»: gran parte è legata all'intestino e alle piastrine.",
+        "Il nome richiama il siero sanguigno, dove fu osservata per la prima volta contraire i vasi."
+      ]
+    },
+    "dopamine": {
+      "name": "Dopamina",
+      "description": "Una catecolamina con una piccola coda di etilammina su un anello catecol: motivazione, movimento e miti mesolimbici orbitano intorno a questa struttura.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENZE",
+      "bondTypes": [
+        "Aromatico (catecol)",
+        "Amina primaria",
+        "O–H fenolico"
+      ],
+      "uses": [
+        "Neurotrasmettitore nelle vie della ricompensa e motorie",
+        "Supporto clinico nello shock (come cloridrato, EV, sotto assistenza)",
+        "Ligando didattico per GPCR e biologia dei trasportatori"
+      ],
+      "funFacts": [
+        "La patologia del Parkinson è strettamente legata alla perdita di neuroni dopaminergici nella sostanza nera.",
+        "È abbastanza polare da impedire alla dopamina libera di attraversare casualmente la barriera ematoencefalica."
+      ]
+    },
+    "adrenaline": {
+      "name": "Adrenalina",
+      "description": "Epinefrina: la molecola dietro il picco di polso quando qualcosa salta dai cespugli — chimica simpatica distillata in tre atomi di ossigeno di urgenza.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENZE",
+      "bondTypes": [
+        "Aromatico (catecol)",
+        "Amina secondaria (sostituzione benzilica)",
+        "Alcol primario"
+      ],
+      "uses": [
+        "Autoiniettori di soccorso nell'anafilassi (con formazione e indicazione clinica)",
+        "Coadiuvanti nell'anestesia locale (con razionale vasocostrittivo)",
+        "Dimostrazioni fisiologiche del segnale di lotta o fuga"
+      ],
+      "funFacts": [
+        "«Adrenalina» contro «epinefrina» è in gran parte nomenclatura britannica contro statunitense: è lo stesso ormone impaziente.",
+        "Agisce sui recettori α e β adrenergici, spiegando sia le storie di vasocostrizione sia gli usi broncodilatatori."
+      ]
+    },
+    "buckminsterfullerene": {
+      "name": "Buckminsterfullerene",
+      "description": "Simmetria da pallone da calcio nel carbonio puro: una gabbia celebrata dal Nobel che ha dimostrato che l'aromaticità non richiede esagoni piatti.",
+      "category": "macro",
+      "disciplineTag": "NANOTECNOLOGIA",
+      "bondTypes": [
+        "Rete di carbonio tipo sp² (icosaedro troncato)",
+        "Sistemi π delocalizzati su superfici curve"
+      ],
+      "uses": [
+        "Prototipi in scienza dei materiali (film sottili, compositi)",
+        "Motivi accettori di elettroni nella ricerca sull'elettronica organica",
+        "Strumento didattico sugli allotropi del carbonio a nanoscala"
+      ],
+      "funFacts": [
+        "12 pentagoni e 20 esagoni: la stretta di mano di Eulero con il cugino selvaggio della grafite.",
+        "Prende il nome dall'architetto Buckminster Fuller, che ha reso popolari le cupole geodetiche."
+      ]
+    },
+    "heme-group": {
+      "name": "Gruppo eme dell'emoglobina",
+      "description": "Il gruppo prostetico porfirinico che chelata il ferro e trasforma l'emoglobina in un trasportatore di ossigeno: legame reversibile di O₂ con allosteria proteica dietro le quinte.",
+      "category": "biological",
+      "disciplineTag": "BIOLOGICO",
+      "bondTypes": [
+        "Macrociclo aromatico porfirinico",
+        "Coordinazione metallica (Fe–N)",
+        "Sostituenti tipo propionato/carbossilato (protonazione dipendente dal contesto)"
+      ],
+      "uses": [
+        "Trasporto e stoccaggio di O₂ nelle emoproteine",
+        "Siti attivi enzimatici (es. catalasi, citocromi)",
+        "Insegnamento biochimico dei campi ligando e del legame cooperativo"
+      ],
+      "funFacts": [
+        "Quattro unità eme nell'emoglobina consentono il legame cooperativo: le curve sigmoidali non sono curiosità chimica, sono fisiologia.",
+        "Il tiraggio della istidina assiale regola l'affinità per l'ossigeno rispetto alla competizione con il CO."
+      ]
+    }
+  },
+  "reactions": {
+    "methane-combustion": {
+      "name": "Combustione del metano",
+      "description": "Un'ossidazione classica: il metano incontra l'ossigeno in una catena di passaggi radicali che rilasciano molto calore e producono anidride carbonica e acqua.",
+      "reactionType": "Combustione",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Metano",
+          "formula": "CH₄"
+        },
+        {
+          "name": "Ossigeno",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Anidride carbonica",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Acqua",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "La combustione completa del metano è fortemente esotermica e converte l'energia potenziale chimica in calore e luce.",
+        "energyProfile": "Altamente esotermica (ΔH << 0 per la reazione bilanciata)",
+        "conditions": "Energia di innesco (scintilla/fiamma); approvvigionamento costante di O₂",
+        "mechanism": "Meccanismo a catena radicalica: iniziazione → propagazione (·OH, ·CH₃, ecc.) → terminazione; la vista 3D evidenzia specie rappresentative.",
+        "highlight": "Ogni storia di combustione bilanciata si conclude con un corretto bilancio di CO₂ e una gestione attenta delle fiamme libere."
+      },
+      "steps": [
+        {
+          "caption": "Combustibile — metano"
+        },
+        {
+          "caption": "Prodotto in evidenza — acqua"
+        }
+      ]
+    },
+    "water-formation": {
+      "name": "Formazione dell'acqua",
+      "description": "L'idrogeno brucia nell'ossigeno per formare acqua: stechiometria semplice e enorme rilevanza industriale e nella scienza dei razzi.",
+      "reactionType": "Sintesi / combustione",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Idrogeno",
+          "formula": "H₂"
+        },
+        {
+          "name": "Ossigeno",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Acqua",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Questa reazione rilascia molta energia per grammo di H₂, ed è per questo che alimenta le conversazioni sull'energia pulita.",
+        "energyProfile": "Esotermica; molto favorevole termodinamicamente",
+        "conditions": "Accensione o catalizzatore (es. Pt); il rapporto preciso H₂ : O₂ è importante per la sicurezza",
+        "mechanism": "Spesso mediata da radicali in fase gassosa; la vista 3D mostra il prodotto polare che emerge dalla partnership redox.",
+        "highlight": "La geometria angolare dell'acqua è conseguenza diretta della repulsione tra coppie solitarie sull'ossigeno."
+      },
+      "steps": [
+        {
+          "caption": "Prodotto — acqua (H₂O)"
+        }
+      ]
+    },
+    "glucose-fermentation": {
+      "name": "Fermentazione del glucosio",
+      "description": "Biochimica amica del lievito: il glucosio si divide in etanolo e anidride carbonica — il motivo per cui il pane lievita e esiste il vino.",
+      "reactionType": "Biochimica / anaerobica",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Glucosio",
+          "formula": "C₆H₁₂O₆"
+        }
+      ],
+      "products": [
+        {
+          "name": "Etanolo",
+          "formula": "C₂H₅OH"
+        },
+        {
+          "name": "Anidride carbonica",
+          "formula": "CO₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "La glicolisi seguita dalla fermentazione rigenera NAD⁺ affinché la glicolisi possa continuare quando l'ossigeno scarseggia.",
+        "energyProfile": "Ossidazione parziale — ATP modesto rispetto alla respirazione",
+        "conditions": "Lievito o batteri; ambiente anaerobico o microaerobico",
+        "mechanism": "Piruvato → acetaldeide → etanolo, con perdita di CO₂ come piccola molecola.",
+        "highlight": "La stessa famiglia di vie collega birrificazione, panificazione e ricerca sui biocarburanti."
+      },
+      "steps": [
+        {
+          "caption": "Zucchero di partenza"
+        },
+        {
+          "caption": "Prodotto — etanolo"
+        }
+      ]
+    },
+    "haber-bosch": {
+      "name": "Processo Haber-Bosch",
+      "description": "Fissazione industriale dell'azoto: N₂ e H₂ atmosferici vengono convertiti in ammoniaca — la spina dorsale della produzione mondiale di fertilizzanti.",
+      "reactionType": "Sintesi industriale",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Azoto",
+          "formula": "N₂"
+        },
+        {
+          "name": "Idrogeno",
+          "formula": "H₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ammoniaca",
+          "formula": "NH₃"
+        }
+      ],
+      "quickFacts": {
+        "summary": "L'implementazione industriale della fissazione dell'azoto, che trasforma l'azoto atmosferico in ammoniaca per produrre fertilizzanti che sostengono la produzione alimentare mondiale.",
+        "energyProfile": "Esotermica (ΔH = −92,4 kJ/mol).",
+        "conditions": "Alta pressione (150–250 bar), alta temperatura (400–500 °C) e catalizzatore di ferro (Fe).",
+        "mechanism": "Adsorbimento dissociativo dei gas N₂ e H₂ sulla superficie del catalizzatore di ferro, seguito da idrogenazione graduale degli atomi di azoto.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Scena provvisoria — coordinate di animazione NH₃ in sospeso"
+        }
+      ]
+    },
+    "photosynthesis": {
+      "name": "Fotosintesi (semplificata)",
+      "description": "Fissazione del carbonio guidata dalla luce: sei CO₂ e sei molecole d'acqua si assemblano in un anello di glucosio liberando ossigeno — il motore metabolico della biosfera.",
+      "reactionType": "Metabolica / guidata dalla luce",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Anidride carbonica",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Acqua",
+          "formula": "H₂O"
+        }
+      ],
+      "products": [
+        {
+          "name": "Glucosio",
+          "formula": "C₆H₁₂O₆"
+        },
+        {
+          "name": "Ossigeno",
+          "formula": "O₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Il processo biochimico fondamentale mediante il quale piante, alghe e alcuni batteri convertono l'energia luminosa in energia chimica (glucosio), rilasciando ossigeno come sottoprodotto.",
+        "energyProfile": "Endotermica / endergonica (richiede fotoni, ΔH = +2803 kJ/mol per l'equazione globale semplificata).",
+        "conditions": "Luce solare (fotoni), pigmenti di clorofilla, temperature ambiente.",
+        "mechanism": "Le reazioni dipendenti dalla luce scindono l'acqua per generare ATP e NADPH, seguite dal ciclo di Calvin indipendente dalla luce che fissa il CO₂ in uno zucchero a 6 carboni.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Prodotto — glucosio (C₆H₁₂O₆)"
+        },
+        {
+          "caption": "Reagente / prodotto — acqua"
+        }
+      ]
+    },
+    "neutralization-hcl-naoh": {
+      "name": "Neutralizzazione (HCl + NaOH)",
+      "description": "Una neutralizzazione di Arrhenius da manuale: acido forte e base forte formano un sale e acqua — la reazione di trasferimento di protoni che ogni studente di chimica introduttiva incontra per prima.",
+      "reactionType": "Acido-base",
+      "category": "ACID-BASE",
+      "reactants": [
+        {
+          "name": "Acido cloridrico",
+          "formula": "HCl"
+        },
+        {
+          "name": "Idrossido di sodio",
+          "formula": "NaOH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Cloruro di sodio",
+          "formula": "NaCl"
+        },
+        {
+          "name": "Acqua",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Una classica reazione acido-base di Arrhenius in cui un acido forte e una base forte si neutralizzano per produrre un sale (cloruro di sodio) e acqua.",
+        "energyProfile": "Esotermica (calore di neutralizzazione, ΔH ≈ −57,3 kJ/mol).",
+        "conditions": "Soluzione acquosa, temperatura ambiente.",
+        "mechanism": "Trasferimento di protoni in cui gli ioni H⁺ dell'acido si combinano con gli ioni OH⁻ della base per formare molecole stabili di H₂O, mentre Na⁺ e Cl⁻ restano come ioni spettatori o formano una rete cristallina all'evaporazione.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Prodotto — acqua (H₂O)"
+        }
+      ]
+    },
+    "esterification-ethyl-acetate": {
+      "name": "Esterificazione (acetato di etile)",
+      "description": "Esterificazione di Fischer: acido carbossilico e alcol si condensano in un estere fruttato più acqua — chimica di equilibrio con un tocco di acido solforico e calore.",
+      "reactionType": "Condensazione / organica",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Acido acetico",
+          "formula": "CH₃COOH"
+        },
+        {
+          "name": "Etanolo",
+          "formula": "C₂H₅OH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Acetato di etile",
+          "formula": "CH₃COOC₂H₅"
+        },
+        {
+          "name": "Acqua",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Una reazione di condensazione tra un acido organico (acido acetico) e un alcol (etanolo) per produrre un estere (acetato di etile, noto per il suo odore dolce e fruttato) e acqua.",
+        "energyProfile": "Leggermente esotermica, reazione reversibile in equilibrio.",
+        "conditions": "Catalizzatore acido (tipicamente H₂SO₄ concentrato) e calore sotto riflusso.",
+        "mechanism": "Sostituzione nucleofila acilica. L'ossigeno carbonilico dell'acido carbossilico viene protonato, seguito dall'attacco nucleofilo del gruppo idrossilo dell'alcol, culminando nell'eliminazione di una molecola d'acqua.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Reagente — etanolo"
+        },
+        {
+          "caption": "Coprodotto — acqua"
+        }
+      ]
+    }
+  },
+  "categories": {
+    "simple": "Semplice",
+    "organic": "Organica",
+    "biological": "Biologica",
+    "macro": "Macro",
+    "SYNTHESIS": "Sintesi",
+    "ORGANIC": "Chimica organica",
+    "METABOLIC": "Metabolica",
+    "ACID-BASE": "Acido-base"
+  },
+  "ui": {
+    "nav_explore": "Esplora",
+    "nav_learn": "Impara",
+    "nav_showcase": "Vetrina",
+    "tab_molecules": "Molecole",
+    "tab_reactions": "Reazioni",
+    "label_quick_facts": "Dati rapidi",
+    "label_molecular_weight": "Peso molecolare",
+    "label_state": "Stato",
+    "label_bond_types": "Tipi di legame",
+    "state_gas": "Gas",
+    "state_liquid": "Liquido",
+    "state_solid": "Solido",
+    "state_plasma": "Plasma",
+    "difficulty_beginner": "Principiante",
+    "difficulty_intermediate": "Intermedio",
+    "difficulty_expert": "Esperto",
+    "title_molecule_explorer": "Molecole",
+    "subtitle_molecule_explorer": "Naviga tra le molecole, clicca su qualsiasi atomo per ispezionarlo e apri il pannello di apprendimento per contenuti educativi approfonditi.",
+    "button_start_exploring": "Inizia a esplorare",
+    "button_play_reaction": "Riproduci",
+    "fact_overview": "Panoramica",
+    "fact_energy": "Energia",
+    "fact_conditions": "Condizioni",
+    "fact_mechanism": "Meccanismo",
+    "subtitle_reaction": "Scegli una reazione, premi Riproduci per eseguire la sequenza 3D e leggi come i legami si riorganizzano nella colonna Dati rapidi.",
+    "title_reaction_lab": "Laboratorio delle reazioni",
+    "badge_interactive_studio": "Studio interattivo 3D",
+    "badge_reaction_animation": "Animazione della reazione",
+    "button_playing": "In riproduzione…",
+    "label_equation": "Equazione",
+    "label_reactants": "Reagenti",
+    "label_products": "Prodotti",
+    "aria_molecules_reactions": "Molecole e reazioni",
+    "aria_select_language": "Seleziona lingua",
+    "aria_footer": "Piè di pagina",
+    "label_discipline": "Disciplina",
+    "label_boiling_point": "Punto di ebollizione",
+    "label_melting_point": "Punto di fusione",
+    "label_reaction_type": "Tipo di reazione",
+    "label_highlight": "In evidenza",
+    "reaction_animation_placeholder": "Interpolazione 3D: coordinate in sospeso ({key}).",
+    "reaction_animation_ready": "Interpolazione atomica completa disponibile — premi Riproduci.",
+    "hero_badge": "Apprendimento interattivo di nuova generazione",
+    "hero_title_prefix": "Il futuro dell'",
+    "hero_title_highlight": "architettura molecolare",
+    "hero_subtitle": "Esplora i mattoni dell'universo in straordinario 3D. Una piattaforma educativa cinematografica e premium progettata per rendere la chimica intuitiva e bella.",
+    "hero_launch_studio": "Avvia lo studio",
+    "hero_view_showcase": "Vedi la vetrina",
+    "hero_scroll": "Scorri",
+    "featured_title_prefix": "Molecole",
+    "featured_title_highlight": "in evidenza",
+    "featured_subtitle": "Dalla semplice acqua alle macromolecole biologiche complesse: esplorale tutte nel nostro studio interattivo 3D.",
+    "card_atoms_bonds": "{atoms} atomi · {bonds} legami",
+    "card_explore": "Esplora",
+    "elements_title_prefix": "Scopri gli",
+    "elements_title_highlight": "elementi",
+    "elements_subtitle": "Interagisci con atomi, composti e strutture molecolari complesse tramite il nostro motore di rendering WebGL ad alta fedeltà.",
+    "feature_atomic_title": "Struttura atomica",
+    "feature_atomic_desc": "Approfondisci il livello subatomico e osserva gli orbitali in tempo reale.",
+    "feature_crystal_title": "Reticoli cristallini",
+    "feature_crystal_desc": "Esplora i modelli geometrici ripetuti che formano la materia solida.",
+    "feature_macro_title": "Macromolecole",
+    "feature_macro_desc": "Visualizza proteine, DNA e strutture biologiche complesse.",
+    "showcase_title_prefix": "Educazione scientifica",
+    "showcase_title_suffix": "cinematografica",
+    "showcase_body": "Abbiamo combinato tecniche di rendering moderne dei videogiochi con accuratezza scientifica per creare un ambiente di apprendimento senza pari. Manipola variabili, osserva reazioni e comprendi la chimica visivamente.",
+    "showcase_bullet_1": "Simulazione della dinamica molecolare in tempo reale",
+    "showcase_bullet_2": "Modelli space-filling e a bastoncini e sfere accurati",
+    "showcase_bullet_3": "Visualizzazione interattiva della nuvola elettronica",
+    "compare_title_prefix": "Confronta",
+    "compare_title_highlight": "affiancate",
+    "compare_subtitle": "Metti due molecole qualsiasi una accanto all'altra e scopri le differenze strutturali a colpo d'occhio.",
+    "footer_brand": "MoleculeArchitectureStudio",
+    "footer_copyright": "© {year} Molecule Studio. Tutti i diritti riservati.",
+    "footer_about": "Informazioni",
+    "footer_github": "Repository GitHub",
+    "footer_canvas_guide": "Guida al canvas interattivo",
+    "footer_tech_badge": "Realizzato con Next.js, Three.js e Tailwind CSS",
+    "panel_tab_overview": "Panoramica",
+    "panel_tab_structure": "Struttura",
+    "panel_tab_uses": "Usi",
+    "panel_tab_fun_facts": "Curiosità",
+    "panel_stat_weight": "Peso",
+    "panel_stat_atoms": "Atomi",
+    "panel_stat_bonds": "Legami",
+    "panel_stat_total": "totale",
+    "panel_state_room_temp": "Stato a temperatura ambiente",
+    "panel_no_education": "Dati educativi non disponibili per questa molecola.",
+    "panel_single_bonds": "Legami singoli (σ)",
+    "panel_double_bonds": "Legami doppi (σ+π)",
+    "panel_triple_bonds": "Legami tripli (σ+2π)",
+    "panel_element_composition": "Composizione elementare",
+    "viewer_show_labels": "Etichette",
+    "viewer_auto_rotate": "Rotazione automatica",
+    "viewer_learn_panel": "Impara",
+    "viewer_prev": "Precedente",
+    "viewer_next": "Successivo",
+    "viewer_close_atom": "Chiudi dettaglio atomo",
+    "discipline_daily_life": "Vita quotidiana",
+    "discipline_medicine": "Medicina",
+    "discipline_organic": "Chimica organica",
+    "discipline_neuroscience": "Neuroscienze",
+    "discipline_nanotech": "Nanotecnologia",
+    "discipline_biological": "Biologico",
+    "meta_title": "Molecule Architecture Studio",
+    "meta_description": "Una piattaforma chimica interattiva premium per esplorare le molecole in 3D."
+  }
+}

@@ -1,0 +1,62 @@
+import type { AtomData, BondData } from "../types";
+import { atom, bond } from "../geometry/helpers";
+
+const S = 1.1;
+
+/** Fused indole (planar) + 5-OH + 3-ethylamine */
+export const SEROTONIN_ATOMS: AtomData[] = [
+  atom("C1", "C", [-1.35 * S, 0.75 * S, 0]),
+  atom("C2", "C", [-1.35 * S, -0.75 * S, 0]),
+  atom("C3", "C", [0, -1.35 * S, 0]),
+  atom("C4", "C", [1.35 * S, -0.75 * S, 0]),
+  atom("C5", "C", [1.35 * S, 0.75 * S, 0]),
+  atom("C6", "C", [0, 1.35 * S, 0]),
+  atom("N7", "N", [2.15 * S, 1.55 * S, 0]),
+  atom("C8", "C", [2.85 * S, 0.55 * S, 0]),
+  atom("C9", "C", [2.15 * S, -0.55 * S, 0]),
+  atom("C10", "C", [3.85 * S, 0.55 * S, 0]),
+  atom("C11", "C", [4.85 * S, 0.55 * S, 0]),
+  atom("N12", "N", [5.85 * S, 0.55 * S, 0.35 * S]),
+  atom("O13", "O", [-2.45 * S, 1.35 * S, 0]),
+  atom("H14", "H", [-3.05 * S, 1.35 * S, 0.35 * S]),
+  atom("H15", "H", [-2.05 * S, 1.35 * S, 0.85 * S]),
+  atom("H16", "H", [-2.05 * S, -1.15 * S, 0]),
+  atom("H17", "H", [0, -2.05 * S, 0]),
+  atom("H18", "H", [2.05 * S, -1.15 * S, 0]),
+  atom("H19", "H", [3.85 * S, 0.55 * S, 0.95 * S]),
+  atom("H20", "H", [3.85 * S, 0.55 * S, -0.95 * S]),
+  atom("H21", "H", [4.85 * S, 1.35 * S, 0.35 * S]),
+  atom("H22", "H", [4.85 * S, -0.25 * S, 0.35 * S]),
+  atom("H23", "H", [5.85 * S, 1.15 * S, 0.35 * S]),
+  atom("H24", "H", [5.85 * S, 0.05 * S, 0.85 * S]),
+  atom("H25", "H", [2.15 * S, 2.35 * S, 0.35 * S]),
+];
+
+export const SEROTONIN_BONDS: BondData[] = [
+  bond("b1", "C1", "C2", 2),
+  bond("b2", "C2", "C3", 1),
+  bond("b3", "C3", "C4", 2),
+  bond("b4", "C4", "C5", 1),
+  bond("b5", "C5", "C6", 2),
+  bond("b6", "C6", "C1", 1),
+  bond("b7", "C5", "N7", 1),
+  bond("b8", "N7", "C8", 1),
+  bond("b9", "C8", "C9", 2),
+  bond("b10", "C9", "C4", 1),
+  bond("b11", "C8", "C10", 1),
+  bond("b12", "C10", "C11", 1),
+  bond("b13", "C11", "N12", 1),
+  bond("b14", "C1", "O13", 1),
+  bond("b15", "O13", "H14", 1),
+  bond("b16", "O13", "H15", 1),
+  bond("b17", "C2", "H16", 1),
+  bond("b18", "C3", "H17", 1),
+  bond("b19", "C9", "H18", 1),
+  bond("b20", "C10", "H19", 1),
+  bond("b21", "C10", "H20", 1),
+  bond("b22", "C11", "H21", 1),
+  bond("b23", "C11", "H22", 1),
+  bond("b24", "N12", "H23", 1),
+  bond("b25", "N12", "H24", 1),
+  bond("b26", "N7", "H25", 1),
+];

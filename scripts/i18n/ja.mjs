@@ -1,0 +1,569 @@
+/** 日本語ロケール — 分子、反応、カテゴリ、UI */
+export default {
+  molecules: {
+    water: {
+      name: "水",
+      description: "あらゆる既知の生命に不可欠な、万能の溶媒。",
+      category: "simple",
+      disciplineTag: null,
+      bondTypes: ["極性共有結合", "水素結合"],
+      uses: [
+        "生物学的万能溶媒",
+        "産業用冷却システム",
+        "水力発電",
+        "化学反応の媒体",
+      ],
+      funFacts: [
+        "水は地球上で通常見られる温度で、固体・液体・気体の三態すべてに存在する唯一の天然物質である。",
+        "大気中の水分子は降水として落下するまで、わずか約9日しか留まらない。",
+        "熱い水の方が冷たい水より早く凍ることがある——これはメペンバ効果として知られる。",
+      ],
+    },
+    methane: {
+      name: "メタン",
+      description: "最も単純な炭化水素であり、強力な温室効果ガス。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["非極性共有結合", "四面体"],
+      uses: [
+        "暖房・調理用の天然ガス燃料",
+        "発電所での電力生成",
+        "水素ガスの製造",
+        "化学合成の原料",
+      ],
+      funFacts: [
+        "メタンは20年間のスパンで、CO₂の約80倍の温室効果を持つ。",
+        "完全な四面体形状により、4本のC–H結合はすべて同じ長さ（1.09 Å）になる。",
+        "メタン生成古細菌は、海底堆積物やウシの消化管内でメタンを産生する。",
+      ],
+    },
+    glucose: {
+      name: "グルコース",
+      description: "細胞の主要エネルギー源であり、生物学における基本的な糖。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["共有結合", "極性C–O結合", "環構造"],
+      uses: [
+        "解糖系による主要な細胞エネルギー源",
+        "医療用ブドウ糖点滴",
+        "スポーツ・エネルギー飲料",
+        "エタノールとCO₂を産生する発酵",
+      ],
+      funFacts: [
+        "脳は1日あたり約120 gのグルコースを消費する——総消費量のおよそ60%を占める。",
+        "グルコースにはα-グルコースとβ-グルコースの2形があり、1つの水酸基の向きだけが異なる。",
+        "1 gのグルコースを代謝すると、およそ4 kcalのエネルギーが放出される。",
+      ],
+    },
+    caffeine: {
+      name: "カフェイン",
+      description: "コーヒーや紅茶に含まれる中枢神経系刺激剤。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["芳香族環", "アミド C=O", "N-メチル化"],
+      uses: [
+        "コーヒー・紅茶・エネルギー飲料の刺激成分",
+        "鎮痛薬（アスピリンとの配合）",
+        "未熟児無呼吸の治療",
+        "持久系スポーツのパフォーマンス向上",
+      ],
+      funFacts: [
+        "カフェインは脳内のアデノシン受容体を遮断し、眠気を感じにくくする。",
+        "エスプレッソ1杯には平均約63 mgのカフェインが含まれる——致死量に達するには、極めて短時間で約80杯を飲む必要がある。",
+        "カフェインは世界で最も広く消費されている精神活性物質である。",
+      ],
+    },
+    "dna-fragment": {
+      name: "DNA塩基対",
+      description: "DNA二重らせんのはしごを形成する、水素結合による塩基対。",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["芳香族", "水素結合（A–T間×2）", "グリコシド結合"],
+      uses: [
+        "すべての生物における遺伝情報の保存",
+        "mRNA転写のテンプレート",
+        "CRISPR-Cas9遺伝子編集の標的部位",
+        "法科学におけるDNA型鑑定",
+      ],
+      funFacts: [
+        "アデニンは常にチミンと2本の水素結合で対合する——これがワトソン・クリック塩基対である。",
+        "体内のすべての細胞のDNAを伸ばしてつなげると、地球から太陽まで往復約600回分の長さになる。",
+        "ヒトゲノムには約30億の塩基対が含まれる。",
+      ],
+    },
+    "protein-fragment": {
+      name: "ペプチド結合",
+      description: "タンパク質の基本的な結合様式を示すジペプチド断片。",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["ペプチド結合（C–N）", "アミド共鳴", "α-炭素結合"],
+      uses: [
+        "すべてのタンパク質構造の基本単位",
+        "合成ペプチド医薬設計のテンプレート",
+        "ペプチドホルモンによる細胞シグナル伝達",
+        "食品風味料（例：アスパルテームはジペプチド）",
+      ],
+      funFacts: [
+        "ペプチド結合は共鳴により部分的な二重結合性を持ち、平面で自由に回転しない。",
+        "20種類の標準アミノ酸があり、生命はそれらの組み合わせで10万以上のヒトタンパク質を構築する。",
+        "リボソームはおよそ0.05秒ごとに新しいペプチド結合を合成する。",
+      ],
+    },
+    ethanol: {
+      name: "エタノール",
+      description:
+        "ビール、ワイン、消毒ジェルの背後にあるおなじみの2炭素アルコール——小さく極性があり、化学実験室でもパーティーでも意外なほど影響力を持つ。",
+      category: "organic",
+      disciplineTag: "日常生活",
+      bondTypes: [
+        "極性共有結合（C–O、O–H）",
+        "非極性 C–C / C–H",
+        "水素結合（分子間）",
+      ],
+      uses: [
+        "アルコール飲料（希釈溶液）",
+        "実験室・チンキ剤の溶媒",
+        "消毒剤・バイオ燃料添加物",
+      ],
+      funFacts: [
+        "肝臓はエタノールをアセトアルデヒドに変換してからアセテートにする——ペースが重要である。",
+        "エタノールは膜流動性やタンパク質構造を乱すため、広範な生物学的溶媒として機能する一因となる。",
+      ],
+    },
+    aspirin: {
+      name: "アスピリン",
+      description:
+        "アセチルサリチル酸：血小板の化学を不可逆的に変える古典的な鎮痛薬——医学、歴史、有機合成が一枚の錠剤に凝縮されている。",
+      category: "organic",
+      disciplineTag: "医学",
+      bondTypes: ["芳香族（ベンゼン環）", "エステル結合", "カルボン酸"],
+      uses: [
+        "鎮痛・解熱",
+        "抗炎症（NSAIDs）",
+        "低用量抗血小板療法（医師の指導の下）",
+      ],
+      funFacts: [
+        "ヤナギの皮のサリシンは、この合成のスターの植物界の祖先である。",
+        "アセチル基により、サリチル酸単独より胃酸に耐えやすい。",
+      ],
+    },
+    capsaicin: {
+      name: "カプサイシン",
+      description:
+        "唐辛子の辛さを生む灼熱のバニルイド——哺乳類への進化的な忌避剤であり、神経科学者にとってのTRPV1談義の定番である。",
+      category: "organic",
+      disciplineTag: "有機化学",
+      bondTypes: [
+        "フェノール性芳香族コア",
+        "アミド結合",
+        "エーテル（メトキシ）と脂肪族鎖",
+      ],
+      uses: [
+        "料理の辛味・カプサイシノイド配合",
+        "外用鎮痛クリーム（TRPV1調節）",
+        "害虫忌避剤",
+      ],
+      funFacts: [
+        "鳥類は哺乳類ほど受容体に敏感でないことが多く——唐辛子の種はより遠くへ広がる。",
+        "辛味の「熱」は味覚マップ上の味ではなく、侵害受容体のシアターである。",
+      ],
+    },
+    serotonin: {
+      name: "セロトニン",
+      description:
+        "5-HT：気分、睡眠、腸管運動にまたがるモノアミンシグナル——一つの骨格が多様な生物学的役割を担う証左である。",
+      category: "biological",
+      disciplineTag: "神経科学",
+      bondTypes: ["芳香族インドール", "第一級アミン", "フェノール性水酸基"],
+      uses: [
+        "神経伝達・神経調節",
+        "薬理学標的（例：SSRIは経路の上流で作用）",
+        "腸管神経系における末梢的役割",
+      ],
+      funFacts: [
+        "体内のセロトニンの大部分は「気分の中」にあるわけではない——かなりの割合が腸と血小板に関わる。",
+        "その名は、血管収縮が最初に認められた血液血清に由来する。",
+      ],
+    },
+    dopamine: {
+      name: "ドーパミン",
+      description:
+        "カテコール環にエチルアミン尾を付けたカテコールアミン——動機づけ、運動、中脳辺縁系の神話がこの構造を巡る。",
+      category: "biological",
+      disciplineTag: "神経科学",
+      bondTypes: ["芳香族（カテコール）", "第一級アミン", "フェノール性 O–H"],
+      uses: [
+        "報酬・運動経路の神経伝達物質",
+        "ショック時の臨床支持（塩酸塩、静脈内、医療下）",
+        "GPCR・トランスポーター生物学の教材リガンド",
+      ],
+      funFacts: [
+        "パーキンソン病の病理は黒質のドーパミン神経細胞の喪失と密接に結びついている。",
+        "極性が高いため、遊離ドーパミンは血液脳関門を容易には通過しない。",
+      ],
+    },
+    adrenaline: {
+      name: "アドレナリン",
+      description:
+        "エピネフリン：茂みから何かが飛び出したときの脈拍上昇の背後にある分子——交感神経化学が3つの酸素の緊急さに凝縮したもの。",
+      category: "biological",
+      disciplineTag: "神経科学",
+      bondTypes: ["芳香族（カテコール）", "第二級アミン（ベンジル置換）", "第一級アルコール"],
+      uses: [
+        "アナフィラキシー救助用オートインジェクター（臨床訓練・適応の下）",
+        "局所麻酔の補助（血管収縮の根拠あり）",
+        "闘争・逃走反応の生理学デモ",
+      ],
+      funFacts: [
+        "「アドレナリン」と「エピネフリン」は主に英米の呼び方の違い——同じ急ぎのホルモンである。",
+        "α-およびβ-アドレナリン受容体に作用し、血管収縮と気管支拡張の両方の用途を説明する。",
+      ],
+    },
+    buckminsterfullerene: {
+      name: "バックミンスターフラーレン",
+      description:
+        "純炭素のサッカーボール対称——ノーベル賞を受けたケージが、芳香族性に平面の六角形は不要だと教えてくれた。",
+      category: "macro",
+      disciplineTag: "ナノテク",
+      bondTypes: [
+        "sp²様炭素ネットワーク（切頭二十面体）",
+        "曲面における非局在化π系",
+      ],
+      uses: [
+        "材料科学の試作品（薄膜、複合材）",
+        "有機エレクトロニクス研究の電子受容体モチーフ",
+        "ナノスケール炭素同素体の教材",
+      ],
+      funFacts: [
+        "12個の五角形と20個の六角形——オイラーの握手と黒鉛の野生のいとこ。",
+        "ジオデシックドームを広めた建築家バックミンスター・フラーにちなんで名付けられた。",
+      ],
+    },
+    "heme-group": {
+      name: "ヘモグロビン ヘム基",
+      description:
+        "ヘモグロビンを酸素シャトルに変える鉄キレートポルフィリン補因子：タンパク質の異常協同性が舞台裏で可逆的O₂結合を可能にする。",
+      category: "biological",
+      disciplineTag: "生物学",
+      bondTypes: [
+        "芳香族ポルフィリン大環",
+        "金属配位（Fe–N）",
+        "プロピオン酸様置換基（文脈依存のプロトン化）",
+      ],
+      uses: [
+        "ヘモタンパク内でのO₂輸送・貯蔵",
+        "酵素活性部位（例：カタラーゼ、シトクロム）",
+        "配位場・協同性結合の生化学教育",
+      ],
+      funFacts: [
+        "ヘモグロビンの4つのヘム単位が協同性結合を可能にする——S字曲線は化学の豆知識ではなく生理学である。",
+        "軸方向のヒスチジンの引っ張り合いが、酸素親和性とCO競合のバランスを微調整する。",
+      ],
+    },
+  },
+  reactions: {
+    "methane-combustion": {
+      name: "メタンの燃焼",
+      description:
+        "古典的な酸化反応：メタンが酸素と出会い、ラジカル連鎖により大量の熱を放出し、二酸化炭素と水を生成する。",
+      reactionType: "燃焼",
+      category: "ORGANIC",
+      reactants: [
+        { name: "メタン", formula: "CH₄" },
+        { name: "酸素", formula: "O₂" },
+      ],
+      products: [
+        { name: "二酸化炭素", formula: "CO₂" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "メタンの完全燃焼は強い発熱反応であり、化学ポテンシャルエネルギーを熱と光に変換する。",
+        energyProfile: "強い発熱（平衡反応式のΔH << 0）",
+        conditions: "着火エネルギー（火花・炎）；持続的なO₂供給",
+        mechanism:
+          "ラジカル連鎖機構：開始 → 伝播（·OH、·CH₃など）→ 終結；3D表示は代表的な種を強調する。",
+        highlight:
+          "平衡の取れた燃焼の物語は、正確なCO₂計量と開炎の慎重な取り扱いで締めくくられる。",
+      },
+      steps: [
+        { caption: "燃料 — メタン" },
+        { caption: "生成物スポットライト — 水" },
+      ],
+    },
+    "water-formation": {
+      name: "水の生成",
+      description:
+        "水素が酸素中で燃焼して水を作る——単純な化学量論だが、産業とロケット工学における巨大な意義を持つ。",
+      reactionType: "合成 / 燃焼",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "水素", formula: "H₂" },
+        { name: "酸素", formula: "O₂" },
+      ],
+      products: [{ name: "水", formula: "H₂O" }],
+      quickFacts: {
+        summary:
+          "この反応はH₂のグラムあたり大量のエネルギーを放出するため、クリーンエネルギー議論の原動力となる。",
+        energyProfile: "発熱；熱力学的に非常に有利",
+        conditions: "点火または触媒（例：Pt）；安全のため正確なH₂ : O₂比が重要",
+        mechanism:
+          "気相ではしばしばラジカル媒介；3D表示は酸化還元の協働から生まれる極性生成物を示す。",
+        highlight: "水の湾曲した幾何は、酸素の孤立電子対反発の直接的帰結である。",
+      },
+      steps: [{ caption: "生成物 — 水（H₂O）" }],
+    },
+    "glucose-fermentation": {
+      name: "グルコースの発酵",
+      description:
+        "酵母に優しい生化学：グルコースがエタノールと二酸化炭素に分解される——パンが膨らみ、ワインが存在する理由。",
+      reactionType: "生化学 / 嫌気性",
+      category: "METABOLIC",
+      reactants: [{ name: "グルコース", formula: "C₆H₁₂O₆" }],
+      products: [
+        { name: "エタノール", formula: "C₂H₅OH" },
+        { name: "二酸化炭素", formula: "CO₂" },
+      ],
+      quickFacts: {
+        summary:
+          "解糖に続く発酵がNAD⁺を再生し、酸素が乏しいときも解糖を継続できるようにする。",
+        energyProfile: "部分酸化 — 呼吸に比べATPは控えめ",
+        conditions: "酵母または細菌；嫌気性または微量好気性環境",
+        mechanism: "ピルビン酸 → アセトアルデヒド → エタノール、CO₂は小分子として放出。",
+        highlight: "同じ経路ファミリーが醸造、製パン、バイオ燃料研究を結ぶ。",
+      },
+      steps: [
+        { caption: "出発する糖" },
+        { caption: "エタノール生成物" },
+      ],
+    },
+    "haber-bosch": {
+      name: "ハーバー・ボッシュ法",
+      description:
+        "工業的窒素固定：大気中のN₂とH₂がアンモニアに変換される——世界の肥料生産の基盤。",
+      reactionType: "工業合成",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "窒素", formula: "N₂" },
+        { name: "水素", formula: "H₂" },
+      ],
+      products: [{ name: "アンモニア", formula: "NH₃" }],
+      quickFacts: {
+        summary:
+          "窒素固定の工業的実装であり、大気中の窒素をアンモニアに変換して、世界の食料生産を支える肥料を製造する。",
+        energyProfile: "発熱（ΔH = −92.4 kJ/mol）。",
+        conditions: "高圧（150–250 bar）、高温（400–500°C）、鉄（Fe）触媒。",
+        mechanism:
+          "鉄触媒表面でのN₂とH₂の解離吸着に続き、窒素原子への段階的水素化。",
+        highlight: "",
+      },
+      steps: [{ caption: "プレースホルダーシーン — NH₃アニメーション座標待ち" }],
+    },
+    photosynthesis: {
+      name: "光合成（簡略版）",
+      description:
+        "光駆動の炭素固定：6分子のCO₂と6分子の水から1つのグルコース環が組み立てられ、酸素が放出される——生物圏の代謝エンジン。",
+      reactionType: "代謝 / 光駆動",
+      category: "METABOLIC",
+      reactants: [
+        { name: "二酸化炭素", formula: "CO₂" },
+        { name: "水", formula: "H₂O" },
+      ],
+      products: [
+        { name: "グルコース", formula: "C₆H₁₂O₆" },
+        { name: "酸素", formula: "O₂" },
+      ],
+      quickFacts: {
+        summary:
+          "植物、藻類、一部の細菌が光エネルギーを化学エネルギー（グルコース）に変換し、酸素を副生成物として放出する、生物圏の基礎生化学過程。",
+        energyProfile:
+          "吸熱 / エンダーゴニック（光子エネルギーが必要、簡略化した全体式のΔH = +2803 kJ/mol）。",
+        conditions: "日光（光子）、クロロフィル色素、常温。",
+        mechanism:
+          "光依存反応で水を分解してATPとNADPHを生成し、続く光非依存のカルビンサイクルでCO₂を6炭素糖に固定する。",
+        highlight: "",
+      },
+      steps: [
+        { caption: "生成物 — グルコース（C₆H₁₂O₆）" },
+        { caption: "反応物 / 生成物 — 水" },
+      ],
+    },
+    "neutralization-hcl-naoh": {
+      name: "中和（HCl + NaOH）",
+      description:
+        "教科書的なアレニウス中和：強酸と強塩基が塩と水を形成する——初めて化学を学ぶ学生が最初に出会うプロトン移動反応。",
+      reactionType: "酸–塩基",
+      category: "ACID-BASE",
+      reactants: [
+        { name: "塩酸", formula: "HCl" },
+        { name: "水酸化ナトリウム", formula: "NaOH" },
+      ],
+      products: [
+        { name: "塩化ナトリウム", formula: "NaCl" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "強酸と強塩基が互いを中和して塩（塩化ナトリウム）と水を生成する、古典的なアレニウス酸塩基反応。",
+        energyProfile: "発熱（中和熱、ΔH ≈ −57.3 kJ/mol）。",
+        conditions: "水溶液、室温。",
+        mechanism:
+          "酸のH⁺と塩基のOH⁻が結合して安定な共有結合H₂Oを形成するプロトン移動。Na⁺とCl⁻は観察イオンとして残るか、蒸発時に結晶格子を形成する。",
+        highlight: "",
+      },
+      steps: [{ caption: "生成物 — 水（H₂O）" }],
+    },
+    "esterification-ethyl-acetate": {
+      name: "エステル化（酢酸エチル）",
+      description:
+        "フィッシャーエステル化：カルボン酸とアルコールが果実香のエステルと水に縮合する——硫酸触媒と加熱による平衡化学。",
+      reactionType: "縮合 / 有機",
+      category: "ORGANIC",
+      reactants: [
+        { name: "酢酸", formula: "CH₃COOH" },
+        { name: "エタノール", formula: "C₂H₅OH" },
+      ],
+      products: [
+        { name: "酢酸エチル", formula: "CH₃COOC₂H₅" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "有機酸（酢酸）とアルコール（エタノール）の縮合反応により、甘い果実香のエステル（酢酸エチル）と水が生成される。",
+        energyProfile: "わずかに発熱、可逆反応平衡。",
+        conditions: "酸触媒（通常濃硫酸）と還流下の加熱。",
+        mechanism:
+          "求核的アシル置換。カルボン酸のカルボニル酸素がプロトン化され、アルコールの水酸基による求核攻撃が続き、水分子の脱離で完了する。",
+        highlight: "",
+      },
+      steps: [
+        { caption: "反応物 — エタノール" },
+        { caption: "共生成物 — 水" },
+      ],
+    },
+  },
+  categories: {
+    simple: "単純",
+    organic: "有機",
+    biological: "生物",
+    macro: "マクロ",
+    SYNTHESIS: "合成",
+    ORGANIC: "有機化学",
+    METABOLIC: "代謝",
+    "ACID-BASE": "酸–塩基",
+  },
+  ui: {
+    nav_explore: "探索",
+    nav_learn: "学習",
+    nav_showcase: "ショーケース",
+    tab_molecules: "分子",
+    tab_reactions: "反応",
+    label_quick_facts: "クイックファクト",
+    label_molecular_weight: "分子量",
+    label_state: "状態",
+    label_bond_types: "結合の種類",
+    state_gas: "気体",
+    state_liquid: "液体",
+    state_solid: "固体",
+    state_plasma: "プラズマ",
+    difficulty_beginner: "初級",
+    difficulty_intermediate: "中級",
+    difficulty_expert: "上級",
+    title_molecule_explorer: "分子",
+    subtitle_molecule_explorer:
+      "分子間を移動し、任意の原子をクリックして詳細を確認し、学習パネルで豊富な教育コンテンツを開く。",
+    button_start_exploring: "探索を始める",
+    button_play_reaction: "再生",
+    fact_overview: "概要",
+    fact_energy: "エネルギー",
+    fact_conditions: "条件",
+    fact_mechanism: "機構",
+    subtitle_reaction:
+      "反応を選び、再生で3Dシーケンスを実行し、クイックファクト欄で結合の組み替えを読む。",
+    title_reaction_lab: "反応ラボ",
+    badge_interactive_studio: "インタラクティブ3Dスタジオ",
+    badge_reaction_animation: "反応アニメーション",
+    button_playing: "再生中…",
+    label_equation: "化学式",
+    label_reactants: "反応物",
+    label_products: "生成物",
+    aria_molecules_reactions: "分子と反応",
+    aria_select_language: "言語を選択",
+    aria_footer: "フッター",
+    label_discipline: "分野",
+    label_boiling_point: "沸点",
+    label_melting_point: "融点",
+    label_reaction_type: "反応タイプ",
+    label_highlight: "ハイライト",
+    reaction_animation_placeholder:
+      "3D補間：座標待ち（{key}）。",
+    reaction_animation_ready: "完全な原子補間が利用可能 — 再生を押してください。",
+    hero_badge: "次世代インタラクティブ学習",
+    hero_title_prefix: "未来の",
+    hero_title_highlight: "分子アーキテクチャ",
+    hero_subtitle:
+      "宇宙の構成要素を息をのむ3Dで探索する。化学を直感的で美しくする、シネマティックなプレミアム教育プラットフォーム。",
+    hero_launch_studio: "スタジオを起動",
+    hero_view_showcase: "ショーケースを見る",
+    hero_scroll: "スクロール",
+    featured_title_prefix: "注目の",
+    featured_title_highlight: "分子",
+    featured_subtitle:
+      "単純な水から複雑な生物学的マクロ分子まで——インタラクティブ3Dスタジオですべてを探索。",
+    card_atoms_bonds: "{atoms} 原子 · {bonds} 結合",
+    card_explore: "探索",
+    elements_title_prefix: "元素を",
+    elements_title_highlight: "解き明かす",
+    elements_subtitle:
+      "高忠実度のWebGLレンダリングエンジンで、原子、化合物、複雑な分子構造を操作する。",
+    feature_atomic_title: "原子構造",
+    feature_atomic_desc: "亜原子レベルに深く潜り、軌道をリアルタイムで観察する。",
+    feature_crystal_title: "結晶格子",
+    feature_crystal_desc: "固体物質を形成する反復する幾何パターンを探索する。",
+    feature_macro_title: "マクロ分子",
+    feature_macro_desc: "タンパク質、DNA、複雑な生物学的構造を可視化する。",
+    showcase_title_prefix: "シネマティックな",
+    showcase_title_suffix: "科学教育",
+    showcase_body:
+      "最新のゲームレンダリング技術と科学的正確さを組み合わせ、比類なき学習環境を実現。変数を操作し、反応を観察し、化学を視覚的に理解する。",
+    showcase_bullet_1: "リアルタイム分子動力学シミュレーション",
+    showcase_bullet_2: "正確なスペースフィリングモデルと球棒モデル",
+    showcase_bullet_3: "インタラクティブな電子雲の可視化",
+    compare_title_prefix: "比較",
+    compare_title_highlight: "並べて",
+    compare_subtitle:
+      "任意の2つの分子を並べ、構造の違いを一目で発見する。",
+    footer_brand: "MoleculeArchitectureStudio",
+    footer_copyright: "© {year} Molecule Studio. All rights reserved.",
+    footer_about: "概要",
+    footer_github: "GitHubリポジトリ",
+    footer_canvas_guide: "インタラクティブキャンバスガイド",
+    footer_tech_badge: "Next.js、Three.js、Tailwind CSSで構築",
+    panel_tab_overview: "概要",
+    panel_tab_structure: "構造",
+    panel_tab_uses: "用途",
+    panel_tab_fun_facts: "豆知識",
+    panel_stat_weight: "分子量",
+    panel_stat_atoms: "原子",
+    panel_stat_bonds: "結合",
+    panel_stat_total: "合計",
+    panel_state_room_temp: "室温での状態",
+    panel_no_education: "この分子の教育データはありません。",
+    panel_single_bonds: "単結合（σ）",
+    panel_double_bonds: "二重結合（σ+π）",
+    panel_triple_bonds: "三重結合（σ+2π）",
+    panel_element_composition: "元素組成",
+    viewer_show_labels: "ラベル",
+    viewer_auto_rotate: "自動回転",
+    viewer_learn_panel: "学習",
+    viewer_prev: "前へ",
+    viewer_next: "次へ",
+    viewer_close_atom: "原子詳細を閉じる",
+    discipline_daily_life: "日常生活",
+    discipline_medicine: "医学",
+    discipline_organic: "有機化学",
+    discipline_neuroscience: "神経科学",
+    discipline_nanotech: "ナノテクノロジー",
+    discipline_biological: "生物学",
+  },
+};

@@ -1,0 +1,569 @@
+/** 简体中文语言包 — 分子、反应、分类、界面 */
+export default {
+  molecules: {
+    water: {
+      name: "水",
+      description: "万物皆溶的通用溶剂，一切已知生命形式所必需。",
+      category: "simple",
+      disciplineTag: null,
+      bondTypes: ["极性共价键", "氢键"],
+      uses: [
+        "生物体内通用溶剂",
+        "工业冷却系统",
+        "水力发电",
+        "化学反应介质",
+      ],
+      funFacts: [
+        "水是地球上常温下唯一能以固、液、气三种状态自然存在的物质。",
+        "一个水分子在大气中平均仅停留约 9 天便会以降水形式落下。",
+        "热水有时比冷水结冰更快——此即姆潘巴效应。",
+      ],
+    },
+    methane: {
+      name: "甲烷",
+      description: "最简单的烃类，也是一种强效温室气体。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["非极性共价键", "四面体结构"],
+      uses: [
+        "天然气：取暖与烹饪燃料",
+        "发电厂发电",
+        "制氢原料",
+        "化学合成原料",
+      ],
+      funFacts: [
+        "在 20 年时间尺度上，甲烷的温室效应约为 CO₂ 的 80 倍。",
+        "其完美的四面体结构使四条 C–H 键等长（1.09 Å）。",
+        "产甲烷古菌在深海沉积物与牛消化道中生成甲烷。",
+      ],
+    },
+    glucose: {
+      name: "葡萄糖",
+      description: "细胞的主要能量来源，也是生物学中最重要的单糖之一。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["共价键", "极性 C–O 键", "环状结构"],
+      uses: [
+        "经糖酵解为细胞提供主要能量",
+        "医疗静脉葡萄糖输液",
+        "运动与能量饮料",
+        "发酵制乙醇与 CO₂",
+      ],
+      funFacts: [
+        "大脑每天约消耗 120 克葡萄糖——约占全身葡萄糖用量的 60%。",
+        "葡萄糖有 α 型和 β 型两种，仅一个羟基取向不同。",
+        "每克葡萄糖代谢约释放 4 千卡热量。",
+      ],
+    },
+    caffeine: {
+      name: "咖啡因",
+      description: "存在于咖啡和茶中的中枢神经系统兴奋剂。",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["芳香环", "酰胺 C=O", "N-甲基化"],
+      uses: [
+        "咖啡、茶与能量饮料中的兴奋剂",
+        "镇痛药（常与阿司匹林联用）",
+        "早产儿呼吸暂停治疗",
+        "耐力运动中的表现增强剂",
+      ],
+      funFacts: [
+        "咖啡因阻断大脑中的腺苷受体，从而减轻困倦感。",
+        "一杯浓缩咖啡平均约含 63 毫克咖啡因——致死量需极短时间内饮用约 80 杯。",
+        "咖啡因是全球消费最广泛的精神活性物质。",
+      ],
+    },
+    "dna-fragment": {
+      name: "DNA 碱基对",
+      description: "通过氢键配对的碱基对，构成 DNA 双螺旋的「梯级」。",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["芳香性", "氢键（A–T ×2）", "糖苷键"],
+      uses: [
+        "所有生物体的遗传信息储存",
+        "mRNA 转录模板",
+        "CRISPR-Cas9 基因编辑靶点",
+        "法医学 DNA 指纹鉴定",
+      ],
+      funFacts: [
+        "腺嘌呤始终通过 2 条氢键与胸腺嘧啶配对——此即沃森-克里克碱基配对。",
+        "若将你所有细胞的 DNA 完全展开首尾相连，长度约为地日往返距离的 600 倍。",
+        "人类基因组约含 30 亿个碱基对。",
+      ],
+    },
+    "protein-fragment": {
+      name: "肽键",
+      description: "展示基本肽键连接的二肽片段。",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["肽键（C–N）", "酰胺共振", "α-碳键"],
+      uses: [
+        "一切蛋白质结构的基本单元",
+        "合成肽类药物设计模板",
+        "肽类激素的细胞信号传导",
+        "食品调味剂（如阿斯巴甜为二肽）",
+      ],
+      funFacts: [
+        "肽键因共振具有部分双键特征——呈平面且不能自由旋转。",
+        "标准氨基酸有 20 种，生命用其组合构建逾 10 万种不同的人体蛋白质。",
+        "核糖体合成一个新肽键大约每 0.05 秒一次。",
+      ],
+    },
+    ethanol: {
+      name: "乙醇",
+      description:
+        "啤酒、葡萄酒与消毒凝胶背后的双碳醇——分子虽小、极性显著，在化学实验室与社交场合都影响深远。",
+      category: "organic",
+      disciplineTag: "日常生活",
+      bondTypes: [
+        "极性共价键（C–O、O–H）",
+        "非极性 C–C / C–H",
+        "分子间氢键",
+      ],
+      uses: [
+        "酒精饮料（稀释溶液）",
+        "实验室与酊剂的溶剂",
+        "消毒剂与生物燃料添加剂",
+      ],
+      funFacts: [
+        "肝脏先将乙醇转化为乙醛，再变为乙酸盐——代谢速度很重要。",
+        "乙醇会干扰膜流动性与蛋白质结构，这也是它成为广泛生物溶剂的原因之一。",
+      ],
+    },
+    aspirin: {
+      name: "阿司匹林",
+      description:
+        "乙酰水杨酸：经典止痛药，可不可逆地改变血小板化学——一片小药丸浓缩了医学、历史与有机合成。",
+      category: "organic",
+      disciplineTag: "医学",
+      bondTypes: ["芳香性（苯环）", "酯键", "羧酸"],
+      uses: [
+        "镇痛与退热",
+        "抗炎（非甾体抗炎药）",
+        "小剂量抗血小板治疗（须遵医嘱）",
+      ],
+      funFacts: [
+        "柳树皮中的水杨苷是这种合成明星分子的植物界前身。",
+        "乙酰基使其比单纯水杨酸更能耐受胃酸。",
+      ],
+    },
+    capsaicin: {
+      name: "辣椒素",
+      description:
+        "赋予辣椒灼热的香草类化合物——进化上对哺乳动物的威慑，也是神经科学家讨论 TRPV1 的热门话题。",
+      category: "organic",
+      disciplineTag: "有机化学",
+      bondTypes: [
+        "酚类芳香核心",
+        "酰胺键",
+        "醚键（甲氧基）与脂肪链",
+      ],
+      uses: [
+        "烹饪辣味与辣椒素调配",
+        "外用镇痛霜（调节 TRPV1）",
+        "驱避害虫配方",
+      ],
+      funFacts: [
+        "鸟类往往缺乏哺乳动物对 TRPV1 的敏感性——有利于辣椒种子传播更远。",
+        "辛辣的「热感」并非舌面味觉图谱上的味觉，而是伤害感受器的戏剧表演。",
+      ],
+    },
+    serotonin: {
+      name: "血清素",
+      description:
+        "5-HT：一种单胺信号分子，涉足情绪、睡眠与肠道蠕动——同一骨架可承担多种生物学角色。",
+      category: "biological",
+      disciplineTag: "神经科学",
+      bondTypes: ["芳香性吲哚", "伯胺", "酚羟基"],
+      uses: [
+        "神经传递与神经调节",
+        "药理学靶点（如 SSRI 作用于上游通路）",
+        "肠神经系统中的外周作用",
+      ],
+      funFacts: [
+        "体内大部分血清素并不直接决定「心情」——相当比例与肠道及血小板相关。",
+        "其名源于血清——最早在血清中观察到其血管收缩作用。",
+      ],
+    },
+    dopamine: {
+      name: "多巴胺",
+      description:
+        "儿茶酚环上连着勇敢的小乙胺尾链的儿茶酚胺——动机、运动与中脑边缘系统的种种传说都围绕这一结构。",
+      category: "biological",
+      disciplineTag: "神经科学",
+      bondTypes: ["芳香性（儿茶酚）", "伯胺", "酚羟基 O–H"],
+      uses: [
+        "奖赏与运动通路中的神经递质",
+        "临床休克支持（盐酸盐静脉给药，须监护）",
+        "G 蛋白偶联受体与转运体生物学教学配体",
+      ],
+      funFacts: [
+        "帕金森病病理与黑质多巴胺能神经元丢失密切相关。",
+        "游离多巴胺极性足够强，不会随意穿越血脑屏障。",
+      ],
+    },
+    adrenaline: {
+      name: "肾上腺素",
+      description:
+        "肾上腺素（epinephrine）：灌木丛中突然窜出时心跳加速背后的分子——交感神经系统化学浓缩为三颗氧原子的紧迫感。",
+      category: "biological",
+      disciplineTag: "神经科学",
+      bondTypes: ["芳香性（儿茶酚）", "仲胺（苄位取代）", "伯醇"],
+      uses: [
+        "过敏性休克急救自动注射器（须培训与适应症）",
+        "局部麻醉辅助（血管收缩原理）",
+        "战斗或逃跑信号传导的生理学演示",
+      ],
+      funFacts: [
+        "「肾上腺素」与「epinephrine」主要是英美命名差异——是同一急躁的小激素。",
+        "它作用于 α 与 β 肾上腺素能受体，因而既有血管收缩故事也有支气管扩张用途。",
+      ],
+    },
+    buckminsterfullerene: {
+      name: "富勒烯",
+      description:
+        "纯碳的足球对称结构——获诺贝尔奖的笼状分子，告诉我们芳香性不必依赖平面六元环。",
+      category: "macro",
+      disciplineTag: "纳米技术",
+      bondTypes: [
+        "类 sp² 碳网络（截角二十面体）",
+        "曲面离域 π 体系",
+      ],
+      uses: [
+        "材料科学原型（薄膜、复合材料）",
+        "有机电子学中的电子受体研究",
+        "纳米碳同素异形体教学工具",
+      ],
+      funFacts: [
+        "12 个五边形与 20 个六边形——欧拉定理与石墨狂野表亲的握手。",
+        "以推广测地线穹顶的建筑师巴克敏斯特·富勒命名。",
+      ],
+    },
+    "heme-group": {
+      name: "血红蛋白血红素基团",
+      description:
+        "螯合铁离子的卟啉辅基，使血红蛋白成为氧运输载体：可逆 O₂ 结合，蛋白质变构在幕后调控。",
+      category: "biological",
+      disciplineTag: "生物学",
+      bondTypes: [
+        "芳香性卟啉大环",
+        "金属配位（Fe–N）",
+        "丙酸/羧酸类取代基（质子化状态依环境而定）",
+      ],
+      uses: [
+        "血红素蛋白内的 O₂ 运输与储存",
+        "酶活性中心（如过氧化氢酶、细胞色素）",
+        "配体场与协同结合的生物化学教学",
+      ],
+      funFacts: [
+        "血红蛋白中四个血红素单元实现协同结合——S 形曲线不是化学趣闻，而是生理学。",
+        "轴向组氨酸的「拔河」精细调节氧亲和力与 CO 竞争。",
+      ],
+    },
+  },
+  reactions: {
+    "methane-combustion": {
+      name: "甲烷燃烧",
+      description:
+        "经典氧化反应：甲烷与氧气经自由基链式步骤相遇，释放大量热并生成二氧化碳与水。",
+      reactionType: "燃烧",
+      category: "ORGANIC",
+      reactants: [
+        { name: "甲烷", formula: "CH₄" },
+        { name: "氧气", formula: "O₂" },
+      ],
+      products: [
+        { name: "二氧化碳", formula: "CO₂" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "甲烷完全燃烧强烈放热，将化学势能转化为热与光。",
+        energyProfile: "高度放热（平衡反应 ΔH << 0）",
+        conditions: "引发能量（火花/火焰）；持续供氧",
+        mechanism:
+          "自由基链机理：引发 → 传播（·OH、·CH₃ 等）→ 终止；3D 视图突出代表性物种。",
+        highlight:
+          "每一条配平的燃烧方程式都应以严谨的 CO₂ 核算收尾，并谨慎对待明火。",
+      },
+      steps: [
+        { caption: "燃料——甲烷" },
+        { caption: "产物聚焦——水" },
+      ],
+    },
+    "water-formation": {
+      name: "水的生成",
+      description:
+        "氢在氧气中燃烧生成水——化学计量简单，在工业与火箭科学中意义巨大。",
+      reactionType: "合成 / 燃烧",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "氢气", formula: "H₂" },
+        { name: "氧气", formula: "O₂" },
+      ],
+      products: [{ name: "水", formula: "H₂O" }],
+      quickFacts: {
+        summary:
+          "该反应每克 H₂ 释放大量能量，因此成为清洁能源讨论的核心。",
+        energyProfile: "放热；热力学上极为有利",
+        conditions: "点燃或催化（如 Pt）；精确的 H₂ : O₂ 比例关乎安全",
+        mechanism:
+          "气相中常为自由基介导；3D 视图展示氧化还原伙伴形成的极性产物。",
+        highlight: "水的弯曲几何源于氧上孤对电子的排斥。",
+      },
+      steps: [{ caption: "产物——水（H₂O）" }],
+    },
+    "glucose-fermentation": {
+      name: "葡萄糖发酵",
+      description:
+        "酵母友好的生物化学：葡萄糖分解为乙醇与二氧化碳——面包蓬松与葡萄酒存在的理由。",
+      reactionType: "生物化学 / 厌氧",
+      category: "METABOLIC",
+      reactants: [{ name: "葡萄糖", formula: "C₆H₁₂O₆" }],
+      products: [
+        { name: "乙醇", formula: "C₂H₅OH" },
+        { name: "二氧化碳", formula: "CO₂" },
+      ],
+      quickFacts: {
+        summary:
+          "糖酵解后继发酵再生 NAD⁺，使缺氧时糖酵解得以持续。",
+        energyProfile: "部分氧化——ATP 产量远低于呼吸作用",
+        conditions: "酵母或细菌；厌氧或微需氧环境",
+        mechanism: "丙酮酸 → 乙醛 → 乙醇，同时以 CO₂ 小分子形式逸出。",
+        highlight: "同一通路家族连接酿酒、烘焙与生物燃料研究。",
+      },
+      steps: [
+        { caption: "起始糖" },
+        { caption: "乙醇产物" },
+      ],
+    },
+    "haber-bosch": {
+      name: "哈伯-博施法",
+      description:
+        "工业固氮：大气 N₂ 与 H₂ 转化为氨——全球化肥生产的支柱。",
+      reactionType: "工业合成",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "氮气", formula: "N₂" },
+        { name: "氢气", formula: "H₂" },
+      ],
+      products: [{ name: "氨", formula: "NH₃" }],
+      quickFacts: {
+        summary:
+          "氮固定的工业实现，将大气氮转化为氨，进而生产维系全球粮食的化肥。",
+        energyProfile: "放热（ΔH = −92.4 kJ/mol）。",
+        conditions: "高压（150–250 bar）、高温（400–500°C）及铁（Fe）催化剂。",
+        mechanism:
+          "N₂ 与 H₂ 在铁催化剂表面解离吸附，随后氮原子逐步加氢。",
+        highlight: "",
+      },
+      steps: [{ caption: "占位场景——NH₃ 动画坐标待定" }],
+    },
+    photosynthesis: {
+      name: "光合作用（简化）",
+      description:
+        "光驱动固碳：六个 CO₂ 与六个水分子构建成一个葡萄糖环并释放氧气——生物圈的代谢引擎。",
+      reactionType: "代谢 / 光驱动",
+      category: "METABOLIC",
+      reactants: [
+        { name: "二氧化碳", formula: "CO₂" },
+        { name: "水", formula: "H₂O" },
+      ],
+      products: [
+        { name: "葡萄糖", formula: "C₆H₁₂O₆" },
+        { name: "氧气", formula: "O₂" },
+      ],
+      quickFacts: {
+        summary:
+          "植物、藻类及部分细菌将光能转化为化学能（葡萄糖）并释放氧气的奠基生化过程。",
+        energyProfile:
+          "吸热 / 需能（需光子，简化总方程 ΔH = +2803 kJ/mol）。",
+        conditions: "阳光（光子）、叶绿素色素、环境温度。",
+        mechanism:
+          "光反应裂解水产生 ATP 与 NADPH，随后卡尔文循环在无光反应中固定 CO₂ 为六碳糖。",
+        highlight: "",
+      },
+      steps: [
+        { caption: "产物——葡萄糖（C₆H₁₂O₆）" },
+        { caption: "反应物 / 产物——水" },
+      ],
+    },
+    "neutralization-hcl-naoh": {
+      name: "中和反应（HCl + NaOH）",
+      description:
+        "教科书式阿伦尼乌斯中和：强酸与强碱生成盐与水——每位入门化学学生最先遇到的质子转移反应。",
+      reactionType: "酸碱",
+      category: "ACID-BASE",
+      reactants: [
+        { name: "盐酸", formula: "HCl" },
+        { name: "氢氧化钠", formula: "NaOH" },
+      ],
+      products: [
+        { name: "氯化钠", formula: "NaCl" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "经典阿伦尼乌斯酸碱反应：强酸与强碱中和生成盐（氯化钠）与水。",
+        energyProfile: "放热（中和热，ΔH ≈ −57.3 kJ/mol）。",
+        conditions: "水溶液，室温。",
+        mechanism:
+          "质子转移：酸中 H⁺ 与碱中 OH⁻ 结合形成共价 H₂O，Na⁺ 与 Cl⁻ 为旁观离子或蒸发后形成晶格。",
+        highlight: "",
+      },
+      steps: [{ caption: "产物——水（H₂O）" }],
+    },
+    "esterification-ethyl-acetate": {
+      name: "酯化反应（乙酸乙酯）",
+      description:
+        "费歇尔酯化：羧酸与醇缩合为果香酯与水——平衡化学，辅以硫酸与加热。",
+      reactionType: "缩合 / 有机",
+      category: "ORGANIC",
+      reactants: [
+        { name: "乙酸", formula: "CH₃COOH" },
+        { name: "乙醇", formula: "C₂H₅OH" },
+      ],
+      products: [
+        { name: "乙酸乙酯", formula: "CH₃COOC₂H₅" },
+        { name: "水", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "有机酸（乙酸）与醇（乙醇）的缩合反应，生成酯（乙酸乙酯，具甜果香）与水。",
+        energyProfile: "微放热，可逆平衡反应。",
+        conditions: "酸催化（通常浓 H₂SO₄）及回流加热。",
+        mechanism:
+          "亲核酰基取代：羧酸羰基氧质子化，醇羟基亲核进攻，最终消除水分子。",
+        highlight: "",
+      },
+      steps: [
+        { caption: "反应物——乙醇" },
+        { caption: "共产物——水" },
+      ],
+    },
+  },
+  categories: {
+    simple: "简单",
+    organic: "有机",
+    biological: "生物",
+    macro: "宏观",
+    SYNTHESIS: "合成",
+    ORGANIC: "有机化学",
+    METABOLIC: "代谢",
+    "ACID-BASE": "酸碱",
+  },
+  ui: {
+    nav_explore: "探索",
+    nav_learn: "学习",
+    nav_showcase: "展示",
+    tab_molecules: "分子",
+    tab_reactions: "反应",
+    label_quick_facts: "要点速览",
+    label_molecular_weight: "分子量",
+    label_state: "物态",
+    label_bond_types: "键型",
+    state_gas: "气态",
+    state_liquid: "液态",
+    state_solid: "固态",
+    state_plasma: "等离子体",
+    difficulty_beginner: "入门",
+    difficulty_intermediate: "进阶",
+    difficulty_expert: "专家",
+    title_molecule_explorer: "分子",
+    subtitle_molecule_explorer:
+      "在分子间切换，点击任意原子查看详情，并打开学习面板获取丰富教学内容。",
+    button_start_exploring: "开始探索",
+    button_play_reaction: "播放",
+    fact_overview: "概览",
+    fact_energy: "能量",
+    fact_conditions: "条件",
+    fact_mechanism: "机理",
+    subtitle_reaction:
+      "选择反应，按播放运行 3D 序列，并在要点速览栏阅读键如何重排。",
+    title_reaction_lab: "反应实验室",
+    badge_interactive_studio: "交互式 3D 工作室",
+    badge_reaction_animation: "反应动画",
+    button_playing: "播放中…",
+    label_equation: "方程式",
+    label_reactants: "反应物",
+    label_products: "产物",
+    aria_molecules_reactions: "分子与反应",
+    aria_select_language: "选择语言",
+    aria_footer: "页脚",
+    label_discipline: "学科",
+    label_boiling_point: "沸点",
+    label_melting_point: "熔点",
+    label_reaction_type: "反应类型",
+    label_highlight: "要点",
+    reaction_animation_placeholder:
+      "3D 插值：坐标待定（{key}）。",
+    reaction_animation_ready: "完整原子插值已就绪——请按播放。",
+    hero_badge: "新一代交互式学习",
+    hero_title_prefix: "分子架构的",
+    hero_title_highlight: "未来",
+    hero_subtitle:
+      "以震撼 3D 探索宇宙的基本构件。电影级精品教育平台，让化学直观而优美。",
+    hero_launch_studio: "启动工作室",
+    hero_view_showcase: "查看展示",
+    hero_scroll: "滚动",
+    featured_title_prefix: "精选",
+    featured_title_highlight: "分子",
+    featured_subtitle:
+      "从简单的水到复杂的生物大分子——在我们的交互式 3D 工作室中尽览。",
+    card_atoms_bonds: "{atoms} 个原子 · {bonds} 条键",
+    card_explore: "探索",
+    elements_title_prefix: "揭开",
+    elements_title_highlight: "元素",
+    elements_subtitle:
+      "通过高保真 WebGL 渲染引擎，与原子、化合物及复杂分子结构互动。",
+    feature_atomic_title: "原子结构",
+    feature_atomic_desc: "深入亚原子层面，实时观察轨道。",
+    feature_crystal_title: "晶体晶格",
+    feature_crystal_desc: "探索构成固态物质的重复几何图案。",
+    feature_macro_title: "大分子",
+    feature_macro_desc: "可视化蛋白质、DNA 及复杂生物结构。",
+    showcase_title_prefix: "电影级",
+    showcase_title_suffix: "科学教育",
+    showcase_body:
+      "我们将现代游戏渲染技术与科学精度相结合，打造无与伦比的学习环境。调节变量、观察反应，以视觉方式理解化学。",
+    showcase_bullet_1: "实时分子动力学模拟",
+    showcase_bullet_2: "精确的空间填充与球棍模型",
+    showcase_bullet_3: "交互式电子云可视化",
+    compare_title_prefix: "并排",
+    compare_title_highlight: "对比",
+    compare_subtitle:
+      "将任意两个分子并置，一眼发现结构差异。",
+    footer_brand: "MoleculeArchitectureStudio",
+    footer_copyright: "© {year} Molecule Studio. 保留所有权利。",
+    footer_about: "关于",
+    footer_github: "GitHub 仓库",
+    footer_canvas_guide: "交互式画布指南",
+    footer_tech_badge: "基于 Next.js、Three.js 与 Tailwind CSS 构建",
+    panel_tab_overview: "概览",
+    panel_tab_structure: "结构",
+    panel_tab_uses: "用途",
+    panel_tab_fun_facts: "趣闻",
+    panel_stat_weight: "质量",
+    panel_stat_atoms: "原子",
+    panel_stat_bonds: "键",
+    panel_stat_total: "合计",
+    panel_state_room_temp: "室温物态",
+    panel_no_education: "该分子暂无教学内容。",
+    panel_single_bonds: "单键（σ）",
+    panel_double_bonds: "双键（σ+π）",
+    panel_triple_bonds: "三键（σ+2π）",
+    panel_element_composition: "元素组成",
+    viewer_show_labels: "标签",
+    viewer_auto_rotate: "自动旋转",
+    viewer_learn_panel: "学习",
+    viewer_prev: "上一个",
+    viewer_next: "下一个",
+    viewer_close_atom: "关闭原子详情",
+    discipline_daily_life: "日常生活",
+    discipline_medicine: "医学",
+    discipline_organic: "有机化学",
+    discipline_neuroscience: "神经科学",
+    discipline_nanotech: "纳米技术",
+    discipline_biological: "生物学",
+  },
+};

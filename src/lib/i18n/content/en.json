@@ -1,0 +1,679 @@
+{
+  "molecules": {
+    "water": {
+      "name": "Water",
+      "description": "The universal solvent essential for all known forms of life.",
+      "category": "simple",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Polar Covalent",
+        "Hydrogen Bond"
+      ],
+      "uses": [
+        "Universal biological solvent",
+        "Industrial cooling systems",
+        "Hydroelectric power generation",
+        "Chemical reaction medium"
+      ],
+      "funFacts": [
+        "Water is the only natural substance that exists in all three physical states at temperatures normally found on Earth.",
+        "A water molecule stays in the atmosphere for only about 9 days before falling as precipitation.",
+        "Hot water can freeze faster than cold water — this is known as the Mpemba effect."
+      ]
+    },
+    "methane": {
+      "name": "Methane",
+      "description": "The simplest hydrocarbon and a potent greenhouse gas.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Non-polar Covalent",
+        "Tetrahedral"
+      ],
+      "uses": [
+        "Natural gas fuel for heating and cooking",
+        "Electricity generation in power plants",
+        "Production of hydrogen gas",
+        "Feedstock for chemical synthesis"
+      ],
+      "funFacts": [
+        "Methane is 80× more potent than CO₂ as a greenhouse gas over a 20-year period.",
+        "Its perfect tetrahedral shape gives all four C–H bonds equal length (1.09 Å).",
+        "Methanogenic archaea produce methane deep in ocean sediments and cow digestive systems."
+      ]
+    },
+    "glucose": {
+      "name": "Glucose",
+      "description": "Primary energy source for cells and a fundamental sugar in biology.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Covalent",
+        "Polar C–O bonds",
+        "Ring Structure"
+      ],
+      "uses": [
+        "Primary cellular energy source via glycolysis",
+        "IV glucose drips in medical care",
+        "Sports and energy drinks",
+        "Fermentation to produce ethanol and CO₂"
+      ],
+      "funFacts": [
+        "Your brain consumes about 120g of glucose per day — roughly 60% of your total glucose usage.",
+        "Glucose exists in two forms: α-glucose and β-glucose, which differ only in the orientation of one hydroxyl group.",
+        "A single gram of glucose releases approximately 4 Calories when metabolized."
+      ]
+    },
+    "caffeine": {
+      "name": "Caffeine",
+      "description": "A central nervous system stimulant found in coffee and tea.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Aromatic Ring",
+        "Amide C=O",
+        "N-methylation"
+      ],
+      "uses": [
+        "Stimulant in coffee, tea, and energy drinks",
+        "Pain relief medication (combined with aspirin)",
+        "Treatment of apnea in premature infants",
+        "Performance enhancer in endurance sports"
+      ],
+      "funFacts": [
+        "Caffeine blocks adenosine receptors in the brain, preventing the feeling of tiredness.",
+        "The average cup of espresso contains about 63mg of caffeine — a lethal dose would require ~80 cups consumed very rapidly.",
+        "Caffeine is the world's most widely consumed psychoactive substance."
+      ]
+    },
+    "dna-fragment": {
+      "name": "DNA Base Pair",
+      "description": "A hydrogen-bonded base pair forming the rungs of the DNA double helix.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Aromatic",
+        "Hydrogen Bond (×2 A–T)",
+        "Glycosidic Bond"
+      ],
+      "uses": [
+        "Genetic information storage in all living organisms",
+        "Template for mRNA transcription",
+        "CRISPR-Cas9 gene editing target sites",
+        "DNA fingerprinting in forensic science"
+      ],
+      "funFacts": [
+        "Adenine always pairs with Thymine via 2 hydrogen bonds — this is Watson-Crick base pairing.",
+        "If the DNA from all your cells were uncoiled and laid end-to-end, it would reach from Earth to the Sun and back ~600 times.",
+        "The human genome contains approximately 3 billion base pairs."
+      ]
+    },
+    "protein-fragment": {
+      "name": "Peptide Bond",
+      "description": "A dipeptide fragment showing the fundamental peptide bond linkage.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Peptide Bond (C–N)",
+        "Amide Resonance",
+        "α-Carbon Bonds"
+      ],
+      "uses": [
+        "Fundamental unit of all protein structures",
+        "Template for synthetic peptide drug design",
+        "Cell signaling via peptide hormones",
+        "Food flavoring agents (e.g., aspartame is a dipeptide)"
+      ],
+      "funFacts": [
+        "The peptide bond has partial double-bond character due to resonance — it's planar and doesn't freely rotate.",
+        "There are 20 standard amino acids, and life uses combinations of them to build over 100,000 distinct human proteins.",
+        "The ribosome synthesizes a new peptide bond roughly every 0.05 seconds."
+      ]
+    },
+    "ethanol": {
+      "name": "Ethanol",
+      "description": "The familiar two-carbon alcohol behind beer, wine, and antiseptic gels—small, polar, and surprisingly influential in chemistry labs and parties alike.",
+      "category": "organic",
+      "disciplineTag": "DAILY LIFE",
+      "bondTypes": [
+        "Polar covalent (C–O, O–H)",
+        "Nonpolar C–C / C–H",
+        "Hydrogen bonding (between molecules)"
+      ],
+      "uses": [
+        "Alcoholic beverages (dilute solutions)",
+        "Solvent in labs and tinctures",
+        "Antiseptic and fuel bio-additives"
+      ],
+      "funFacts": [
+        "Your liver turns ethanol into acetaldehyde before it becomes acetate—pace matters.",
+        "Ethanol disrupts membrane fluidity and protein structure, which is part of why it's such a broad biological solvent."
+      ]
+    },
+    "aspirin": {
+      "name": "Aspirin",
+      "description": "Acetylsalicylic acid: a classic pain reliever that irreversibly tweaks platelet chemistry—medicine, history, and organic synthesis in one tiny tablet.",
+      "category": "organic",
+      "disciplineTag": "MEDICINE",
+      "bondTypes": [
+        "Aromatic (benzene ring)",
+        "Ester linkage",
+        "Carboxylic acid"
+      ],
+      "uses": [
+        "Analgesic (pain) and antipyretic (fever)",
+        "Anti-inflammatory (NSAID)",
+        "Low-dose antiplatelet therapy (under medical guidance)"
+      ],
+      "funFacts": [
+        "Willow bark salicin is the plant-world ancestor of this synthetic superstar.",
+        "Its acetyl group helps it survive stomach acid better than salicylic acid alone."
+      ]
+    },
+    "capsaicin": {
+      "name": "Capsaicin",
+      "description": "The fiery vanilloid that makes chili peppers bite—an evolutionary deterrent for mammals and a neuroscientist's favorite TRPV1 conversation starter.",
+      "category": "organic",
+      "disciplineTag": "ORGANIC",
+      "bondTypes": [
+        "Phenolic aromatic core",
+        "Amide linkage",
+        "Ether (methoxy) and aliphatic chain"
+      ],
+      "uses": [
+        "Culinary heat and capsaicinoid blends",
+        "Topical analgesic creams (TRPV1 modulation)",
+        "Pest-deterrent formulations"
+      ],
+      "funFacts": [
+        "Birds often lack the receptor sensitivity mammals have—chili seeds spread farther that way.",
+        "Spice \"heat\" is not a taste on the tongue map; it's nociceptor theater."
+      ]
+    },
+    "serotonin": {
+      "name": "Serotonin",
+      "description": "5-HT: a monoamine signal with a résumé spanning mood, sleep, and gut motility—proof that one scaffold can wear many biological hats.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENCE",
+      "bondTypes": [
+        "Aromatic indole",
+        "Primary amine",
+        "Phenolic hydroxyl"
+      ],
+      "uses": [
+        "Neurotransmission and neuromodulation",
+        "Pharmacology targets (e.g. SSRIs act upstream in pathways)",
+        "Peripheral roles in the enteric nervous system"
+      ],
+      "funFacts": [
+        "Most of your body's serotonin isn't \"in your mood\"—a large share is entangled with the gut and platelets.",
+        "Its name nods to blood serum, where it was first noticed to constrict vessels."
+      ]
+    },
+    "dopamine": {
+      "name": "Dopamine",
+      "description": "A catecholamine built from a brave little ethylamine tail on a catechol ring—motivation, movement, and mesolimbic myths all orbit this structure.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENCE",
+      "bondTypes": [
+        "Aromatic (catechol)",
+        "Primary amine",
+        "Phenolic O–H"
+      ],
+      "uses": [
+        "Neurotransmitter in reward and motor pathways",
+        "Clinical shock support (as hydrochloride salt, IV, under care)",
+        "Teaching ligand for GPCR and transporter biology"
+      ],
+      "funFacts": [
+        "Parkinson's pathology is tightly linked to dopamine neuron loss in the substantia nigra.",
+        "It's polar enough that free dopamine doesn't casually joyride across the blood–brain barrier."
+      ]
+    },
+    "adrenaline": {
+      "name": "Adrenaline",
+      "description": "Epinephrine: the molecule behind the pulse spike when something jumps in the bushes—sympathetic chemistry distilled into three oxygens of urgency.",
+      "category": "biological",
+      "disciplineTag": "NEUROSCIENCE",
+      "bondTypes": [
+        "Aromatic (catechol)",
+        "Secondary amine (benzylic substitution)",
+        "Primary alcohol"
+      ],
+      "uses": [
+        "Anaphylaxis rescue autoinjectors (with clinical training/indication)",
+        "Local anesthesia adjuncts (with vasoconstrictive rationale)",
+        "Physiology demos of fight-or-flight signaling"
+      ],
+      "funFacts": [
+        "\"Adrenaline\" vs \"epinephrine\" is largely UK/US naming—they're the same impatient little hormone.",
+        "It hits α- and β-adrenergic receptors, explaining both vasoconstriction stories and bronchodilator uses."
+      ]
+    },
+    "buckminsterfullerene": {
+      "name": "Buckminsterfullerene",
+      "description": "Soccer-ball symmetry in pure carbon—a Nobel-celebrated cage that taught us aromaticity doesn't require flat hexagons.",
+      "category": "macro",
+      "disciplineTag": "NANOTECH",
+      "bondTypes": [
+        "Sp²-like carbon networking (truncated icosahedron)",
+        "Delocalized π systems on curved surfaces"
+      ],
+      "uses": [
+        "Materials science prototypes (thin films, composites)",
+        "Electron acceptor motifs in organic electronics research",
+        "Nanoscale carbon allotrope teaching tool"
+      ],
+      "funFacts": [
+        "12 pentagons and 20 hexagons—Euler's handshake with graphite's wild cousin.",
+        "Named after architect Buckminster Fuller, who popularized geodesic domes."
+      ]
+    },
+    "heme-group": {
+      "name": "Hemoglobin Heme Group",
+      "description": "The iron-chelating porphyrin prosthetic group that turns hemoglobin into an oxygen shuttle: reversible O₂ binding with protein allostery backstage.",
+      "category": "biological",
+      "disciplineTag": "BIOLOGICAL",
+      "bondTypes": [
+        "Aromatic porphyrin macrocycle",
+        "Metal coordination (Fe–N)",
+        "Propionate/carboxylate-like substituents (context-dependent protonation)"
+      ],
+      "uses": [
+        "O₂ transport and storage inside hemoproteins",
+        "Enzyme active sites (e.g. catalase, cytochromes)",
+        "Biochemistry teaching for ligand-field and cooperative binding"
+      ],
+      "funFacts": [
+        "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren't chemistry trivia, they're physiology.",
+        "The axial histidine tug-of-war fine-tunes oxygen affinity versus CO competition."
+      ]
+    }
+  },
+  "reactions": {
+    "methane-combustion": {
+      "name": "Combustion of Methane",
+      "description": "A classic oxidation: methane meets oxygen in a chain of radical steps that release a lot of heat and produce carbon dioxide and water.",
+      "reactionType": "Combustion",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Methane",
+          "formula": "CH₄"
+        },
+        {
+          "name": "Oxygen",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Carbon dioxide",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Water",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Complete combustion of methane is strongly exothermic and converts chemical potential energy into heat and light.",
+        "energyProfile": "Highly exothermic (ΔH << 0 for the balanced reaction)",
+        "conditions": "Initiation energy (spark/flame); sustained O₂ supply",
+        "mechanism": "Radical chain mechanism: initiation → propagation (·OH, ·CH₃, etc.) → termination; 3D view highlights representative species.",
+        "highlight": "Every balanced combustion story ends with better CO₂ accounting and careful handling of open flames."
+      },
+      "steps": [
+        {
+          "caption": "Fuel — methane"
+        },
+        {
+          "caption": "Product spotlight — water"
+        }
+      ]
+    },
+    "water-formation": {
+      "name": "Formation of Water",
+      "description": "Hydrogen burns in oxygen to make water — simple stoichiometry, enormous industrial and rocket-science relevance.",
+      "reactionType": "Synthesis / combustion",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Hydrogen",
+          "formula": "H₂"
+        },
+        {
+          "name": "Oxygen",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Water",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "This reaction releases a large amount of energy per gram of H₂, which is why it powers clean-energy conversations.",
+        "energyProfile": "Exothermic; very favorable thermodynamically",
+        "conditions": "Ignition or catalyst (e.g. Pt); precise H₂ : O₂ ratio matters for safety",
+        "mechanism": "Often radical-mediated in the gas phase; the 3D view shows the polar product that emerges from redox partnership.",
+        "highlight": "The bent geometry of water is a direct consequence of lone-pair repulsion on oxygen."
+      },
+      "steps": [
+        {
+          "caption": "Product — water (H₂O)"
+        }
+      ]
+    },
+    "glucose-fermentation": {
+      "name": "Fermentation of Glucose",
+      "description": "Yeast-friendly biochemistry: glucose is split into ethanol and carbon dioxide — the reason bread rises and wine exists.",
+      "reactionType": "Biochemical / anaerobic",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Glucose",
+          "formula": "C₆H₁₂O₆"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ethanol",
+          "formula": "C₂H₅OH"
+        },
+        {
+          "name": "Carbon dioxide",
+          "formula": "CO₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Glycolysis followed by fermentation regenerates NAD⁺ so glycolysis can keep running when oxygen is scarce.",
+        "energyProfile": "Partial oxidation — modest ATP compared to respiration",
+        "conditions": "Yeast or bacteria; anaerobic or microaerobic environment",
+        "mechanism": "Pyruvate → acetaldehyde → ethanol, with CO₂ lost as a small molecule.",
+        "highlight": "The same pathway family connects brewing, baking, and biofuel research."
+      },
+      "steps": [
+        {
+          "caption": "Starting sugar"
+        },
+        {
+          "caption": "Ethanol product"
+        }
+      ]
+    },
+    "haber-bosch": {
+      "name": "Haber-Bosch Process",
+      "description": "Industrial nitrogen fixation: atmospheric N₂ and H₂ are converted to ammonia—the backbone of global fertilizer production.",
+      "reactionType": "Industrial synthesis",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Nitrogen",
+          "formula": "N₂"
+        },
+        {
+          "name": "Hydrogen",
+          "formula": "H₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ammonia",
+          "formula": "NH₃"
+        }
+      ],
+      "quickFacts": {
+        "summary": "The industrial implementation of nitrogen fixation, transforming atmospheric nitrogen into ammonia to produce fertilizers that sustain global food production.",
+        "energyProfile": "Exothermic (ΔH = −92.4 kJ/mol).",
+        "conditions": "High pressure (150–250 bar), high temperature (400–500°C), and an iron (Fe) catalyst.",
+        "mechanism": "Dissociative adsorption of N₂ and H₂ gases on the iron catalyst surface, followed by stepwise hydrogenation of nitrogen atoms.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Placeholder scene — NH₃ animation coordinates pending"
+        }
+      ]
+    },
+    "photosynthesis": {
+      "name": "Photosynthesis (Simplified)",
+      "description": "Light-driven carbon fixation: six CO₂ and six water molecules are built into one glucose ring while releasing oxygen—the metabolic engine of the biosphere.",
+      "reactionType": "Metabolic / light-driven",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Carbon dioxide",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Water",
+          "formula": "H₂O"
+        }
+      ],
+      "products": [
+        {
+          "name": "Glucose",
+          "formula": "C₆H₁₂O₆"
+        },
+        {
+          "name": "Oxygen",
+          "formula": "O₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "The foundational biochemical process by which plants, algae, and some bacteria convert light energy into chemical energy (glucose), releasing oxygen as a byproduct.",
+        "energyProfile": "Endothermic / Endergonic (requires photon energy, ΔH = +2803 kJ/mol for the overall simplified equation).",
+        "conditions": "Sunlight (photons), chlorophyll pigments, ambient temperatures.",
+        "mechanism": "Light-dependent reactions split water to generate ATP and NADPH, followed by the light-independent Calvin Cycle fixing CO₂ into a 6-carbon sugar.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Product — glucose (C₆H₁₂O₆)"
+        },
+        {
+          "caption": "Reactant / product — water"
+        }
+      ]
+    },
+    "neutralization-hcl-naoh": {
+      "name": "Neutralization (HCl + NaOH)",
+      "description": "A textbook Arrhenius neutralization: strong acid and strong base form a salt and water—the proton-transfer reaction every intro chemistry student meets first.",
+      "reactionType": "Acid–base",
+      "category": "ACID-BASE",
+      "reactants": [
+        {
+          "name": "Hydrochloric acid",
+          "formula": "HCl"
+        },
+        {
+          "name": "Sodium hydroxide",
+          "formula": "NaOH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Sodium chloride",
+          "formula": "NaCl"
+        },
+        {
+          "name": "Water",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "A classic Arrhenius acid-base reaction where a strong acid and a strong base neutralize each other to produce a salt (sodium chloride) and water.",
+        "energyProfile": "Exothermic (heat of neutralization, ΔH ≈ −57.3 kJ/mol).",
+        "conditions": "Aqueous solution, room temperature.",
+        "mechanism": "Proton transfer where H⁺ ions from the acid combine with OH⁻ ions from the base to form stable covalent H₂O molecules, while Na⁺ and Cl⁻ remain as spectator ions or form a crystalline lattice upon evaporation.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Product — water (H₂O)"
+        }
+      ]
+    },
+    "esterification-ethyl-acetate": {
+      "name": "Esterification (Ethyl Acetate)",
+      "description": "Fischer esterification: carboxylic acid and alcohol condense into a fruity ester plus water—equilibrium chemistry with a touch of sulfuric acid and heat.",
+      "reactionType": "Condensation / organic",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Acetic acid",
+          "formula": "CH₃COOH"
+        },
+        {
+          "name": "Ethanol",
+          "formula": "C₂H₅OH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ethyl acetate",
+          "formula": "CH₃COOC₂H₅"
+        },
+        {
+          "name": "Water",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "A condensation reaction between an organic acid (acetic acid) and an alcohol (ethanol) to produce an ester (ethyl acetate, known for its sweet, fruity odor) and water.",
+        "energyProfile": "Slightly exothermic, reversible equilibrium reaction.",
+        "conditions": "Acid catalyst (typically concentrated H₂SO₄) and heat under reflux.",
+        "mechanism": "Nucleophilic acyl substitution. The carbonyl oxygen of the carboxylic acid is protonated, followed by a nucleophilic attack by the alcohol's hydroxyl group, culminating in the elimination of a water molecule.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Reactant — ethanol"
+        },
+        {
+          "caption": "Coproduct — water"
+        }
+      ]
+    }
+  },
+  "categories": {
+    "simple": "Simple",
+    "organic": "Organic",
+    "biological": "Biological",
+    "macro": "Macro",
+    "SYNTHESIS": "Synthesis",
+    "ORGANIC": "Organic Chemistry",
+    "METABOLIC": "Metabolic",
+    "ACID-BASE": "Acid–Base"
+  },
+  "ui": {
+    "nav_explore": "Explore",
+    "nav_learn": "Learn",
+    "nav_showcase": "Showcase",
+    "tab_molecules": "Molecules",
+    "tab_reactions": "Reactions",
+    "label_quick_facts": "Quick Facts",
+    "label_molecular_weight": "Molecular Weight",
+    "label_state": "State",
+    "label_bond_types": "Bond Types",
+    "state_gas": "Gas",
+    "state_liquid": "Liquid",
+    "state_solid": "Solid",
+    "state_plasma": "Plasma",
+    "difficulty_beginner": "Beginner",
+    "difficulty_intermediate": "Intermediate",
+    "difficulty_expert": "Expert",
+    "title_molecule_explorer": "Molecules",
+    "subtitle_molecule_explorer": "Navigate between molecules, click any atom to inspect it, and open the learn panel for rich educational content.",
+    "button_start_exploring": "Start Exploring",
+    "button_play_reaction": "Play",
+    "fact_overview": "Overview",
+    "fact_energy": "Energy",
+    "fact_conditions": "Conditions",
+    "fact_mechanism": "Mechanism",
+    "subtitle_reaction": "Pick a reaction, press Play to run the 3D sequence, and read how bonds rearrange in the Quick Facts column.",
+    "title_reaction_lab": "Reaction Lab",
+    "badge_interactive_studio": "Interactive 3D Studio",
+    "badge_reaction_animation": "Reaction animation",
+    "button_playing": "Playing…",
+    "label_equation": "Equation",
+    "label_reactants": "Reactants",
+    "label_products": "Products",
+    "aria_molecules_reactions": "Molecules and reactions",
+    "aria_select_language": "Select language",
+    "aria_footer": "Footer",
+    "label_discipline": "Discipline",
+    "label_boiling_point": "Boiling Point",
+    "label_melting_point": "Melting Point",
+    "label_reaction_type": "Reaction Type",
+    "label_highlight": "Highlight",
+    "reaction_animation_placeholder": "3D interpolation: coordinates pending ({key}).",
+    "reaction_animation_ready": "Full atom interpolation available — press Play.",
+    "hero_badge": "Next-Gen Interactive Learning",
+    "hero_title_prefix": "The Future of",
+    "hero_title_highlight": "Molecular Architecture",
+    "hero_subtitle": "Explore the building blocks of the universe in breathtaking 3D. A cinematic, premium educational platform designed to make chemistry intuitive and beautiful.",
+    "hero_launch_studio": "Launch Studio",
+    "hero_view_showcase": "View Showcase",
+    "hero_scroll": "Scroll",
+    "featured_title_prefix": "Featured",
+    "featured_title_highlight": "Molecules",
+    "featured_subtitle": "From simple water to complex biological macromolecules — explore them all in our interactive 3D studio.",
+    "card_atoms_bonds": "{atoms} atoms · {bonds} bonds",
+    "card_explore": "Explore",
+    "elements_title_prefix": "Uncover the",
+    "elements_title_highlight": "Elements",
+    "elements_subtitle": "Interact with atoms, compounds, and complex molecular structures through our high-fidelity WebGL rendering engine.",
+    "feature_atomic_title": "Atomic Structure",
+    "feature_atomic_desc": "Dive deep into the subatomic level and observe orbitals in real-time.",
+    "feature_crystal_title": "Crystal Lattices",
+    "feature_crystal_desc": "Explore the repeating geometric patterns that form solid matter.",
+    "feature_macro_title": "Macromolecules",
+    "feature_macro_desc": "Visualize proteins, DNA, and complex biological structures.",
+    "showcase_title_prefix": "Cinematic",
+    "showcase_title_suffix": "Science Education",
+    "showcase_body": "We've combined modern game rendering techniques with scientific accuracy to create an unparalleled learning environment. Manipulate variables, observe reactions, and understand chemistry visually.",
+    "showcase_bullet_1": "Real-time molecular dynamics simulation",
+    "showcase_bullet_2": "Accurate space-filling & ball-and-stick models",
+    "showcase_bullet_3": "Interactive electron cloud visualization",
+    "compare_title_prefix": "Compare",
+    "compare_title_highlight": "Side by Side",
+    "compare_subtitle": "Place any two molecules next to each other and discover structural differences at a glance.",
+    "footer_brand": "MoleculeArchitectureStudio",
+    "footer_copyright": "© {year} Molecule Studio. All rights reserved.",
+    "footer_about": "About",
+    "footer_github": "GitHub Repository",
+    "footer_canvas_guide": "Interactive Canvas Guide",
+    "footer_tech_badge": "Built with Next.js, Three.js & Tailwind CSS",
+    "panel_tab_overview": "Overview",
+    "panel_tab_structure": "Structure",
+    "panel_tab_uses": "Uses",
+    "panel_tab_fun_facts": "Fun Facts",
+    "panel_stat_weight": "Weight",
+    "panel_stat_atoms": "Atoms",
+    "panel_stat_bonds": "Bonds",
+    "panel_stat_total": "total",
+    "panel_state_room_temp": "State at Room Temp",
+    "panel_no_education": "Educational data not available for this molecule.",
+    "panel_single_bonds": "Single bonds (σ)",
+    "panel_double_bonds": "Double bonds (σ+π)",
+    "panel_triple_bonds": "Triple bonds (σ+2π)",
+    "panel_element_composition": "Element Composition",
+    "viewer_show_labels": "Labels",
+    "viewer_auto_rotate": "Auto-rotate",
+    "viewer_learn_panel": "Learn",
+    "viewer_prev": "Previous",
+    "viewer_next": "Next",
+    "viewer_close_atom": "Close atom detail",
+    "discipline_daily_life": "Daily Life",
+    "discipline_medicine": "Medicine",
+    "discipline_organic": "Organic Chemistry",
+    "discipline_neuroscience": "Neuroscience",
+    "discipline_nanotech": "Nanotechnology",
+    "discipline_biological": "Biological",
+    "meta_title": "Molecule Architecture Studio",
+    "meta_description": "A premium interactive chemistry platform to explore molecules in 3D."
+  }
+}

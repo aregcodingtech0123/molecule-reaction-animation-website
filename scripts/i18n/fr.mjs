@@ -1,0 +1,585 @@
+/** French locale — molecules, reactions, categories, UI */
+export default {
+  molecules: {
+    water: {
+      name: "Eau",
+      description:
+        "Le solvant universel indispensable à toutes les formes de vie connues.",
+      category: "simple",
+      disciplineTag: null,
+      bondTypes: ["Covalente polaire", "Liaison hydrogène"],
+      uses: [
+        "Solvant biologique universel",
+        "Systèmes de refroidissement industriels",
+        "Production d'énergie hydroélectrique",
+        "Milieu de réaction chimique",
+      ],
+      funFacts: [
+        "L'eau est la seule substance naturelle qui existe dans les trois états physiques aux températures habituelles sur Terre.",
+        "Une molécule d'eau reste dans l'atmosphère environ 9 jours avant de retomber sous forme de précipitations.",
+        "L'eau chaude peut geler plus vite que l'eau froide — c'est l'effet Mpemba.",
+      ],
+    },
+    methane: {
+      name: "Méthane",
+      description:
+        "L'hydrocarbure le plus simple et un puissant gaz à effet de serre.",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["Covalente apolaire", "Tétraédrique"],
+      uses: [
+        "Gaz naturel pour le chauffage et la cuisine",
+        "Production d'électricité dans les centrales",
+        "Production d'hydrogène gazeux",
+        "Matière première pour la synthèse chimique",
+      ],
+      funFacts: [
+        "Le méthane est environ 80 fois plus puissant que le CO₂ comme gaz à effet de serre sur 20 ans.",
+        "Sa forme tétraédrique parfaite donne aux quatre liaisons C–H la même longueur (1,09 Å).",
+        "Des archées méthanogènes produisent du méthane dans les sédiments océaniques et le système digestif des ruminants.",
+      ],
+    },
+    glucose: {
+      name: "Glucose",
+      description:
+        "Source d'énergie primaire des cellules et sucre fondamental en biologie.",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["Covalente", "Liaisons C–O polaires", "Structure cyclique"],
+      uses: [
+        "Source d'énergie cellulaire via la glycolyse",
+        "Perfusions de glucose en soins médicaux",
+        "Boissons sportives et énergisantes",
+        "Fermentation pour produire de l'éthanol et du CO₂",
+      ],
+      funFacts: [
+        "Votre cerveau consomme environ 120 g de glucose par jour — près de 60 % de votre utilisation totale.",
+        "Le glucose existe sous deux formes : α-glucose et β-glucose, qui ne diffèrent que par l'orientation d'un groupe hydroxyle.",
+        "Un gramme de glucose libère environ 4 kilocalories lors de son métabolisme.",
+      ],
+    },
+    caffeine: {
+      name: "Caféine",
+      description:
+        "Stimulant du système nerveux central présent dans le café et le thé.",
+      category: "organic",
+      disciplineTag: null,
+      bondTypes: ["Cycle aromatique", "Amide C=O", "N-méthylation"],
+      uses: [
+        "Stimulant dans le café, le thé et les boissons énergisantes",
+        "Analgésique (souvent combinée à l'aspirine)",
+        "Traitement de l'apnée chez les prématurés",
+        "Amélioration des performances en sport d'endurance",
+      ],
+      funFacts: [
+        "La caféine bloque les récepteurs à l'adénosine dans le cerveau, ce qui empêche la sensation de fatigue.",
+        "Une tasse d'espresso contient environ 63 mg de caféine — une dose létale exigerait environ 80 tasses consommées très rapidement.",
+        "La caféine est la substance psychoactive la plus consommée au monde.",
+      ],
+    },
+    "dna-fragment": {
+      name: "Paire de bases ADN",
+      description:
+        "Une paire de bases liée par des liaisons hydrogène, formant les échelons de la double hélice de l'ADN.",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["Aromatique", "Liaison hydrogène (×2 A–T)", "Liaison glycosidique"],
+      uses: [
+        "Stockage de l'information génétique chez tous les organismes vivants",
+        "Matrice pour la transcription de l'ARNm",
+        "Cibles d'édition génomique CRISPR-Cas9",
+        "Empreinte génétique en sciences forensiques",
+      ],
+      funFacts: [
+        "L'adénine s'apparie toujours avec la thymine via 2 liaisons hydrogène — c'est l'appariement de Watson-Crick.",
+        "Si l'ADN de toutes vos cellules était déroulé bout à bout, il irait de la Terre au Soleil et retour environ 600 fois.",
+        "Le génome humain contient environ 3 milliards de paires de bases.",
+      ],
+    },
+    "protein-fragment": {
+      name: "Liaison peptidique",
+      description:
+        "Un fragment dipeptidique montrant la liaison peptidique fondamentale entre acides aminés.",
+      category: "biological",
+      disciplineTag: null,
+      bondTypes: ["Liaison peptidique (C–N)", "Résonance amide", "Liaisons du carbone α"],
+      uses: [
+        "Unité fondamentale de toutes les structures protéiques",
+        "Modèle pour la conception de peptides thérapeutiques synthétiques",
+        "Signalisation cellulaire via les hormones peptidiques",
+        "Agents aromatisants alimentaires (l'aspartame est un dipeptide)",
+      ],
+      funFacts: [
+        "La liaison peptidique a un caractère de double liaison partiel par résonance — elle est plane et ne tourne pas librement.",
+        "Il existe 20 acides aminés standards ; la vie en combine pour construire plus de 100 000 protéines humaines distinctes.",
+        "Le ribosome synthétise une nouvelle liaison peptidique environ toutes les 0,05 secondes.",
+      ],
+    },
+    ethanol: {
+      name: "Éthanol",
+      description:
+        "L'alcool à deux carbones familier de la bière, du vin et des gels antiseptiques — petit, polaire et étonnamment influent en laboratoire comme au quotidien.",
+      category: "organic",
+      disciplineTag: "VIE QUOTIDIENNE",
+      bondTypes: [
+        "Covalente polaire (C–O, O–H)",
+        "C–C / C–H apolaires",
+        "Liaisons hydrogène (entre molécules)",
+      ],
+      uses: [
+        "Boissons alcoolisées (solutions diluées)",
+        "Solvant en laboratoire et en teintures",
+        "Antiseptique et additifs biocarburants",
+      ],
+      funFacts: [
+        "Le foie transforme l'éthanol en acétaldéhyde avant de le convertir en acétate — le rythme compte.",
+        "L'éthanol perturbe la fluidité membranaire et la structure des protéines, ce qui en fait un solvant biologique si polyvalent.",
+      ],
+    },
+    aspirin: {
+      name: "Aspirine",
+      description:
+        "Acide acétylsalicylique : un antalgique classique qui modifie de façon irréversible la chimie des plaquettes — médecine, histoire et synthèse organique dans un petit comprimé.",
+      category: "organic",
+      disciplineTag: "MÉDECINE",
+      bondTypes: ["Aromatique (cycle benzénique)", "Liaison ester", "Acide carboxylique"],
+      uses: [
+        "Analgésique (douleur) et antipyrétique (fièvre)",
+        "Anti-inflammatoire (AINS)",
+        "Thérapie antiplaquettaire à faible dose (sous avis médical)",
+      ],
+      funFacts: [
+        "La salicine de l'écorce de saule est l'ancêtre végétal de cette star de la synthèse.",
+        "Le groupe acétyle lui permet de mieux résister à l'acidité gastrique que l'acide salicylique seul.",
+      ],
+    },
+    capsaicin: {
+      name: "Capsaïcine",
+      description:
+        "Le vanilloïde brûlant des piments — une dissuasion évolutive pour les mammifères et le prétexte favori des neuroscientifiques pour parler du TRPV1.",
+      category: "organic",
+      disciplineTag: "ORGANIQUE",
+      bondTypes: [
+        "Noyau aromatique phénolique",
+        "Liaison amide",
+        "Éther (méthoxy) et chaîne aliphatique",
+      ],
+      uses: [
+        "Piquant culinaire et mélanges de capsaïnoïdes",
+        "Crèmes analgésiques topiques (modulation du TRPV1)",
+        "Formulations répulsives pour les nuisibles",
+      ],
+      funFacts: [
+        "Les oiseaux manquent souvent de sensibilité réceptorielle par rapport aux mammifères — les graines de piment se dispersent ainsi plus loin.",
+        "Le « piquant » n'est pas un goût sur la carte de la langue ; c'est du théâtre nociceptif.",
+      ],
+    },
+    serotonin: {
+      name: "Sérotonine",
+      description:
+        "5-HT : un signal monoaminergique qui touche l'humeur, le sommeil et la motilité intestinale — preuve qu'un même squelette peut porter de nombreux chapeaux biologiques.",
+      category: "biological",
+      disciplineTag: "NEUROSCIENCES",
+      bondTypes: ["Indole aromatique", "Amine primaire", "Groupe hydroxyle phénolique"],
+      uses: [
+        "Neurotransmission et neuromodulation",
+        "Cibles pharmacologiques (les ISRS agissent en amont des voies)",
+        "Rôles périphériques dans le système nerveux entérique",
+      ],
+      funFacts: [
+        "La majeure partie de la sérotonine corporelle n'est pas « dans l'humeur » — une grande fraction est liée à l'intestin et aux plaquettes.",
+        "Son nom renvoie au sérum sanguin, où elle fut d'abord observée comme vasoconstrictrice.",
+      ],
+    },
+    dopamine: {
+      name: "Dopamine",
+      description:
+        "Une catécholamine avec une audacieuse queue éthylamine sur un cycle catéchol — motivation, mouvement et mythes mésolimbiques gravitent autour de cette structure.",
+      category: "biological",
+      disciplineTag: "NEUROSCIENCES",
+      bondTypes: ["Aromatique (catéchol)", "Amine primaire", "O–H phénolique"],
+      uses: [
+        "Neurotransmetteur dans les voies de récompense et du mouvement",
+        "Soutien circulatoire clinique (chlorhydrate IV, sous surveillance)",
+        "Ligand pédagogique pour la biologie des GPCR et des transporteurs",
+      ],
+      funFacts: [
+        "La pathologie de Parkinson est étroitement liée à la perte de neurones dopaminergiques dans la substance noire.",
+        "Elle est assez polaire pour que la dopamine libre ne traverse pas facilement la barrière hémato-encéphalique.",
+      ],
+    },
+    adrenaline: {
+      name: "Adrénaline",
+      description:
+        "Épinéphrine : la molécule derrière l'accélération du pouls quand quelque chose bouge dans les buissons — la chimie sympathique condensée en trois oxygènes d'urgence.",
+      category: "biological",
+      disciplineTag: "NEUROSCIENCES",
+      bondTypes: [
+        "Aromatique (catéchol)",
+        "Amine secondaire (substitution benzylique)",
+        "Alcool primaire",
+      ],
+      uses: [
+        "Auto-injecteurs en cas d'anaphylaxie (avec formation/indication clinique)",
+        "Adjuvants en anesthésie locale (raison vasoconstrictrice)",
+        "Démonstrations physiologiques du signal combat-fuite",
+      ],
+      funFacts: [
+        "« Adrénaline » et « épinéphrine » sont surtout des noms UK/US — c'est la même petite hormone pressée.",
+        "Elle cible les récepteurs α et β adrénergiques, d'où vasoconstriction et bronchodilatation.",
+      ],
+    },
+    buckminsterfullerene: {
+      name: "Buckminsterfullerène",
+      description:
+        "Symétrie de ballon de football en carbone pur — une cage célébrée par le Nobel qui a montré que l'aromaticité n'exige pas d'hexagones plats.",
+      category: "macro",
+      disciplineTag: "NANOTECHNOLOGIE",
+      bondTypes: [
+        "Réseau carboné de type sp² (icosaèdre tronqué)",
+        "Systèmes π délocalisés sur surfaces courbes",
+      ],
+      uses: [
+        "Prototypes en science des matériaux (couches minces, composites)",
+        "Motifs accepteurs d'électrons en électronique organique",
+        "Outil pédagogique pour les allotropes du carbone à l'échelle nanométrique",
+      ],
+      funFacts: [
+        "12 pentagones et 20 hexagones — la poignée d'Euler avec le cousin sauvage du graphite.",
+        "Nommé d'après l'architecte Buckminster Fuller, qui a popularisé les dômes géodésiques.",
+      ],
+    },
+    "heme-group": {
+      name: "Groupe hème de l'hémoglobine",
+      description:
+        "Le groupe prosthétique porphyrine chélatant le fer qui transforme l'hémoglobine en navette d'oxygène : liaison réversible à l'O₂ avec allostérie protéique en coulisses.",
+      category: "biological",
+      disciplineTag: "BIOLOGIQUE",
+      bondTypes: [
+        "Macrocycle porphyrine aromatique",
+        "Coordination métallique (Fe–N)",
+        "Substituants de type propionate/carboxylate (protonation selon le contexte)",
+      ],
+      uses: [
+        "Transport et stockage de l'O₂ dans les hémoprotéines",
+        "Sites actifs enzymatiques (catalase, cytochromes, etc.)",
+        "Enseignement de la liaison coopérative et du champ de ligandes",
+      ],
+      funFacts: [
+        "Quatre hèmes dans l'hémoglobine permettent la liaison coopérative — les courbes sigmoïdes ne sont pas de la trivia chimique, c'est de la physiologie.",
+        "L'histidine axiale affine finement l'affinité pour l'oxygène face à la compétition du CO.",
+      ],
+    },
+  },
+  reactions: {
+    "methane-combustion": {
+      name: "Combustion du méthane",
+      description:
+        "Une oxydation classique : le méthane rencontre l'oxygène dans une chaîne radicalaire qui libère beaucoup de chaleur et produit du dioxyde de carbone et de l'eau.",
+      reactionType: "Combustion",
+      category: "ORGANIC",
+      reactants: [
+        { name: "Méthane", formula: "CH₄" },
+        { name: "Oxygène", formula: "O₂" },
+      ],
+      products: [
+        { name: "Dioxyde de carbone", formula: "CO₂" },
+        { name: "Eau", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "La combustion complète du méthane est fortement exothermique et convertit l'énergie chimique en chaleur et en lumière.",
+        energyProfile: "Fortement exothermique (ΔH << 0 pour la réaction équilibrée)",
+        conditions: "Énergie d'amorçage (étincelle/flamme) ; apport continu en O₂",
+        mechanism:
+          "Mécanisme en chaîne radicalaire : initiation → propagation (·OH, ·CH₃, etc.) → terminaison ; la vue 3D met en avant des espèces représentatives.",
+        highlight:
+          "Toute combustion équilibrée se termine par une comptabilité CO₂ rigoureuse et une manipulation prudente des flammes nues.",
+      },
+      steps: [
+        { caption: "Combustible — méthane" },
+        { caption: "Produit en vedette — eau" },
+      ],
+    },
+    "water-formation": {
+      name: "Formation de l'eau",
+      description:
+        "L'hydrogène brûle dans l'oxygène pour former de l'eau — stœchiométrie simple, importance industrielle et spatiale considérable.",
+      reactionType: "Synthèse / combustion",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "Hydrogène", formula: "H₂" },
+        { name: "Oxygène", formula: "O₂" },
+      ],
+      products: [{ name: "Eau", formula: "H₂O" }],
+      quickFacts: {
+        summary:
+          "Cette réaction libère une grande quantité d'énergie par gramme de H₂, ce qui alimente les débats sur l'énergie propre.",
+        energyProfile: "Exothermique ; très favorable thermodynamiquement",
+        conditions: "Allumage ou catalyseur (ex. Pt) ; le rapport H₂ : O₂ précis compte pour la sécurité",
+        mechanism:
+          "Souvent radicalaire en phase gazeuse ; la vue 3D montre le produit polaire issu du couple redox.",
+        highlight:
+          "La géométrie coudée de l'eau découle directement de la répulsion des paires libres sur l'oxygène.",
+      },
+      steps: [{ caption: "Produit — eau (H₂O)" }],
+    },
+    "glucose-fermentation": {
+      name: "Fermentation du glucose",
+      description:
+        "Biochimie favorable aux levures : le glucose est scindé en éthanol et dioxyde de carbone — raison pour laquelle le pain lève et le vin existe.",
+      reactionType: "Biochimique / anaérobie",
+      category: "METABOLIC",
+      reactants: [{ name: "Glucose", formula: "C₆H₁₂O₆" }],
+      products: [
+        { name: "Éthanol", formula: "C₂H₅OH" },
+        { name: "Dioxyde de carbone", formula: "CO₂" },
+      ],
+      quickFacts: {
+        summary:
+          "La glycolyse suivie de la fermentation régénère le NAD⁺ pour que la glycolyse continue lorsque l'oxygène manque.",
+        energyProfile: "Oxydation partielle — ATP modeste par rapport à la respiration",
+        conditions: "Levures ou bactéries ; milieu anaérobie ou microaérobie",
+        mechanism: "Pyruvate → acétaldéhyde → éthanol, avec perte de CO₂ comme petite molécule.",
+        highlight:
+          "La même famille de voies relie brasserie, boulangerie et recherche sur les biocarburants.",
+      },
+      steps: [
+        { caption: "Sucre de départ" },
+        { caption: "Produit éthanol" },
+      ],
+    },
+    "haber-bosch": {
+      name: "Procédé Haber-Bosch",
+      description:
+        "Fixation industrielle de l'azote : le N₂ atmosphérique et le H₂ sont convertis en ammoniac — pilier de la production mondiale d'engrais.",
+      reactionType: "Synthèse industrielle",
+      category: "SYNTHESIS",
+      reactants: [
+        { name: "Azote", formula: "N₂" },
+        { name: "Hydrogène", formula: "H₂" },
+      ],
+      products: [{ name: "Ammoniac", formula: "NH₃" }],
+      quickFacts: {
+        summary:
+          "Mise en œuvre industrielle de la fixation de l'azote : transformation de l'azote atmosphérique en ammoniac pour produire les engrais qui soutiennent l'alimentation mondiale.",
+        energyProfile: "Exothermique (ΔH = −92,4 kJ/mol).",
+        conditions: "Haute pression (150–250 bar), haute température (400–500 °C) et catalyseur au fer (Fe).",
+        mechanism:
+          "Adsorption dissociative du N₂ et du H₂ sur la surface du catalyseur fer, suivie d'une hydrogénation progressive des atomes d'azote.",
+        highlight: "",
+      },
+      steps: [{ caption: "Scène provisoire — coordonnées d'animation NH₃ en attente" }],
+    },
+    photosynthesis: {
+      name: "Photosynthèse (simplifiée)",
+      description:
+        "Fixation du carbone pilotée par la lumière : six CO₂ et six molécules d'eau construisent un cycle de glucose tout en libérant de l'oxygène — moteur métabolique de la biosphère.",
+      reactionType: "Métabolique / photoinduite",
+      category: "METABOLIC",
+      reactants: [
+        { name: "Dioxyde de carbone", formula: "CO₂" },
+        { name: "Eau", formula: "H₂O" },
+      ],
+      products: [
+        { name: "Glucose", formula: "C₆H₁₂O₆" },
+        { name: "Oxygène", formula: "O₂" },
+      ],
+      quickFacts: {
+        summary:
+          "Processus biochimique fondamental par lequel plantes, algues et certaines bactéries convertissent l'énergie lumineuse en énergie chimique (glucose), en libérant de l'oxygène.",
+        energyProfile:
+          "Endothermique / endergonique (nécessite l'énergie des photons, ΔH = +2803 kJ/mol pour l'équation globale simplifiée).",
+        conditions: "Lumière solaire (photons), pigments chlorophylliens, températures ambiantes.",
+        mechanism:
+          "Réactions dépendantes de la lumière qui clivent l'eau pour produire ATP et NADPH, puis cycle de Calvin indépendant de la lumière fixant le CO₂ en sucre à 6 carbones.",
+        highlight: "",
+      },
+      steps: [
+        { caption: "Produit — glucose (C₆H₁₂O₆)" },
+        { caption: "Réactif / produit — eau" },
+      ],
+    },
+    "neutralization-hcl-naoh": {
+      name: "Neutralisation (HCl + NaOH)",
+      description:
+        "Neutralisation d'Arrhenius type manuel : acide fort et base forte forment un sel et de l'eau — la réaction de transfert de proton que tout étudiant rencontre en premier.",
+      reactionType: "Acide-base",
+      category: "ACID-BASE",
+      reactants: [
+        { name: "Acide chlorhydrique", formula: "HCl" },
+        { name: "Hydroxyde de sodium", formula: "NaOH" },
+      ],
+      products: [
+        { name: "Chlorure de sodium", formula: "NaCl" },
+        { name: "Eau", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "Réaction acide-base d'Arrhenius classique : un acide fort et une base forte se neutralisent pour produire un sel (chlorure de sodium) et de l'eau.",
+        energyProfile: "Exothermique (chaleur de neutralisation, ΔH ≈ −57,3 kJ/mol).",
+        conditions: "Solution aqueuse, température ambiante.",
+        mechanism:
+          "Transfert de proton : les ions H⁺ de l'acide se combinent aux ions OH⁻ de la base pour former des molécules H₂O covalentes stables, tandis que Na⁺ et Cl⁻ restent spectateurs ou forment un réseau cristallin à l'évaporation.",
+        highlight: "",
+      },
+      steps: [{ caption: "Produit — eau (H₂O)" }],
+    },
+    "esterification-ethyl-acetate": {
+      name: "Estérification (acétate d'éthyle)",
+      description:
+        "Estérification de Fischer : acide carboxylique et alcool se condensent en ester fruité plus eau — chimie d'équilibre avec un peu d'acide sulfurique et de chaleur.",
+      reactionType: "Condensation / organique",
+      category: "ORGANIC",
+      reactants: [
+        { name: "Acide acétique", formula: "CH₃COOH" },
+        { name: "Éthanol", formula: "C₂H₅OH" },
+      ],
+      products: [
+        { name: "Acétate d'éthyle", formula: "CH₃COOC₂H₅" },
+        { name: "Eau", formula: "H₂O" },
+      ],
+      quickFacts: {
+        summary:
+          "Réaction de condensation entre un acide organique (acide acétique) et un alcool (éthanol) pour produire un ester (acétate d'éthyle, odeur sucrée et fruitée) et de l'eau.",
+        energyProfile: "Légèrement exothermique, réaction réversible à l'équilibre.",
+        conditions: "Catalyseur acide (typiquement H₂SO₄ concentré) et chauffage sous reflux.",
+        mechanism:
+          "Substitution acylique nucléophile : protonation du carbonyle, attaque nucléophile du groupe hydroxyle de l'alcool, puis élimination d'une molécule d'eau.",
+        highlight: "",
+      },
+      steps: [
+        { caption: "Réactif — éthanol" },
+        { caption: "Coproduit — eau" },
+      ],
+    },
+  },
+  categories: {
+    simple: "Simple",
+    organic: "Organique",
+    biological: "Biologique",
+    macro: "Macro",
+    SYNTHESIS: "Synthèse",
+    ORGANIC: "Chimie organique",
+    METABOLIC: "Métabolique",
+    "ACID-BASE": "Acide-base",
+  },
+  ui: {
+    nav_explore: "Explorer",
+    nav_learn: "Apprendre",
+    nav_showcase: "Vitrine",
+    tab_molecules: "Molécules",
+    tab_reactions: "Réactions",
+    label_quick_facts: "Faits rapides",
+    label_molecular_weight: "Masse molaire",
+    label_state: "État",
+    label_bond_types: "Types de liaisons",
+    state_gas: "Gaz",
+    state_liquid: "Liquide",
+    state_solid: "Solide",
+    state_plasma: "Plasma",
+    difficulty_beginner: "Débutant",
+    difficulty_intermediate: "Intermédiaire",
+    difficulty_expert: "Expert",
+    title_molecule_explorer: "Molécules",
+    subtitle_molecule_explorer:
+      "Naviguez entre les molécules, cliquez sur un atome pour l'inspecter et ouvrez le panneau d'apprentissage pour un contenu pédagogique enrichi.",
+    button_start_exploring: "Commencer l'exploration",
+    button_play_reaction: "Lecture",
+    fact_overview: "Aperçu",
+    fact_energy: "Énergie",
+    fact_conditions: "Conditions",
+    fact_mechanism: "Mécanisme",
+    subtitle_reaction:
+      "Choisissez une réaction, appuyez sur Lecture pour lancer la séquence 3D et lisez comment les liaisons se réorganisent dans la colonne Faits rapides.",
+    title_reaction_lab: "Laboratoire de réactions",
+    badge_interactive_studio: "Studio 3D interactif",
+    badge_reaction_animation: "Animation de réaction",
+    button_playing: "Lecture en cours…",
+    label_equation: "Équation",
+    label_reactants: "Réactifs",
+    label_products: "Produits",
+    aria_molecules_reactions: "Molécules et réactions",
+    aria_select_language: "Choisir la langue",
+    aria_footer: "Pied de page",
+    label_discipline: "Discipline",
+    label_boiling_point: "Point d'ébullition",
+    label_melting_point: "Point de fusion",
+    label_reaction_type: "Type de réaction",
+    label_highlight: "Point clé",
+    reaction_animation_placeholder:
+      "Interpolation 3D : coordonnées en attente ({key}).",
+    reaction_animation_ready:
+      "Interpolation atomique complète disponible — appuyez sur Lecture.",
+    hero_badge: "Apprentissage interactif nouvelle génération",
+    hero_title_prefix: "L'avenir de",
+    hero_title_highlight: "l'architecture moléculaire",
+    hero_subtitle:
+      "Explorez les briques de l'univers en 3D saisissante. Une plateforme éducative cinématographique et premium qui rend la chimie intuitive et belle.",
+    hero_launch_studio: "Lancer le studio",
+    hero_view_showcase: "Voir la vitrine",
+    hero_scroll: "Défiler",
+    featured_title_prefix: "Molécules",
+    featured_title_highlight: "à la une",
+    featured_subtitle:
+      "De l'eau simple aux macromolécules biologiques complexes — explorez-les toutes dans notre studio 3D interactif.",
+    card_atoms_bonds: "{atoms} atomes · {bonds} liaisons",
+    card_explore: "Explorer",
+    elements_title_prefix: "Découvrez les",
+    elements_title_highlight: "éléments",
+    elements_subtitle:
+      "Interagissez avec les atomes, les composés et les structures moléculaires complexes grâce à notre moteur de rendu WebGL haute fidélité.",
+    feature_atomic_title: "Structure atomique",
+    feature_atomic_desc:
+      "Plongez au niveau subatomique et observez les orbitales en temps réel.",
+    feature_crystal_title: "Réseaux cristallins",
+    feature_crystal_desc:
+      "Explorez les motifs géométriques répétitifs qui forment la matière solide.",
+    feature_macro_title: "Macromolécules",
+    feature_macro_desc:
+      "Visualisez les protéines, l'ADN et les structures biologiques complexes.",
+    showcase_title_prefix: "Éducation scientifique",
+    showcase_title_suffix: "cinématographique",
+    showcase_body:
+      "Nous avons combiné des techniques de rendu issues du jeu vidéo et la précision scientifique pour créer un environnement d'apprentissage inégalé. Manipulez les variables, observez les réactions et comprenez la chimie visuellement.",
+    showcase_bullet_1: "Simulation de dynamique moléculaire en temps réel",
+    showcase_bullet_2: "Modèles space-filling et bâtonnets-boules précis",
+    showcase_bullet_3: "Visualisation interactive du nuage électronique",
+    compare_title_prefix: "Comparer",
+    compare_title_highlight: "côte à côte",
+    compare_subtitle:
+      "Placez deux molécules quelconques l'une à côté de l'autre et repérez les différences structurales en un coup d'œil.",
+    footer_brand: "MoleculeArchitectureStudio",
+    footer_copyright: "© {year} Molecule Studio. Tous droits réservés.",
+    footer_about: "À propos",
+    footer_github: "Dépôt GitHub",
+    footer_canvas_guide: "Guide du canevas interactif",
+    footer_tech_badge: "Construit avec Next.js, Three.js et Tailwind CSS",
+    panel_tab_overview: "Aperçu",
+    panel_tab_structure: "Structure",
+    panel_tab_uses: "Usages",
+    panel_tab_fun_facts: "Anecdotes",
+    panel_stat_weight: "Masse",
+    panel_stat_atoms: "Atomes",
+    panel_stat_bonds: "Liaisons",
+    panel_stat_total: "total",
+    panel_state_room_temp: "État à température ambiante",
+    panel_no_education: "Données pédagogiques non disponibles pour cette molécule.",
+    panel_single_bonds: "Liaisons simples (σ)",
+    panel_double_bonds: "Liaisons doubles (σ+π)",
+    panel_triple_bonds: "Liaisons triples (σ+2π)",
+    panel_element_composition: "Composition élémentaire",
+    viewer_show_labels: "Étiquettes",
+    viewer_auto_rotate: "Rotation auto",
+    viewer_learn_panel: "Apprendre",
+    viewer_prev: "Précédent",
+    viewer_next: "Suivant",
+    viewer_close_atom: "Fermer le détail de l'atome",
+    discipline_daily_life: "Vie quotidienne",
+    discipline_medicine: "Médecine",
+    discipline_organic: "Chimie organique",
+    discipline_neuroscience: "Neurosciences",
+    discipline_nanotech: "Nanotechnologie",
+    discipline_biological: "Biologique",
+  },
+};

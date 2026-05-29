@@ -1,26 +1,416 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "katex/dist/katex.min.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans antialiased;
+    background-color: var(--studio-page-bg);
+    color: var(--studio-page-fg);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Theme tokens (UI + glass) ── */
+html[data-theme="cyberpunk"] {
+  --studio-page-bg: #000000;
+  --studio-page-fg: #ffffff;
+  --glass-bg: rgb(255 255 255 / 0.05);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --glass-blur: 16px;
+  --glass-card-bg: rgb(0 0 0 / 0.4);
+  --glass-card-border: rgb(255 255 255 / 0.1);
+  --glass-card-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  --canvas-card-bg: rgb(255 255 255 / 0.01);
+  --canvas-card-border: rgb(255 255 255 / 0.06);
+  --scrollbar-thumb: rgb(255 255 255 / 0.2);
+  --scrollbar-thumb-hover: rgb(255 255 255 / 0.3);
+}
+
+html[data-theme="white-lab"] {
+  --studio-page-bg: #f8fafc;
+  --studio-page-fg: #0f172a;
+  --glass-bg: rgb(255 255 255 / 0.72);
+  --glass-border: rgb(203 213 225 / 1);
+  --glass-blur: 14px;
+  --glass-card-bg: rgb(255 255 255 / 0.72);
+  --glass-card-border: rgb(203 213 225 / 1);
+  --glass-card-shadow:
+    0 4px 6px -1px rgb(148 163 184 / 0.18),
+    0 2px 4px -2px rgb(148 163 184 / 0.12);
+  --canvas-card-bg: rgb(255 255 255 / 0.85);
+  --canvas-card-border: rgb(203 213 225 / 1);
+  --panel-card-bg: rgb(255 255 255 / 0.75);
+  --panel-card-border: rgb(203 213 225 / 1);
+  --panel-card-shadow: 0 4px 6px -1px rgb(148 163 184 / 0.2), 0 2px 4px -2px rgb(148 163 184 / 0.1);
+  --scrollbar-thumb: rgb(100 116 139 / 0.35);
+  --scrollbar-thumb-hover: rgb(71 85 105 / 0.5);
+}
+
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    transition: background-color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
+  }
+
+  html[data-theme="white-lab"] .glass {
+    box-shadow: 0 1px 3px 0 rgb(148 163 184 / 0.15);
+  }
+
+  /* Quick Facts & sidebar fact cards — White Lab */
+  .panel-card {
+    background: var(--panel-card-bg, rgb(255 255 255 / 0.75));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--panel-card-border, rgb(203 213 225 / 1));
+    border-radius: 0.75rem;
+    box-shadow: var(--panel-card-shadow, 0 4px 6px -1px rgb(148 163 184 / 0.2));
+    transition: box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+
+  .panel-card-highlight {
+    background: var(--panel-card-bg, rgb(255 255 255 / 0.8));
+    border: 1px solid var(--panel-card-border, rgb(203 213 225 / 1));
+    border-radius: 1rem;
+    box-shadow: var(--panel-card-shadow);
+  }
+
+  html[data-theme="cyberpunk"] .panel-card {
+    background: rgb(255 255 255 / 0.02);
+    border: 1px solid rgb(255 255 255 / 0.06);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  html[data-theme="cyberpunk"] .panel-card-highlight {
+    background: transparent;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .glass-card {
+    background: var(--glass-card-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-card-border);
+    border-radius: 1rem;
+    box-shadow: var(--glass-card-shadow);
+    transition: background-color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
+  }
+
+  .canvas-card {
+    background: var(--canvas-card-bg);
+    border: 1px solid var(--canvas-card-border);
+    transition: background-color 0.45s ease, border-color 0.45s ease;
+  }
+
+  html[data-theme="cyberpunk"] .canvas-stage {
+    box-shadow:
+      0 0 80px rgb(99 102 241 / 0.06),
+      0 40px 80px rgb(0 0 0 / 0.5);
+  }
+
+  html[data-theme="white-lab"] .canvas-stage {
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.05),
+      0 12px 40px rgb(148 163 184 / 0.14);
+  }
+
+  .canvas-vignette {
+    background: radial-gradient(
+      ellipse 100% 100% at 50% 50%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.5) 100%
+    );
+  }
+
+  .canvas-vignette-light,
+  html[data-theme="white-lab"] .canvas-vignette {
+    background: radial-gradient(
+      ellipse 100% 100% at 50% 50%,
+      transparent 72%,
+      rgba(148, 163, 184, 0.12) 100%
+    );
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400;
+  }
+
+  html[data-theme="white-lab"] .text-gradient {
+    @apply from-indigo-800 via-indigo-700 to-violet-800;
+  }
+
+  html[data-theme="white-lab"] .text-glow {
+    text-shadow: none;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(129, 140, 248, 0.5);
+  }
+  
+  .neon-border {
+    @apply border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)];
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* AI Lab Assistant — markdown + KaTeX (theme-aware) */
+  .chat-markdown {
+    @apply text-sm leading-relaxed break-words max-w-none;
+  }
+
+  .chat-markdown > *:first-child {
+    margin-top: 0;
+  }
+
+  .chat-markdown > *:last-child {
+    margin-bottom: 0;
+  }
+
+  .chat-markdown p {
+    @apply my-2;
+  }
+
+  .chat-markdown h1 {
+    @apply mt-3 mb-2 text-base font-bold tracking-tight;
+  }
+
+  .chat-markdown h2 {
+    @apply mt-3 mb-1.5 text-sm font-bold tracking-tight;
+  }
+
+  .chat-markdown h3 {
+    @apply mt-2 mb-1 text-sm font-semibold;
+  }
+
+  .chat-markdown ul {
+    @apply my-2 list-disc pl-5 space-y-1;
+  }
+
+  .chat-markdown ol {
+    @apply my-2 list-decimal pl-5 space-y-1;
+  }
+
+  .chat-markdown li {
+    @apply pl-0.5;
+  }
+
+  .chat-markdown blockquote {
+    @apply my-2 border-l-2 pl-3 italic opacity-90;
+  }
+
+  .chat-markdown hr {
+    @apply my-3 border-current opacity-20;
+  }
+
+  .chat-markdown strong {
+    @apply font-semibold;
+  }
+
+  .chat-markdown .katex-display {
+    @apply my-3 overflow-x-auto py-1;
+  }
+
+  .chat-markdown .katex {
+    font-size: 1.05em;
+  }
+
+  .chat-markdown--light {
+    @apply text-neutral-800;
+  }
+
+  .chat-markdown--light blockquote {
+    @apply border-indigo-300 text-neutral-700;
+  }
+
+  .chat-markdown--light .katex,
+  .chat-markdown--light .katex .mord,
+  .chat-markdown--light .katex .mop,
+  .chat-markdown--light .katex .mbin,
+  .chat-markdown--light .katex .mrel,
+  .chat-markdown--light .katex .mopen,
+  .chat-markdown--light .katex .mclose,
+  .chat-markdown--light .katex .mpunct,
+  .chat-markdown--light .katex .minner {
+    color: #0f172a;
+  }
+
+  .chat-markdown--dark {
+    @apply text-gray-200;
+  }
+
+  .chat-markdown--dark blockquote {
+    @apply border-indigo-400/50 text-gray-300;
+  }
+
+  .chat-markdown--dark .katex,
+  .chat-markdown--dark .katex .mord,
+  .chat-markdown--dark .katex .mop,
+  .chat-markdown--dark .katex .mbin,
+  .chat-markdown--dark .katex .mrel,
+  .chat-markdown--dark .katex .mopen,
+  .chat-markdown--dark .katex .mclose,
+  .chat-markdown--dark .katex .mpunct,
+  .chat-markdown--dark .katex .minner {
+    color: #f1f5f9;
+  }
+
+  .chat-markdown--dark .katex .mspace {
+    color: transparent;
+  }
+
+  .canvas-touch-surface {
+    isolation: isolate;
+  }
+
+  .canvas-touch-surface canvas {
+    touch-action: none;
+  }
 }

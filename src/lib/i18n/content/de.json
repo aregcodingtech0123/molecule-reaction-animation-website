@@ -1,0 +1,679 @@
+{
+  "molecules": {
+    "water": {
+      "name": "Wasser",
+      "description": "Das universelle Lösungsmittel, das für alle bekannten Lebensformen unverzichtbar ist.",
+      "category": "simple",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Polar kovalent",
+        "Wasserstoffbrücke"
+      ],
+      "uses": [
+        "Universelles biologisches Lösungsmittel",
+        "Industrielle Kühlsysteme",
+        "Wasserkraft-Erzeugung",
+        "Reaktionsmedium in der Chemie"
+      ],
+      "funFacts": [
+        "Wasser ist der einzige natürliche Stoff, der bei auf der Erde üblichen Temperaturen in allen drei Aggregatzuständen vorkommt.",
+        "Ein Wassermolekül verweilt in der Atmosphäre nur etwa 9 Tage, bevor es als Niederschlag fällt.",
+        "Heißes Wasser kann schneller gefrieren als kaltes — der Mpemba-Effekt."
+      ]
+    },
+    "methane": {
+      "name": "Methan",
+      "description": "Der einfachste Kohlenwasserstoff und ein starkes Treibhausgas.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Unpolar kovalent",
+        "Tetraedrisch"
+      ],
+      "uses": [
+        "Erdgas als Brennstoff für Heizung und Kochen",
+        "Stromerzeugung in Kraftwerken",
+        "Produktion von Wasserstoffgas",
+        "Ausgangsstoff für chemische Synthesen"
+      ],
+      "funFacts": [
+        "Methan ist über 20 Jahre etwa 80-mal wirksamer als CO₂ als Treibhausgas.",
+        "Seine perfekte Tetraederform macht alle vier C–H-Bindungen gleich lang (1,09 Å).",
+        "Methanogene Archaea erzeugen Methan in Meeressedimenten und im Verdauungstrakt von Rindern."
+      ]
+    },
+    "glucose": {
+      "name": "Glucose",
+      "description": "Primäre Energiequelle für Zellen und ein grundlegender Zucker in der Biologie.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Kovalent",
+        "Polare C–O-Bindungen",
+        "Ringstruktur"
+      ],
+      "uses": [
+        "Primäre zelluläre Energiequelle über Glykolyse",
+        "Glucose-Infusionen in der Medizin",
+        "Sport- und Energy-Drinks",
+        "Gärung zu Ethanol und CO₂"
+      ],
+      "funFacts": [
+        "Ihr Gehirn verbraucht etwa 120 g Glucose pro Tag — rund 60 % Ihres Gesamtglucosebedarfs.",
+        "Glucose existiert als α-Glucose und β-Glucose; sie unterscheiden sich nur in der Ausrichtung einer Hydroxylgruppe.",
+        "Ein Gramm Glucose liefert beim Stoffwechsel etwa 4 Kilokalorien."
+      ]
+    },
+    "caffeine": {
+      "name": "Koffein",
+      "description": "Ein Zentralnervensystem-Stimulans in Kaffee und Tee.",
+      "category": "organic",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Aromatischer Ring",
+        "Amid C=O",
+        "N-Methylierung"
+      ],
+      "uses": [
+        "Stimulans in Kaffee, Tee und Energy-Drinks",
+        "Schmerzmittel (oft mit Acetylsalicylsäure kombiniert)",
+        "Behandlung von Apnoe bei Frühgeborenen",
+        "Leistungssteigerung im Ausdauersport"
+      ],
+      "funFacts": [
+        "Koffein blockiert Adenosin-Rezeptoren im Gehirn und verhindert so das Müdigkeitsgefühl.",
+        "Eine Tasse Espresso enthält etwa 63 mg Koffein — eine tödliche Dosis würde sehr schnell etwa 80 Tassen erfordern.",
+        "Koffein ist die weltweit am häufigsten konsumierte psychoaktive Substanz."
+      ]
+    },
+    "dna-fragment": {
+      "name": "DNA-Basenpaar",
+      "description": "Ein wasserstoffbrückengebundenes Basenpaar als Sprosse der DNA-Doppelhelix.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Aromatisch",
+        "Wasserstoffbrücke (×2 A–T)",
+        "Glycosidische Bindung"
+      ],
+      "uses": [
+        "Speicherung genetischer Information in allen Lebewesen",
+        "Vorlage für mRNA-Transkription",
+        "Zielstellen der CRISPR-Cas9-Genomeditierung",
+        "DNA-Fingerabdruck in der Forensik"
+      ],
+      "funFacts": [
+        "Adenin paart sich stets mit Thymin über 2 Wasserstoffbrücken — Watson-Crick-Basenpaarung.",
+        "Wäre die DNA all Ihrer Zellen entrollt und aneinandergereiht, reichte sie etwa 600-mal von der Erde zur Sonne und zurück.",
+        "Das menschliche Genom enthält etwa 3 Milliarden Basenpaare."
+      ]
+    },
+    "protein-fragment": {
+      "name": "Peptidbindung",
+      "description": "Ein Dipeptid-Fragment mit der grundlegenden Peptidbindung zwischen Aminosäuren.",
+      "category": "biological",
+      "disciplineTag": null,
+      "bondTypes": [
+        "Peptidbindung (C–N)",
+        "Amid-Resonanz",
+        "α-Kohlenstoff-Bindungen"
+      ],
+      "uses": [
+        "Grundbaustein aller Proteinstrukturen",
+        "Vorlage für synthetisches Peptid-Drug-Design",
+        "Zellsignalübertragung über Peptidhormone",
+        "Aromastoffe in Lebensmitteln (z. B. Aspartam ist ein Dipeptid)"
+      ],
+      "funFacts": [
+        "Die Peptidbindung hat durch Resonanz teilweise Doppelbindungscharakter — sie ist planar und rotiert nicht frei.",
+        "Es gibt 20 Standard-Aminosäuren; daraus entstehen beim Menschen über 100.000 verschiedene Proteine.",
+        "Das Ribosom bildet etwa alle 0,05 Sekunden eine neue Peptidbindung."
+      ]
+    },
+    "ethanol": {
+      "name": "Ethanol",
+      "description": "Der vertraute Zweikohlenstoff-Alkohol in Bier, Wein und Desinfektionsgel — klein, polar und in Labor und Alltag überraschend einflussreich.",
+      "category": "organic",
+      "disciplineTag": "ALLTAG",
+      "bondTypes": [
+        "Polar kovalent (C–O, O–H)",
+        "Unpolar C–C / C–H",
+        "Wasserstoffbrücken (zwischen Molekülen)"
+      ],
+      "uses": [
+        "Alkoholische Getränke (verdünnte Lösungen)",
+        "Lösungsmittel im Labor und in Tinkturen",
+        "Desinfektionsmittel und Kraftstoff-Biozusätze"
+      ],
+      "funFacts": [
+        "Die Leber wandelt Ethanol zuerst in Acetaldehyd, dann in Acetat um — das Tempo zählt.",
+        "Ethanol stört Membranfluidität und Proteinstruktur — deshalb ist es ein so vielseitiges biologisches Lösungsmittel."
+      ]
+    },
+    "aspirin": {
+      "name": "Aspirin",
+      "description": "Acetylsalicylsäure: ein klassisches Schmerzmittel, das die Thrombozyten-Chemie irreversibel beeinflusst — Medizin, Geschichte und organische Synthese in einer Tablette.",
+      "category": "organic",
+      "disciplineTag": "MEDIZIN",
+      "bondTypes": [
+        "Aromatisch (Benzolring)",
+        "Esterbindung",
+        "Carbonsäure"
+      ],
+      "uses": [
+        "Analgetikum (Schmerz) und Antipyretikum (Fieber)",
+        "Entzündungshemmung (NSAID)",
+        "Niedrig dosierte Thrombozyten-Hemmung (nur unter ärztlicher Anleitung)"
+      ],
+      "funFacts": [
+        "Salicin aus Weidenrinde ist der pflanzliche Vorläufer dieses synthetischen Klassikers.",
+        "Die Acetylgruppe hilft, Magensäure besser zu überstehen als reine Salicylsäure."
+      ]
+    },
+    "capsaicin": {
+      "name": "Capsaicin",
+      "description": "Das feurige Vanilloid der Chilischoten — evolutionäre Abschreckung für Säugetiere und Liebling der TRPV1-Neuroforschung.",
+      "category": "organic",
+      "disciplineTag": "ORGANIK",
+      "bondTypes": [
+        "Phenolischer aromatischer Kern",
+        "Amidbindung",
+        "Ether (Methoxy) und aliphatische Kette"
+      ],
+      "uses": [
+        "Kulinarische Schärfe und Capsaicinoid-Mischungen",
+        "Topische Schmerzcremes (TRPV1-Modulation)",
+        "Schädlingsabwehr-Formulierungen"
+      ],
+      "funFacts": [
+        "Vögel reagieren oft weniger empfindlich als Säugetiere — Chilisamen verbreiten sich so weiter.",
+        "Schärfe ist kein Geschmack auf der Zunge, sondern Schmerzrezeptor-Signal."
+      ]
+    },
+    "serotonin": {
+      "name": "Serotonin",
+      "description": "5-HT: ein Monoamin-Signal für Stimmung, Schlaf und Darmmotilität — ein Gerüst, viele biologische Rollen.",
+      "category": "biological",
+      "disciplineTag": "NEUROWISSENSCHAFT",
+      "bondTypes": [
+        "Aromatisches Indol",
+        "Primäres Amin",
+        "Phenolische Hydroxylgruppe"
+      ],
+      "uses": [
+        "Neurotransmission und Neuromodulation",
+        "Pharmakologische Ziele (z. B. SSRIs wirken stromaufwärts in Wegen)",
+        "Periphere Rollen im enterischen Nervensystem"
+      ],
+      "funFacts": [
+        "Der Großteil des Körper-Serotonins sitzt nicht „in der Stimmung“, sondern im Darm und in Thrombozyten.",
+        "Der Name verweist auf Blutserum, wo es erstmals als gefäßverengend beobachtet wurde."
+      ]
+    },
+    "dopamine": {
+      "name": "Dopamin",
+      "description": "Ein Katecholamin mit Ethylamin an einem Katechol-Ring — Motivation, Bewegung und mesolimbische Mythen kreisen um diese Struktur.",
+      "category": "biological",
+      "disciplineTag": "NEUROWISSENSCHAFT",
+      "bondTypes": [
+        "Aromatisch (Katechol)",
+        "Primäres Amin",
+        "Phenolisches O–H"
+      ],
+      "uses": [
+        "Neurotransmitter in Belohnungs- und Motorikbahnen",
+        "Klinische Kreislaufstütze (als Hydrochlorid-Salz i.v., unter Aufsicht)",
+        "Lehr-Ligand für GPCR- und Transporter-Biologie"
+      ],
+      "funFacts": [
+        "Die Parkinson-Pathologie hängt eng mit dem Verlust von Dopamin-Neuronen in der Substantia nigra zusammen.",
+        "Es ist polar genug, dass freies Dopamin die Blut-Hirn-Schranke nicht leicht passiert."
+      ]
+    },
+    "adrenaline": {
+      "name": "Adrenalin",
+      "description": "Epinephrin: das Molekül hinter dem Pulsanstieg, wenn im Gebüsch etwas raschelt — sympathische Chemie in drei dringlichen Sauerstoffen.",
+      "category": "biological",
+      "disciplineTag": "NEUROWISSENSCHAFT",
+      "bondTypes": [
+        "Aromatisch (Katechol)",
+        "Sekundäres Amin (benzyliche Substitution)",
+        "Primärer Alkohol"
+      ],
+      "uses": [
+        "Autoinjektoren bei Anaphylaxie (mit klinischer Schulung/Indikation)",
+        "Zusatz bei Lokalanästhesie (vasokonstriktive Begründung)",
+        "Physiologie-Demos der Kampf-oder-Flucht-Signalgebung"
+      ],
+      "funFacts": [
+        "„Adrenalin“ und „Epinephrin“ sind weitgehend UK/US-Namen — dasselbe eilige Hormon.",
+        "Es wirkt an α- und β-adrenergen Rezeptoren — Vasokonstriktion und Bronchodilatation erklärt sich so."
+      ]
+    },
+    "buckminsterfullerene": {
+      "name": "Buckminsterfullerene",
+      "description": "Fußball-Symmetrie aus reinem Kohlenstoff — ein Nobel-preisgekröntes Käfigmolekül, das zeigte: Aromatizität braucht keine flachen Hexagone.",
+      "category": "macro",
+      "disciplineTag": "NANOTECHNOLOGIE",
+      "bondTypes": [
+        "Sp²-ähnliches Kohlenstoffnetz (abgeschnittenes Ikosaeder)",
+        "Delokalisierte π-Systeme auf gekrümmten Flächen"
+      ],
+      "uses": [
+        "Materialwissenschaftliche Prototypen (Dünnschichten, Verbundstoffe)",
+        "Elektronenakzeptor-Motive in der organischen Elektronikforschung",
+        "Lehrmittel für Kohlenstoff-Nanoallotrope"
+      ],
+      "funFacts": [
+        "12 Fünfecke und 20 Sechsecke — Eulers Handschlag mit dem wilden Cousin des Graphits.",
+        "Benannt nach Buckminster Fuller, der Geodätische Kuppeln popularisierte."
+      ]
+    },
+    "heme-group": {
+      "name": "Hämoglobin-Hämgruppe",
+      "description": "Die eisenchelierende Porphyrin-Prosthetische Gruppe, die Hämoglobin zum O₂-Transport macht: reversibles O₂-Binden mit Protein-Allosterie im Hintergrund.",
+      "category": "biological",
+      "disciplineTag": "BIOLOGIE",
+      "bondTypes": [
+        "Aromatischer Porphyrin-Makrocyclus",
+        "Metallkoordination (Fe–N)",
+        "Propionat-/Carboxylat-ähnliche Substituenten (kontextabhängige Protonierung)"
+      ],
+      "uses": [
+        "O₂-Transport und -Speicher in Hämoproteinen",
+        "Enzymaktive Zentren (z. B. Katalase, Cytochrome)",
+        "Biochemie-Lehre zu Ligandenfeld und kooperativem Binden"
+      ],
+      "funFacts": [
+        "Vier Häme in Hämoglobin ermöglichen kooperatives Binden — sigmoide Kurven sind Physiologie, kein Trivia.",
+        "Das axiale Histidin-Tuning feinjustiert O₂-Affinität gegenüber CO-Konkurrenz."
+      ]
+    }
+  },
+  "reactions": {
+    "methane-combustion": {
+      "name": "Verbrennung von Methan",
+      "description": "Klassische Oxidation: Methan trifft auf Sauerstoff in einer Radikalkette, die viel Wärme freisetzt und CO₂ sowie Wasser erzeugt.",
+      "reactionType": "Verbrennung",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Methan",
+          "formula": "CH₄"
+        },
+        {
+          "name": "Sauerstoff",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Kohlenstoffdioxid",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Wasser",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Die vollständige Verbrennung von Methan ist stark exotherm und wandelt chemische Energie in Wärme und Licht um.",
+        "energyProfile": "Stark exotherm (ΔH << 0 für die ausgeglichene Reaktion)",
+        "conditions": "Zündenergie (Funke/Flamme); kontinuierliche O₂-Zufuhr",
+        "mechanism": "Radikalkettenmechanismus: Initiierung → Propagation (·OH, ·CH₃ usw.) → Terminierung; die 3D-Ansicht zeigt repräsentative Spezies.",
+        "highlight": "Jede ausgeglichene Verbrennungsgeschichte endet mit sauberer CO₂-Bilanz und vorsichtigem Umgang mit offener Flamme."
+      },
+      "steps": [
+        {
+          "caption": "Brennstoff — Methan"
+        },
+        {
+          "caption": "Produkt im Fokus — Wasser"
+        }
+      ]
+    },
+    "water-formation": {
+      "name": "Bildung von Wasser",
+      "description": "Wasserstoff verbrennt in Sauerstoff zu Wasser — einfache Stöchiometrie, enorme industrielle und raketentechnische Bedeutung.",
+      "reactionType": "Synthese / Verbrennung",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Wasserstoff",
+          "formula": "H₂"
+        },
+        {
+          "name": "Sauerstoff",
+          "formula": "O₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Wasser",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Diese Reaktion setzt pro Gramm H₂ viel Energie frei — deshalb steht sie im Zentrum der Wasserstoff-Energiedebatte.",
+        "energyProfile": "Exotherm; thermodynamisch sehr günstig",
+        "conditions": "Zündung oder Katalysator (z. B. Pt); exaktes H₂ : O₂-Verhältnis wichtig für die Sicherheit",
+        "mechanism": "Oft radikalisch in der Gasphase; die 3D-Ansicht zeigt das polare Produkt aus der Redox-Partnerschaft.",
+        "highlight": "Die gewinkelte Geometrie von Wasser folgt direkt aus der Abstoßung freier Elektronenpaare am Sauerstoff."
+      },
+      "steps": [
+        {
+          "caption": "Produkt — Wasser (H₂O)"
+        }
+      ]
+    },
+    "glucose-fermentation": {
+      "name": "Gärung von Glucose",
+      "description": "Hefefreundliche Biochemie: Glucose wird zu Ethanol und Kohlenstoffdioxid gespalten — Grund, warum Brot aufgeht und Wein existiert.",
+      "reactionType": "Biochemisch / anaerob",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Glucose",
+          "formula": "C₆H₁₂O₆"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ethanol",
+          "formula": "C₂H₅OH"
+        },
+        {
+          "name": "Kohlenstoffdioxid",
+          "formula": "CO₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Glykolyse gefolgt von Gärung regeneriert NAD⁺, damit die Glykolyse bei Sauerstoffmangel weiterlaufen kann.",
+        "energyProfile": "Teiloxidation — weniger ATP als bei Atmung",
+        "conditions": "Hefe oder Bakterien; anaerober oder mikroaerober Milieu",
+        "mechanism": "Pyruvat → Acetaldehyd → Ethanol, CO₂ wird als kleines Molekül abgegeben.",
+        "highlight": "Dieselbe Wegfamilie verbindet Brauen, Backen und Biofuel-Forschung."
+      },
+      "steps": [
+        {
+          "caption": "Ausgangszucker"
+        },
+        {
+          "caption": "Ethanol-Produkt"
+        }
+      ]
+    },
+    "haber-bosch": {
+      "name": "Haber-Bosch-Verfahren",
+      "description": "Industrielle Stickstofffixierung: atmosphärisches N₂ und H₂ werden zu Ammoniak — Grundpfeiler der globalen Düngemittelproduktion.",
+      "reactionType": "Industrielle Synthese",
+      "category": "SYNTHESIS",
+      "reactants": [
+        {
+          "name": "Stickstoff",
+          "formula": "N₂"
+        },
+        {
+          "name": "Wasserstoff",
+          "formula": "H₂"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ammoniak",
+          "formula": "NH₃"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Die industrielle Umsetzung der Stickstofffixierung: atmosphärischer Stickstoff wird zu Ammoniak und daraus zu Düngemitteln für die weltweite Nahrungsproduktion.",
+        "energyProfile": "Exotherm (ΔH = −92,4 kJ/mol).",
+        "conditions": "Hoher Druck (150–250 bar), hohe Temperatur (400–500 °C) und Eisen-(Fe)-Katalysator.",
+        "mechanism": "Dissoziative Adsorption von N₂ und H₂ an der Eisenkatalysatoroberfläche, gefolgt von schrittweiser Hydrierung der Stickstoffatome.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "NH₃-Szene — Animationskoordinaten in Arbeit"
+        }
+      ]
+    },
+    "photosynthesis": {
+      "name": "Photosynthese (vereinfacht)",
+      "description": "Lichtgetriebene Kohlenstofffixierung: sechs CO₂ und sechs Wasser bauen einen Glucose-Ring auf und setzen Sauerstoff frei — Motor des Biosphären-Stoffwechsels.",
+      "reactionType": "Stoffwechsel / lichtgetrieben",
+      "category": "METABOLIC",
+      "reactants": [
+        {
+          "name": "Kohlenstoffdioxid",
+          "formula": "CO₂"
+        },
+        {
+          "name": "Wasser",
+          "formula": "H₂O"
+        }
+      ],
+      "products": [
+        {
+          "name": "Glucose",
+          "formula": "C₆H₁₂O₆"
+        },
+        {
+          "name": "Sauerstoff",
+          "formula": "O₂"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Der grundlegende biochemische Prozess, mit dem Pflanzen, Algen und manche Bakterien Lichtenergie in chemische Energie (Glucose) umwandeln und Sauerstoff als Nebenprodukt abgeben.",
+        "energyProfile": "Endotherm / endergon (benötigt Photonenenergie, ΔH = +2803 kJ/mol für die vereinfachte Gesamtgleichung).",
+        "conditions": "Sonnenlicht (Photonen), Chlorophyll-Pigmente, Umgebungstemperaturen.",
+        "mechanism": "Lichtabhängige Reaktionen spalten Wasser zu ATP und NADPH, danach fixiert der lichtunabhängige Calvin-Zyklus CO₂ zu einem 6-Kohlenstoff-Zucker.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Produkt — Glucose (C₆H₁₂O₆)"
+        },
+        {
+          "caption": "Reaktant / Produkt — Wasser"
+        }
+      ]
+    },
+    "neutralization-hcl-naoh": {
+      "name": "Neutralisation (HCl + NaOH)",
+      "description": "Lehrbuch-Neutralisation nach Arrhenius: starke Säure und starke Base ergeben Salz und Wasser — die Protonenübertragung jeder Einführung in die Chemie.",
+      "reactionType": "Säure-Base",
+      "category": "ACID-BASE",
+      "reactants": [
+        {
+          "name": "Salzsäure",
+          "formula": "HCl"
+        },
+        {
+          "name": "Natriumhydroxid",
+          "formula": "NaOH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Natriumchlorid",
+          "formula": "NaCl"
+        },
+        {
+          "name": "Wasser",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Klassische Arrhenius-Säure-Base-Reaktion: starke Säure und starke Base neutralisieren sich zu Salz (Natriumchlorid) und Wasser.",
+        "energyProfile": "Exotherm (Neutralisationswärme, ΔH ≈ −57,3 kJ/mol).",
+        "conditions": "Wässrige Lösung, Raumtemperatur.",
+        "mechanism": "Protonenübertragung: H⁺ der Säure verbinden sich mit OH⁻ der Base zu stabilen kovalenten H₂O-Molekülen; Na⁺ und Cl⁻ bleiben als Zuschauerionen oder bilden beim Eindampfen ein Kristallgitter.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Produkt — Wasser (H₂O)"
+        }
+      ]
+    },
+    "esterification-ethyl-acetate": {
+      "name": "Veresterung (Ethylacetat)",
+      "description": "Fischer-Veresterung: Carbonsäure und Alkohol kondensieren zu einem fruchtigen Ester plus Wasser — Gleichgewichtschemie mit etwas Schwefelsäure und Wärme.",
+      "reactionType": "Kondensation / organisch",
+      "category": "ORGANIC",
+      "reactants": [
+        {
+          "name": "Essigsäure",
+          "formula": "CH₃COOH"
+        },
+        {
+          "name": "Ethanol",
+          "formula": "C₂H₅OH"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ethylacetat",
+          "formula": "CH₃COOC₂H₅"
+        },
+        {
+          "name": "Wasser",
+          "formula": "H₂O"
+        }
+      ],
+      "quickFacts": {
+        "summary": "Kondensationsreaktion zwischen organischer Säure (Essigsäure) und Alkohol (Ethanol) zu einem Ester (Ethylacetat, süß-fruchtiger Geruch) und Wasser.",
+        "energyProfile": "Leicht exotherm, reversibles Gleichgewicht.",
+        "conditions": "Säurekatalysator (typisch konzentrierte H₂SO₄) und Erhitzen unter Rückfluss.",
+        "mechanism": "Nukleophile Acylsubstitution: Carbonyl-Sauerstoff der Carbonsäure wird protoniert, dann nukleophiler Angriff der Alkohol-Hydroxylgruppe, abschließend Eliminierung von Wasser.",
+        "highlight": ""
+      },
+      "steps": [
+        {
+          "caption": "Reaktant — Ethanol"
+        },
+        {
+          "caption": "Nebenprodukt — Wasser"
+        }
+      ]
+    }
+  },
+  "categories": {
+    "simple": "Einfach",
+    "organic": "Organisch",
+    "biological": "Biologisch",
+    "macro": "Makro",
+    "SYNTHESIS": "Synthese",
+    "ORGANIC": "Organische Chemie",
+    "METABOLIC": "Stoffwechsel",
+    "ACID-BASE": "Säure-Base"
+  },
+  "ui": {
+    "nav_explore": "Entdecken",
+    "nav_learn": "Lernen",
+    "nav_showcase": "Showcase",
+    "tab_molecules": "Moleküle",
+    "tab_reactions": "Reaktionen",
+    "label_quick_facts": "Kurzinfos",
+    "label_molecular_weight": "Molare Masse",
+    "label_state": "Aggregatzustand",
+    "label_bond_types": "Bindungstypen",
+    "state_gas": "Gas",
+    "state_liquid": "Flüssig",
+    "state_solid": "Fest",
+    "state_plasma": "Plasma",
+    "difficulty_beginner": "Einsteiger",
+    "difficulty_intermediate": "Fortgeschritten",
+    "difficulty_expert": "Experte",
+    "title_molecule_explorer": "Moleküle",
+    "subtitle_molecule_explorer": "Zwischen Molekülen wechseln, jedes Atom anklicken zum Inspizieren und das Lernpanel für vertiefte Inhalte öffnen.",
+    "button_start_exploring": "Entdecken starten",
+    "button_play_reaction": "Abspielen",
+    "fact_overview": "Überblick",
+    "fact_energy": "Energie",
+    "fact_conditions": "Bedingungen",
+    "fact_mechanism": "Mechanismus",
+    "subtitle_reaction": "Reaktion wählen, Abspielen für die 3D-Sequenz drücken und in der Kurzinfos-Spalte nachlesen, wie sich Bindungen umordnen.",
+    "title_reaction_lab": "Reaktionslabor",
+    "badge_interactive_studio": "Interaktives 3D-Studio",
+    "badge_reaction_animation": "Reaktionsanimation",
+    "button_playing": "Wird abgespielt…",
+    "label_equation": "Gleichung",
+    "label_reactants": "Reaktanten",
+    "label_products": "Produkte",
+    "aria_molecules_reactions": "Moleküle und Reaktionen",
+    "aria_select_language": "Sprache wählen",
+    "aria_footer": "Fußzeile",
+    "label_discipline": "Disziplin",
+    "label_boiling_point": "Siedepunkt",
+    "label_melting_point": "Schmelzpunkt",
+    "label_reaction_type": "Reaktionstyp",
+    "label_highlight": "Highlight",
+    "reaction_animation_placeholder": "3D-Interpolation: Koordinaten ausstehend ({key}).",
+    "reaction_animation_ready": "Vollständige Atom-Interpolation verfügbar — Abspielen drücken.",
+    "hero_badge": "Interaktives Lernen der nächsten Generation",
+    "hero_title_prefix": "Die Zukunft der",
+    "hero_title_highlight": "Molekulararchitektur",
+    "hero_subtitle": "Die Bausteine des Universums in beeindruckendem 3D erkunden. Eine filmische, hochwertige Lernplattform, die Chemie intuitiv und schön macht.",
+    "hero_launch_studio": "Studio starten",
+    "hero_view_showcase": "Showcase ansehen",
+    "hero_scroll": "Scrollen",
+    "featured_title_prefix": "Ausgewählte",
+    "featured_title_highlight": "Moleküle",
+    "featured_subtitle": "Vom einfachen Wasser bis zu komplexen biologischen Makromolekülen — alles im interaktiven 3D-Studio.",
+    "card_atoms_bonds": "{atoms} Atome · {bonds} Bindungen",
+    "card_explore": "Entdecken",
+    "elements_title_prefix": "Die",
+    "elements_title_highlight": "Elemente",
+    "elements_subtitle": "Atome, Verbindungen und komplexe Molekülstrukturen mit unserer hochauflösenden WebGL-Engine erkunden.",
+    "feature_atomic_title": "Atomstruktur",
+    "feature_atomic_desc": "Tauchen Sie in die subatomare Ebene ein und beobachten Sie Orbitale in Echtzeit.",
+    "feature_crystal_title": "Kristallgitter",
+    "feature_crystal_desc": "Die sich wiederholenden geometrischen Muster fester Materie erkunden.",
+    "feature_macro_title": "Makromoleküle",
+    "feature_macro_desc": "Proteine, DNA und komplexe biologische Strukturen visualisieren.",
+    "showcase_title_prefix": "Filmische",
+    "showcase_title_suffix": "Wissenschaftsbildung",
+    "showcase_body": "Moderne Spiel-Rendering-Techniken und wissenschaftliche Genauigkeit schaffen eine einzigartige Lernumgebung. Variablen steuern, Reaktionen beobachten, Chemie visuell verstehen.",
+    "showcase_bullet_1": "Moleküldynamik-Simulation in Echtzeit",
+    "showcase_bullet_2": "Präzise Space-Filling- und Kugel-Stab-Modelle",
+    "showcase_bullet_3": "Interaktive Visualisierung der Elektronenwolke",
+    "compare_title_prefix": "Vergleichen",
+    "compare_title_highlight": "Nebeneinander",
+    "compare_subtitle": "Beliebige zwei Moleküle nebeneinander legen und strukturelle Unterschiede auf einen Blick sehen.",
+    "footer_brand": "MoleculeArchitectureStudio",
+    "footer_copyright": "© {year} Molecule Studio. Alle Rechte vorbehalten.",
+    "footer_about": "Über uns",
+    "footer_github": "GitHub-Repository",
+    "footer_canvas_guide": "Interaktiver Canvas-Leitfaden",
+    "footer_tech_badge": "Erstellt mit Next.js, Three.js & Tailwind CSS",
+    "panel_tab_overview": "Überblick",
+    "panel_tab_structure": "Struktur",
+    "panel_tab_uses": "Anwendungen",
+    "panel_tab_fun_facts": "Kuriositäten",
+    "panel_stat_weight": "Masse",
+    "panel_stat_atoms": "Atome",
+    "panel_stat_bonds": "Bindungen",
+    "panel_stat_total": "gesamt",
+    "panel_state_room_temp": "Zustand bei Raumtemperatur",
+    "panel_no_education": "Für dieses Molekül liegen keine Lerninhalte vor.",
+    "panel_single_bonds": "Einfachbindungen (σ)",
+    "panel_double_bonds": "Doppelbindungen (σ+π)",
+    "panel_triple_bonds": "Dreifachbindungen (σ+2π)",
+    "panel_element_composition": "Elementzusammensetzung",
+    "viewer_show_labels": "Beschriftungen",
+    "viewer_auto_rotate": "Auto-Rotation",
+    "viewer_learn_panel": "Lernen",
+    "viewer_prev": "Zurück",
+    "viewer_next": "Weiter",
+    "viewer_close_atom": "Atomdetail schließen",
+    "discipline_daily_life": "Alltag",
+    "discipline_medicine": "Medizin",
+    "discipline_organic": "Organische Chemie",
+    "discipline_neuroscience": "Neurowissenschaft",
+    "discipline_nanotech": "Nanotechnologie",
+    "discipline_biological": "Biologie",
+    "meta_title": "Molecule Architecture Studio",
+    "meta_description": "Eine Premium-Plattform für interaktive Chemie – Moleküle in 3D erkunden."
+  }
+}

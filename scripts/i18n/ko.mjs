@@ -1,0 +1,572 @@
+/** Korean (ko) content for src/lib/i18n/content/ko.json */
+const molecules = {
+  water: {
+    name: "물",
+    description: "알려진 모든 생명 형태에 필수적인 범용 용매.",
+    category: "simple",
+    disciplineTag: null,
+    bondTypes: ["극성 공유 결합", "수소 결합"],
+    uses: [
+      "생물학적 범용 용매",
+      "산업용 냉각 시스템",
+      "수력 발전",
+      "화학 반응 매질",
+    ],
+    funFacts: [
+      "물은 지구에서 흔히 나타나는 온도에서 세 가지 물리 상태 모두에 존재하는 유일한 자연 물질입니다.",
+      "물 분자는 대기 중에서 약 9일만 머문 뒤 강수로 떨어집니다.",
+      "뜨거운 물이 차가운 물보다 더 빨리 얼 수 있는데, 이를 음페바 효과라고 합니다.",
+    ],
+  },
+  methane: {
+    name: "메탄",
+    description: "가장 단순한 탄화수소이자 강력한 온실가스.",
+    category: "organic",
+    disciplineTag: null,
+    bondTypes: ["무극성 공유 결합", "사면체"],
+    uses: [
+      "난방·요리용 천연가스 연료",
+      "발전소 전력 생산",
+      "수소 가스 생산",
+      "화학 합성 원료",
+    ],
+    funFacts: [
+      "메탄은 20년 기준으로 CO₂보다 온실 효과가 약 80배 강합니다.",
+      "완벽한 사면체 구조로 네 개의 C–H 결합 길이가 모두 같습니다(1.09 Å).",
+      "메탄 생성 고세균이 해양 퇴적물과 소화기관 깊숙이에서 메탄을 만듭니다.",
+    ],
+  },
+  glucose: {
+    name: "포도당",
+    description: "세포의 주요 에너지원이자 생물학의 기본 당.",
+    category: "organic",
+    disciplineTag: null,
+    bondTypes: ["공유 결합", "극성 C–O 결합", "고리 구조"],
+    uses: [
+      "해당 과정을 통한 세포 주 에너지원",
+      "의료용 포도당 수액",
+      "스포츠·에너지 음료",
+      "에탄올·CO₂ 발효",
+    ],
+    funFacts: [
+      "뇌는 하루 약 120g의 포도당을 소비하며, 전체 사용량의 약 60%를 차지합니다.",
+      "포도당은 α-포도당과 β-포도당 두 형태가 있으며, 하나의 히드록실기 방향만 다릅니다.",
+      "포도당 1g을 대사하면 약 4칼로리가 방출됩니다.",
+    ],
+  },
+  caffeine: {
+    name: "카페인",
+    description: "커피와 차에 들어 있는 중추신경계 자극제.",
+    category: "organic",
+    disciplineTag: null,
+    bondTypes: ["방향족 고리", "아미드 C=O", "N-메틸화"],
+    uses: [
+      "커피·차·에너지 음료의 각성제",
+      "진통제(아스피린과 병용)",
+      "미숙아 무호흡 치료",
+      "지구력 스포츠 성능 보조",
+    ],
+    funFacts: [
+      "카페인은 뇌의 아데노신 수용체를 차단해 피로감을 막습니다.",
+      "에스프레소 한 잔에는 약 63mg의 카페인이 들어 있으며, 치사량에 가까우려면 매우 빠르게 약 80잔을 마셔야 합니다.",
+      "카페인은 세계에서 가장 널리 소비되는 정신활성 물질입니다.",
+    ],
+  },
+  "dna-fragment": {
+    name: "DNA 염기쌍",
+    description: "DNA 이중 나선의 가로대를 이루는 수소 결합 염기쌍.",
+    category: "biological",
+    disciplineTag: null,
+    bondTypes: ["방향족", "수소 결합(×2 A–T)", "글리코시드 결합"],
+    uses: [
+      "모든 생명체의 유전 정보 저장",
+      "mRNA 전사의 템플릿",
+      "CRISPR-Cas9 유전자 편집 표적",
+      "법의학 DNA 지문 분석",
+    ],
+    funFacts: [
+      "아데닌은 항상 티민과 2개의 수소 결합으로 짝을 이룹니다 — 왓슨-크릭 염기쌍입니다.",
+      "모든 세포의 DNA를 펼쳐 이어 붙이면 지구에서 태양까지 왕복 약 600번 갈 수 있습니다.",
+      "인간 게놈에는 약 30억 개의 염기쌍이 있습니다.",
+    ],
+  },
+  "protein-fragment": {
+    name: "펩타이드 결합",
+    description: "단백질의 기본 결합인 펩타이드 결합을 보여 주는 디펩타이드 단편.",
+    category: "biological",
+    disciplineTag: null,
+    bondTypes: ["펩타이드 결합(C–N)", "아미드 공명", "α-탄소 결합"],
+    uses: [
+      "모든 단백질 구조의 기본 단위",
+      "합성 펩타이드 약물 설계의 틀",
+      "펩타이드 호르몬을 통한 세포 신호",
+      "식품 향료(예: 아스파탐은 디펩타이드)",
+    ],
+    funFacts: [
+      "펩타이드 결합은 공명으로 이중 결합 성질이 있어 평면이며 자유롭게 회전하지 않습니다.",
+      "20가지 표준 아미노산이 있으며, 이들의 조합으로 10만 종 이상의 인체 단백질이 만들어집니다.",
+      "리보솜은 약 0.05초마다 새 펩타이드 결합을 합성합니다.",
+    ],
+  },
+  ethanol: {
+    name: "에탄올",
+    description:
+      "맥주·와인·소독 겔 뒤에 있는 두 탄소 알코올 — 작고 극성이며, 실험실과 일상 모두에서 영향력 있는 분자.",
+    category: "organic",
+    disciplineTag: "DAILY LIFE",
+    bondTypes: [
+      "극성 공유 결합(C–O, O–H)",
+      "무극성 C–C / C–H",
+      "분자 간 수소 결합",
+    ],
+    uses: [
+      "주류(희석 용액)",
+      "실험실·틴크처 용매",
+      "소독제·바이오 연료 첨가제",
+    ],
+    funFacts: [
+      "간은 에탄올을 아세트알데히드로, 다시 아세트산염으로 바꿉니다 — 속도가 중요합니다.",
+      "에탄올은 막 유동성과 단백질 구조를 교란해, 생물학적 용매로서 폭넓게 작용하는 이유 중 하나입니다.",
+    ],
+  },
+  aspirin: {
+    name: "아스피린",
+    description:
+      "아세틸살리실산: 혈소판 화학을 비가역적으로 바꾸는 고전적 진통제 — 의학·역사·유기 합성이 한 알에 담깁니다.",
+    category: "organic",
+    disciplineTag: "MEDICINE",
+    bondTypes: ["방향족(벤젠 고리)", "에스터 결합", "카르복실산"],
+    uses: [
+      "진통·해열",
+      "항염(NSAID)",
+      "저용량 항혈소판 요법(의료 지도 하)",
+    ],
+    funFacts: [
+      "버드나무 껍질의 살리신이 이 합성 스타의 식물계 조상입니다.",
+      "아세틸기 덕분에 위산에서 살리실산만 단독으로 복용할 때보다 잘 견딥니다.",
+    ],
+  },
+  capsaicin: {
+    name: "캡사이신",
+    description:
+      "고추의 매운맛을 만드는 바닐로이드 — 포유류에 대한 진화적 억제제이자 TRPV1 연구의 단골 화제.",
+    category: "organic",
+    disciplineTag: "ORGANIC",
+    bondTypes: [
+      "페놀 방향족 핵",
+      "아미드 결합",
+      "에테르(메톡시) 및 지방족 사슬",
+    ],
+    uses: [
+      "요리 매운맛·캡사이시노이드 배합",
+      "국소 진통 크림(TRPV1 조절)",
+      "해충 억제 제형",
+    ],
+    funFacts: [
+      "새는 종종 포유류만큼 수용체에 민감하지 않아 — 고추 씨가 더 멀리 퍼집니다.",
+      "매운맛은 혀의 맛 지도에 있는 맛이 아니라, 통각 수용체의 연극입니다.",
+    ],
+  },
+  serotonin: {
+    name: "세로토닌",
+    description:
+      "5-HT: 기분·수면·장 운동에 걸친 단일아민 신호 — 하나의 골격이 여러 생물학적 역할을 맡는다는 증거.",
+    category: "biological",
+    disciplineTag: "NEUROSCIENCE",
+    bondTypes: ["방향족 인돌", "1차 아민", "페놀성 히드록실"],
+    uses: [
+      "신경전달·신경조절",
+      "약리학 표적(예: SSRI는 상류 경로에 작용)",
+      "장신경계의 말초 역할",
+    ],
+    funFacts: [
+      "몸속 세로토닌 대부분은 '기분 속'이 아닙니다 — 상당량이 장과 혈소판과 얽혀 있습니다.",
+      "이름은 혈청에서 혈관을 수축시키는 것이 처음 발견된 데서 유래했습니다.",
+    ],
+  },
+  dopamine: {
+    name: "도파민",
+    description:
+      "카테콜 고리에 에틸아민 꼬리가 달린 카테콜아민 — 동기·운동·중뇌변연계 신화가 이 구조를 둘러쌉니다.",
+    category: "biological",
+    disciplineTag: "NEUROSCIENCE",
+    bondTypes: ["방향족(카테콜)", "1차 아민", "페놀성 O–H"],
+    uses: [
+      "보상·운동 경로의 신경전달물질",
+      "쇼크 시 임상 지원(염산염, 정맥, 의료 하)",
+      "GPCR·수송체 생물학 교육용 리간드",
+    ],
+    funFacts: [
+      "파킨슨병 병리는 흑질의 도파민 뉴런 손실과 밀접합니다.",
+      "극성이 커서 자유 도파민이 혈뇌장벽을 쉽게 넘지 않습니다.",
+    ],
+  },
+  adrenaline: {
+    name: "아드레날린",
+    description:
+      "에피네프린: 덤불에서 무언가 튀어나올 때 맥박이 치솟는 분자 — 교감신경 화학이 세 개의 산소에 응급을 담은 것.",
+    category: "biological",
+    disciplineTag: "NEUROSCIENCE",
+    bondTypes: ["방향족(카테콜)", "2차 아민(벤질 치환)", "1차 알코올"],
+    uses: [
+      "아나필락시스 구급 자동주사기(임상 교육·적응증 하)",
+      "국소 마취 보조(수축 혈관 목적)",
+      "투쟁-도피 신호의 생리학 시연",
+    ],
+    funFacts: [
+      "'아드레날린'과 '에피네프린'은 영·미 명칭 차이일 뿐 — 같은 성급한 호르몬입니다.",
+      "α·β 아드레너르기 수용체에 작용해 수축·기관지 확장 용도가 모두 설명됩니다.",
+    ],
+  },
+  buckminsterfullerene: {
+    name: "버크민스터풀러렌",
+    description:
+      "순수 탄소의 축구공 대칭 — 노벨상을 받은 케이지로, 방향족성이 평평한 육각 고리만은 아니라는 것을 가르쳤습니다.",
+    category: "macro",
+    disciplineTag: "NANOTECH",
+    bondTypes: [
+      "Sp² 유사 탄소 네트워크(절단 이십면체)",
+      "곡면의 비국소화 π계",
+    ],
+    uses: [
+      "재료과학 시제품(박막, 복합재)",
+      "유기 전자 연구의 전자 수용체 모티프",
+      "나노 규모 탄소 동소체 교육 도구",
+    ],
+    funFacts: [
+      "12개 오각형과 20개 육각형 — 오일러와 흑연의 거친 사촌의 악수.",
+      "지오데식 돔을 대중화한 건축가 버크민스터 풀러의 이름을 따았습니다.",
+    ],
+  },
+  "heme-group": {
+    name: "헤모글로빈 헴 군",
+    description:
+      "헤모글로빈을 산소 운반체로 바꾸는 철 킬레이트 포르핀 보조기: 단백질 알로스테리 조절 뒤에서 가역적 O₂ 결합.",
+    category: "biological",
+    disciplineTag: "BIOLOGICAL",
+    bondTypes: [
+      "방향족 포르핀 고리",
+      "금속 배위(Fe–N)",
+      "프로피온산/카르복실산 유사 치환기(맥락에 따른 양이온)",
+    ],
+    uses: [
+      "헤모단백질 내 O₂ 운반·저장",
+      "효소 활성 부위(예: 카탈라제, 사이토크롬)",
+      "배위장·협동 결합 생화학 교육",
+    ],
+    funFacts: [
+      "헤모글로빈의 네 헴 단위가 협동 결합을 가능하게 합니다 — S자 곡선은 생리학입니다.",
+      "축 히스티딘의 당김-밀림이 산소 친화도와 CO 경쟁을 미세 조정합니다.",
+    ],
+  },
+};
+
+const reactions = {
+  "methane-combustion": {
+    name: "메탄 연소",
+    description:
+      "고전적 산화: 메탄이 산소와 만나 라디칼 연쇄를 거치며 많은 열을 내며 이산화탄소와 물을 만듭니다.",
+    reactionType: "연소",
+    category: "ORGANIC",
+    reactants: [
+      { name: "메탄", formula: "CH₄" },
+      { name: "산소", formula: "O₂" },
+    ],
+    products: [
+      { name: "이산화탄소", formula: "CO₂" },
+      { name: "물", formula: "H₂O" },
+    ],
+    quickFacts: {
+      summary:
+        "메탄의 완전 연소는 강한 발열 반응이며, 화학 에너지를 열과 빛으로 바꿉니다.",
+      energyProfile: "강한 발열(균형 반응에서 ΔH << 0)",
+      conditions: "점화 에너지(불꽃/화염); 지속적인 O₂ 공급",
+      mechanism:
+        "라디칼 연쇄: 개시 → 전파(·OH, ·CH₃ 등) → 종결; 3D 뷰는 대표 종을 강조합니다.",
+      highlight:
+        "균형 잡힌 연소 이야기는 모두 더 나은 CO₂ 계산과 개방 화염 취급으로 끝납니다.",
+    },
+    steps: [
+      { caption: "연료 — 메탄" },
+      { caption: "생성물 — 물" },
+    ],
+  },
+  "water-formation": {
+    name: "물 생성",
+    description:
+      "수소가 산소에서 연소해 물을 만듭니다 — 단순한 화학량례이지만 산업·로켓 과학에서 거대한 의미.",
+    reactionType: "합성 / 연소",
+    category: "SYNTHESIS",
+    reactants: [
+      { name: "수소", formula: "H₂" },
+      { name: "산소", formula: "O₂" },
+    ],
+    products: [{ name: "물", formula: "H₂O" }],
+    quickFacts: {
+      summary:
+        "H₂ 1g당 많은 에너지를 방출해 청정 에너지 논의의 핵심이 됩니다.",
+      energyProfile: "발열; 열역학적으로 매우 유리",
+      conditions: "점화 또는 촉매(예: Pt); 안전을 위해 H₂ : O₂ 비율이 중요",
+      mechanism:
+        "기상에서 흔히 라디칼 매개; 3D 뷰는 산화-환원 파트너십에서 나온 극성 생성물을 보여 줍니다.",
+      highlight: "물의 굽은 기하는 산소의 비공유 전자쌍 반발의 직접 결과입니다.",
+    },
+    steps: [{ caption: "생성물 — 물(H₂O)" }],
+  },
+  "glucose-fermentation": {
+    name: "포도당 발효",
+    description:
+      "효모 친화 생화학: 포도당이 에탄올과 이산화탄소로 쪼개집니다 — 빵이 부풀고 와인이 생기는 이유.",
+    reactionType: "생화학 / 혐기",
+    category: "METABOLIC",
+    reactants: [{ name: "포도당", formula: "C₆H₁₂O₆" }],
+    products: [
+      { name: "에탄올", formula: "C₂H₅OH" },
+      { name: "이산화탄소", formula: "CO₂" },
+    ],
+    quickFacts: {
+      summary:
+        "해당 후 발효가 NAD⁺를 재생해 산소가 부족할 때도 해당이 계속되게 합니다.",
+      energyProfile: "부분 산화 — 호흡에 비해 ATP는 적음",
+      conditions: "효모 또는 박테리아; 혐기 또는 미호기 환경",
+      mechanism: "피루브산 → 아세트알데히드 → 에탄올, CO₂는 소분자로 방출.",
+      highlight: "같은 경로 계열이 양조·제빵·바이오연료 연구를 잇습니다.",
+    },
+    steps: [
+      { caption: "시작 당" },
+      { caption: "에탄올 생성물" },
+    ],
+  },
+  "haber-bosch": {
+    name: "하버-보슈 공정",
+    description:
+      "산업적 질소 고정: 대기 N₂와 H₂를 암모니아로 — 세계 비료 생산의 기둥.",
+    reactionType: "산업 합성",
+    category: "SYNTHESIS",
+    reactants: [
+      { name: "질소", formula: "N₂" },
+      { name: "수소", formula: "H₂" },
+    ],
+    products: [{ name: "암모니아", formula: "NH₃" }],
+    quickFacts: {
+      summary:
+        "대기 질소를 암모니아로 바꾸는 산업적 질소 고정으로, 전 세계 식량 생산을 떠받는 비료의 원천입니다.",
+      energyProfile: "발열(ΔH = −92.4 kJ/mol).",
+      conditions: "고압(150–250 bar), 고온(400–500°C), 철(Fe) 촉매.",
+      mechanism:
+        "철 촉매 표면에서 N₂·H₂의 해리 흡착 후, 질소 원자의 단계적 수소화.",
+      highlight: "",
+    },
+    steps: [{ caption: "플레이스홀더 장면 — NH₃ 애니메이션 좌표 대기 중" }],
+  },
+  photosynthesis: {
+    name: "광합성(단순화)",
+    description:
+      "빛 구동 탄소 고정: CO₂ 6개와 물 6개가 포도당 고리 하나로 합쳐지며 산소가 방출 — 생물권의 대사 엔진.",
+    reactionType: "대사 / 광 구동",
+    category: "METABOLIC",
+    reactants: [
+      { name: "이산화탄소", formula: "CO₂" },
+      { name: "물", formula: "H₂O" },
+    ],
+    products: [
+      { name: "포도당", formula: "C₆H₁₂O₆" },
+      { name: "산소", formula: "O₂" },
+    ],
+    quickFacts: {
+      summary:
+        "식물·조류·일부 박테리아가 빛 에너지를 화학 에너지(포도당)로 바꾸고 산소를 부산물로 내놓는 기초 생화학 과정.",
+      energyProfile:
+        "흡열 / 에너지 흡수(광자 필요, 단순화 전체 반응 ΔH = +2803 kJ/mol).",
+      conditions: "햇빛(광자), 엽록소 색소, 주변 온도.",
+      mechanism:
+        "광 의존 반응에서 물을 쪼개 ATP·NADPH를 만들고, 광 비의존 캘빈 회로에서 CO₂를 6탄소 당으로 고정.",
+      highlight: "",
+    },
+    steps: [
+      { caption: "생성물 — 포도당(C₆H₁₂O₆)" },
+      { caption: "반응물/생성물 — 물" },
+    ],
+  },
+  "neutralization-hcl-naoh": {
+    name: "중화(HCl + NaOH)",
+    description:
+      "교과서적 Arrhenius 중화: 강산과 강염기가 염과 물을 만듭니다 — 입문 화학이 처음 만나는 양성자 이동.",
+    reactionType: "산-염기",
+    category: "ACID-BASE",
+    reactants: [
+      { name: "염산", formula: "HCl" },
+      { name: "수산화나트륨", formula: "NaOH" },
+    ],
+    products: [
+      { name: "염화나트륨", formula: "NaCl" },
+      { name: "물", formula: "H₂O" },
+    ],
+    quickFacts: {
+      summary:
+        "강산과 강염기가 서로 중화해 염(염화나트륨)과 물을 만드는 고전 Arrhenius 산-염기 반응.",
+      energyProfile: "발열(중화열, ΔH ≈ −57.3 kJ/mol).",
+      conditions: "수용액, 실온.",
+      mechanism:
+        "산의 H⁺가 염기의 OH⁻와 결합해 안정한 공유 H₂O를 만들고, Na⁺·Cl⁻는 관찰 이온이거나 증발 시 결정 격자를 이룹니다.",
+      highlight: "",
+    },
+    steps: [{ caption: "생성물 — 물(H₂O)" }],
+  },
+  "esterification-ethyl-acetate": {
+    name: "에스터화(에틸 아세테이트)",
+    description:
+      "Fischer 에스터화: 카르복실산과 알코올이 과일향 에스터와 물로 응축 — 황산과 가열이 더한 평형 화학.",
+    reactionType: "응축 / 유기",
+    category: "ORGANIC",
+    reactants: [
+      { name: "아세트산", formula: "CH₃COOH" },
+      { name: "에탄올", formula: "C₂H₅OH" },
+    ],
+    products: [
+      { name: "에틸 아세테이트", formula: "CH₃COOC₂H₅" },
+      { name: "물", formula: "H₂O" },
+    ],
+    quickFacts: {
+      summary:
+        "유기산(아세트산)과 알코올(에탄올)이 에스터(달콤한 과일향 에틸 아세테이트)와 물을 만드는 응축 반응.",
+      energyProfile: "약한 발열, 가역 평형 반응.",
+      conditions: "산 촉매(보통 농축 H₂SO₄)와 환류 가열.",
+      mechanism:
+        "핵 친화성 아실 치환. 카르복실산 카르보닐 산소가 양성자화되고, 알코올 히드록실의 핵 공격 후 물 분자가 제거됩니다.",
+      highlight: "",
+    },
+    steps: [
+      { caption: "반응물 — 에탄올" },
+      { caption: "공생성물 — 물" },
+    ],
+  },
+};
+
+const categories = {
+  simple: "단순",
+  organic: "유기",
+  biological: "생물",
+  macro: "거대",
+  SYNTHESIS: "합성",
+  ORGANIC: "유기화학",
+  METABOLIC: "대사",
+  "ACID-BASE": "산-염기",
+};
+
+const ui = {
+  nav_explore: "탐색",
+  nav_learn: "학습",
+  nav_showcase: "쇼케이스",
+  tab_molecules: "분자",
+  tab_reactions: "반응",
+  label_quick_facts: "핵심 정보",
+  label_molecular_weight: "분자량",
+  label_state: "상태",
+  label_bond_types: "결합 유형",
+  state_gas: "기체",
+  state_liquid: "액체",
+  state_solid: "고체",
+  state_plasma: "플라즈마",
+  difficulty_beginner: "입문",
+  difficulty_intermediate: "중급",
+  difficulty_expert: "고급",
+  title_molecule_explorer: "분자",
+  subtitle_molecule_explorer:
+    "분자 간 이동, 원자를 클릭해 살펴보고, 학습 패널에서 풍부한 교육 콘텐츠를 확인하세요.",
+  button_start_exploring: "탐색 시작",
+  button_play_reaction: "재생",
+  fact_overview: "개요",
+  fact_energy: "에너지",
+  fact_conditions: "조건",
+  fact_mechanism: "메커니즘",
+  subtitle_reaction:
+    "반응을 고르고 재생으로 3D 시퀀스를 실행한 뒤, 핵심 정보 열에서 결합 재배열을 읽어 보세요.",
+  title_reaction_lab: "반응 실험실",
+  badge_interactive_studio: "인터랙티브 3D 스튜디오",
+  badge_reaction_animation: "반응 애니메이션",
+  button_playing: "재생 중…",
+  label_equation: "반응식",
+  label_reactants: "반응물",
+  label_products: "생성물",
+  aria_molecules_reactions: "분자 및 반응",
+  aria_select_language: "언어 선택",
+  aria_footer: "바닥글",
+  label_discipline: "분야",
+  label_boiling_point: "끓는점",
+  label_melting_point: "녹는점",
+  label_reaction_type: "반응 유형",
+  label_highlight: "하이라이트",
+  reaction_animation_placeholder:
+    "3D 보간: 좌표 대기 중({key}).",
+  reaction_animation_ready: "전체 원자 보간 가능 — 재생을 누르세요.",
+  hero_badge: "차세대 인터랙티브 학습",
+  hero_title_prefix: "미래의",
+  hero_title_highlight: "분자 구조",
+  hero_subtitle:
+    "우주의 구성 요소를 놀라운 3D로 탐험하세요. 화학을 직관적이고 아름답게 만드는 영화 같은 프리미엄 교육 플랫폼.",
+  hero_launch_studio: "스튜디오 실행",
+  hero_view_showcase: "쇼케이스 보기",
+  hero_scroll: "스크롤",
+  featured_title_prefix: "추천",
+  featured_title_highlight: "분자",
+  featured_subtitle:
+    "단순한 물부터 복잡한 생물 거대분자까지 — 인터랙티브 3D 스튜디오에서 모두 탐험하세요.",
+  card_atoms_bonds: "{atoms}개 원자 · {bonds}개 결합",
+  card_explore: "탐색",
+  elements_title_prefix: "원소를",
+  elements_title_highlight: "밝히다",
+  elements_subtitle:
+    "고해상도 WebGL 엔진으로 원자, 화합물, 복잡한 분자 구조를 상호작용하며 살펴보세요.",
+  feature_atomic_title: "원자 구조",
+  feature_atomic_desc: "아원자 수준으로 들어가 궤도를 실시간으로 관찰하세요.",
+  feature_crystal_title: "결정 격자",
+  feature_crystal_desc: "고체 물질을 이루는 반복 기하 패턴을 탐험하세요.",
+  feature_macro_title: "거대분자",
+  feature_macro_desc: "단백질, DNA, 복잡한 생물 구조를 시각화하세요.",
+  showcase_title_prefix: "영화 같은",
+  showcase_title_suffix: "과학 교육",
+  showcase_body:
+    "현대 게임 렌더링과 과학적 정확성을 결합해 독보적인 학습 환경을 만들었습니다. 변수를 조작하고, 반응을 관찰하며, 화학을 시각적으로 이해하세요.",
+  showcase_bullet_1: "실시간 분자 동역학 시뮬레이션",
+  showcase_bullet_2: "정확한 공간 채움·볼-막대 모델",
+  showcase_bullet_3: "인터랙티브 전자 구름 시각화",
+  compare_title_prefix: "비교",
+  compare_title_highlight: "나란히",
+  compare_subtitle:
+    "두 분자를 나란히 놓고 구조적 차이를 한눈에 발견하세요.",
+  footer_brand: "MoleculeArchitectureStudio",
+  footer_copyright: "© {year} Molecule Studio. All rights reserved.",
+  footer_about: "소개",
+  footer_github: "GitHub 저장소",
+  footer_canvas_guide: "인터랙티브 캔버스 가이드",
+  footer_tech_badge: "Next.js, Three.js & Tailwind CSS로 제작",
+  panel_tab_overview: "개요",
+  panel_tab_structure: "구조",
+  panel_tab_uses: "용도",
+  panel_tab_fun_facts: "재미있는 사실",
+  panel_stat_weight: "질량",
+  panel_stat_atoms: "원자",
+  panel_stat_bonds: "결합",
+  panel_stat_total: "합계",
+  panel_state_room_temp: "실온에서의 상태",
+  panel_no_education: "이 분자에 대한 교육 데이터가 없습니다.",
+  panel_single_bonds: "단일 결합(σ)",
+  panel_double_bonds: "이중 결합(σ+π)",
+  panel_triple_bonds: "삼중 결합(σ+2π)",
+  panel_element_composition: "원소 조성",
+  viewer_show_labels: "라벨",
+  viewer_auto_rotate: "자동 회전",
+  viewer_learn_panel: "학습",
+  viewer_prev: "이전",
+  viewer_next: "다음",
+  viewer_close_atom: "원자 상세 닫기",
+  discipline_daily_life: "일상",
+  discipline_medicine: "의학",
+  discipline_organic: "유기화학",
+  discipline_neuroscience: "신경과학",
+  discipline_nanotech: "나노기술",
+  discipline_biological: "생물",
+};
+
+export default { molecules, reactions, categories, ui };
