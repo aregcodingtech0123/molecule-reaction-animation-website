@@ -12,7 +12,7 @@ import { ELEMENT_PROPERTIES } from "@/lib/molecules/elements";
 import { ALL_MOLECULES } from "@/lib/molecules/data";
 import { MoleculeScene } from "@/components/canvas/Scene";
 import { MoleculeInfoPanel } from "@/components/canvas/MoleculeInfoPanel";
-import { RenderModeToggle } from "@/components/canvas/RenderModeToggle";
+import { CanvasToolbar } from "@/components/canvas/CanvasToolbar";
 import { MeasurementModeToggle } from "@/components/canvas/MeasurementModeToggle";
 import { useMeasurement } from "@/context/MeasurementContext";
 import { useFocus } from "@/context/FocusContext";
@@ -105,9 +105,8 @@ export function MoleculeViewer({ initialMoleculeId }: MoleculeViewerProps) {
         }}
       />
 
-      {/* ── Top bar: molecule identity + controls ── */}
-      <div className="absolute top-5 left-5 right-5 z-10 flex items-start justify-between pointer-events-none">
-        {/* Left: molecule name + formula */}
+      {/* ── Top bar: molecule identity only (viewport tools → CanvasToolbar) ── */}
+      <div className="pointer-events-none absolute top-5 left-5 right-5 z-10 flex items-start justify-between">
         <AnimatePresence mode="wait">
           <motion.div
             key={molecule.id + "-header"}
@@ -141,37 +140,44 @@ export function MoleculeViewer({ initialMoleculeId }: MoleculeViewerProps) {
             </div>
           </motion.div>
         </AnimatePresence>
-
-        {/* Right: toolbar */}
-        <div className="flex gap-2 pointer-events-auto items-center">
-          <MeasurementModeToggle accentColor={accentColor} compact />
-          <RenderModeToggle accentColor={accentColor} />
-          <ToolbarButton
-            active={showLabels}
-            onClick={() => setShowLabels((v) => !v)}
-            icon={<Tag className="w-4 h-4" />}
-            tooltip={t.viewer_show_labels}
-            accentColor={accentColor}
-          />
-          <ToolbarButton
-            active={autoRotate}
-            onClick={() => setAutoRotate((v) => !v)}
-            icon={<RotateCcw className="w-4 h-4" />}
-            tooltip={t.viewer_auto_rotate}
-            accentColor={accentColor}
-          />
-          <ToolbarButton
-            active={showInfoPanel}
-            onClick={() => setShowInfoPanel((v) => !v)}
-            icon={<BookOpen className="w-4 h-4" />}
-            tooltip={t.viewer_learn_panel}
-            accentColor={accentColor}
-          />
-        </div>
       </div>
 
+      <CanvasToolbar
+        accentColor={accentColor}
+        showRenderModes
+        showStudioModes={false}
+        position="bottom-center"
+        className="bottom-20 sm:bottom-24"
+        trailing={
+          <>
+            <MeasurementModeToggle accentColor={accentColor} compact />
+            <ToolbarButton
+              active={showLabels}
+              onClick={() => setShowLabels((v) => !v)}
+              icon={<Tag className="w-4 h-4" />}
+              tooltip={t.viewer_show_labels}
+              accentColor={accentColor}
+            />
+            <ToolbarButton
+              active={autoRotate}
+              onClick={() => setAutoRotate((v) => !v)}
+              icon={<RotateCcw className="w-4 h-4" />}
+              tooltip={t.viewer_auto_rotate}
+              accentColor={accentColor}
+            />
+            <ToolbarButton
+              active={showInfoPanel}
+              onClick={() => setShowInfoPanel((v) => !v)}
+              icon={<BookOpen className="w-4 h-4" />}
+              tooltip={t.viewer_learn_panel}
+              accentColor={accentColor}
+            />
+          </>
+        }
+      />
+
       {/* ── Bottom bar: navigation + info chip ── */}
-      <div className="absolute bottom-5 left-5 right-5 z-10 flex items-end gap-4 pointer-events-none">
+      <div className="pointer-events-none absolute bottom-5 left-5 right-5 z-10 flex items-end gap-4">
         {/* Prev / Next */}
         <div className="flex gap-2 pointer-events-auto">
           <NavButton onClick={prevMolecule} disabled={isTransitioning} label={t.viewer_prev}>

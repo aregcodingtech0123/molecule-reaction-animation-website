@@ -1,14 +1,14 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import type { MoleculeData, AtomData } from "@/lib/molecules/types";
 import { WATER } from "@/lib/molecules/data";
 import { MoleculeRenderer } from "./MoleculeRenderer";
 import { CameraRig } from "./CameraRig";
 import { StudioFloor, STUDIO_FLOOR_Y } from "./StudioFloor";
-import { RenderModeToggle } from "./RenderModeToggle";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { MeasurementModeToggle } from "./MeasurementModeToggle";
 import { SceneStage } from "./SceneStage";
 import { useMeasurement } from "@/context/MeasurementContext";
@@ -22,12 +22,15 @@ interface MoleculeSceneProps {
   autoRotate?: boolean;
   showLabels?: boolean;
   enableZoom?: boolean;
+  enablePan?: boolean;
   className?: string;
   onAtomSelect?: (atom: AtomData | null) => void;
   toggleClassName?: string;
   showRenderModeToggle?: boolean;
   showMeasurementToggle?: boolean;
   measurementToggleClassName?: string;
+  /** Override device-tier post-processing reduction (e.g. marketing previews). */
+  reduceEffects?: boolean;
 }
 
 export function MoleculeScene({
@@ -35,12 +38,14 @@ export function MoleculeScene({
   autoRotate = true,
   showLabels = true,
   enableZoom = true,
+  enablePan = true,
   className = "",
   onAtomSelect,
   toggleClassName,
   showRenderModeToggle = true,
   showMeasurementToggle = false,
   measurementToggleClassName,
+  reduceEffects,
 }: MoleculeSceneProps) {
   const [selectedAtomId, setSelectedAtomId] = useState<string | null>(null);
   const { measurementMode, clearMeasurement } = useMeasurement();
@@ -102,14 +107,11 @@ export function MoleculeScene({
         />
       )}
       {showRenderModeToggle && (
-        <RenderModeToggle
+        <CanvasToolbar
           accentColor={accentColor}
-          className={
-            toggleClassName ??
-            (showMeasurementToggle
-              ? "absolute top-16 right-4 z-20 pointer-events-auto"
-              : "absolute top-4 right-4 z-20 pointer-events-auto")
-          }
+          showRenderModes
+          position="bottom-right"
+          className={toggleClassName}
         />
       )}
       <Canvas
@@ -125,7 +127,7 @@ export function MoleculeScene({
       >
         <CanvasRaycasterConfig />
         <SceneStage
-          reduceEffects={deviceTier.isMobile}
+          reduceEffects={reduceEffects ?? deviceTier.isMobile}
           accentColor={accentColor}
           footer={
             <>
@@ -133,7 +135,7 @@ export function MoleculeScene({
               <CameraRig
                 autoRotate={autoRotate && !isFocused}
                 enableZoom={enableZoom}
-                enablePan
+                enablePan={enablePan}
                 cameraDistance={cameraDistance}
               />
             </>
@@ -157,9 +159,23 @@ export function MoleculeScene({
 }
 
 export function Scene() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <div className="absolute inset-0 z-0 pointer-events-auto">
-      <MoleculeScene molecule={WATER} showLabels={false} enableZoom={false} />
+      {isClient ? (
+        <MoleculeScene molecule={WATER} showLabels={false} enableZoom={false} />
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{ background: "var(--studio-page-bg)" }}
+          aria-hidden
+        />
+      )}
     </div>
   );
 }

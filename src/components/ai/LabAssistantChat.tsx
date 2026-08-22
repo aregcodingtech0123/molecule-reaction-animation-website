@@ -8,6 +8,7 @@ import { useAiChat } from "@/hooks/useAiChat";
 import { AiChatPanel } from "@/components/ai/AiChatPanel";
 import { useTheme } from "@/context/ThemeContext";
 import { useDynamicMolecule } from "@/context/DynamicMoleculeContext";
+import { safeNavigate } from "@/lib/navigation/safe-navigate";
 import { cn } from "@/lib/utils";
 
 export function LabAssistantChat() {
@@ -19,7 +20,7 @@ export function LabAssistantChat() {
   const chat = useAiChat({
     onMoleculeGenerated: (mol) => {
       setDynamicMolecule(mol);
-      router.push("/explore");
+      safeNavigate(router, "/explore");
     },
   });
 

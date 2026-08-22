@@ -51,8 +51,6 @@ export function AiLabCanvas({ molecule, className, loading = false }: AiLabCanva
             enableZoom
             showRenderModeToggle
             showMeasurementToggle={false}
-            measurementToggleClassName="hidden"
-            toggleClassName="absolute top-4 right-4 z-20 pointer-events-auto"
           />
         </motion.div>
       </AnimatePresence>

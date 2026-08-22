@@ -24,6 +24,7 @@ import { ExploreSidebarToggle } from "@/components/explore/ExploreSidebarToggle"
 import { ExploreMobileDrawer } from "@/components/explore/ExploreMobileDrawer";
 import { ExploreQuickFactsPanel } from "@/components/explore/ExploreQuickFactsPanel";
 import { ReactionPlaybackControls } from "@/components/reactions/ReactionPlaybackControls";
+import { CanvasToolbar } from "@/components/canvas/CanvasToolbar";
 import type { ReactionAnimationStatus } from "@/lib/reactions/animation/status";
 
 function useExploreMoleculeOrder(): MoleculeData[] {
@@ -219,6 +220,17 @@ export default function ExplorePage() {
               className={cn(
                 "absolute inset-0 pointer-events-none z-10 rounded-2xl md:rounded-3xl canvas-vignette",
                 isWhiteLab && "canvas-vignette-light",
+              )}
+            />
+
+            {/* Studio mode switch — floats over canvas, outside global Navbar */}
+            <CanvasToolbar
+              showRenderModes={false}
+              showStudioModes
+              position="bottom-right"
+              className={cn(
+                "z-20",
+                activeMode === "explorer" ? "bottom-[4.5rem] sm:bottom-24" : "bottom-4",
               )}
             />
 

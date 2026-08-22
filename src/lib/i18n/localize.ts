@@ -1,6 +1,7 @@
 import type { MoleculeData, MoleculeCategory } from "@/lib/molecules/types";
 import type { ReactionData } from "@/lib/reactions/types";
 import { getContentBundle } from "./content";
+import { getAtomModelsBundle } from "@/lib/atom-models/content";
 import type { Locale, TranslationDictionary } from "./types";
 import { getUiExtensions } from "./ui-extensions";
 
@@ -16,7 +17,12 @@ const DISCIPLINE_TAG_KEYS: Record<string, string> = {
 
 export function getDictionary(locale: Locale): TranslationDictionary {
   const bundle = getContentBundle(locale);
-  return { ...bundle.ui, ...getUiExtensions(locale) } as TranslationDictionary;
+  const atomModels = getAtomModelsBundle(locale);
+  return {
+    ...bundle.ui,
+    ...getUiExtensions(locale),
+    nav_atom_models: atomModels.ui.nav_atom_models,
+  } as TranslationDictionary;
 }
 
 export function formatMessage(

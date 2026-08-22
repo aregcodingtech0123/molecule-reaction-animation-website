@@ -19,6 +19,7 @@ const EXPLORE_LAYOUT_UI: Record<string, string> = {
 
 const AI_LAB_UI: Record<string, string> = {
   nav_ai_lab: "AI Lab",
+  nav_resources: "Resources",
   ai_home_badge: "Powered by Gemini",
   ai_home_title_prefix: "Generate with",
   ai_home_title_highlight: "AI",
@@ -36,6 +37,118 @@ const AI_LAB_UI: Record<string, string> = {
   ai_canvas_empty: "Ask the AI to visualize a molecule — it will appear here in 3D.",
   ai_generating_3d: "Building 3D structure…",
   ai_open_full_lab: "Full lab",
+  ai_gate_login: "Sign in to generate 3D structures.",
+  ai_gate_credits: "Insufficient credits. Please top up your balance.",
+  canvas_loading: "Loading 3D scene…",
+};
+
+const TOAST_UI: Record<string, string> = {
+  toast_credits_purchased: "Credits applied to your balance.",
+  toast_signup_credits: "10 starter credits added to your balance.",
+  toast_signed_in: "You're signed in.",
+  toast_account_created: "Your account is ready.",
+  toast_signed_out: "Signed out of your session.",
+  toast_insufficient_credits: "AI credit balance exhausted. Add credits to continue.",
+  toast_molecule_ready: "3D structure loaded in the viewer.",
+  toast_request_failed: "Request could not be completed.",
+  toast_sign_in_failed: "Sign in failed. Check your credentials.",
+  toast_registration_failed: "Registration could not be completed.",
+  toast_checkout_failed: "Checkout could not be started.",
+  toast_dashboard_load_failed: "Dashboard could not be loaded.",
+};
+
+const AUTH_UI: Record<string, string> = {
+  auth_login_button: "Log In",
+  auth_register_button: "Sign Up",
+  auth_logout: "Logout",
+  auth_credits_label: "Credits",
+  auth_login_title: "Sign in to your lab",
+  auth_register_title: "Create your account",
+  auth_modal_subtitle: "Access AI structure generation and credit balance",
+  auth_tab_login: "Log In",
+  auth_tab_register: "Sign Up",
+  auth_email_label: "Email",
+  auth_password_label: "Password",
+  auth_signup_bonus: "New accounts receive 10 starter AI credits.",
+  auth_submit_login: "Log In",
+  auth_submit_register: "Create Account",
+  auth_loading: "Please wait…",
+  auth_error_invalid: "Invalid credentials.",
+  auth_error_generic: "Request could not be completed.",
+  auth_google_button: "Sign in with Google",
+  auth_google_divider: "or continue with email",
+  auth_google_unavailable: "Google sign-in is not configured for this environment.",
+  auth_val_email_required: "Email is required.",
+  auth_val_email_invalid: "Enter a valid email address.",
+  auth_val_password_required: "Password is required.",
+  auth_val_password_length: "Password must be at least 8 characters.",
+  auth_val_password_letter: "Password must include a letter.",
+  auth_val_password_number: "Password must include a number.",
+  auth_first_name_label: "First Name",
+  auth_last_name_label: "Last Name",
+  auth_dob_label: "Date of Birth",
+  auth_val_first_name: "First name is required.",
+  auth_val_last_name: "Last name is required.",
+  auth_val_dob: "Enter a valid date of birth.",
+};
+
+const PROFILE_UI: Record<string, string> = {
+  profile_badge: "User Profile",
+  profile_title: "Your Profile",
+  profile_subtitle:
+    "Manage your personal details and keep your MoleculeStudio identity up to date.",
+  profile_first_name: "First Name",
+  profile_last_name: "Last Name",
+  profile_dob: "Date of Birth",
+  profile_member_since: "Member Since",
+  profile_admin_badge: "Admin",
+  profile_edit_button: "Edit Profile",
+  profile_save_button: "Save Changes",
+  profile_saving: "Saving…",
+  profile_cancel: "Cancel",
+  profile_email_readonly: "Email cannot be changed here.",
+  profile_save_success: "Profile updated successfully.",
+  profile_save_failed: "Profile could not be updated.",
+  profile_load_failed: "Profile could not be loaded.",
+  profile_retry: "Try again",
+  profile_dashboard_hint: "View credits and billing history on your dashboard.",
+  nav_profile: "Profile",
+};
+
+const BILLING_UI: Record<string, string> = {
+  billing_title: "Purchase AI Credits",
+  billing_subtitle: "Buy AI credits with Shopier (TR) or Lemon Squeezy (global).",
+  billing_current_balance: "Current balance",
+  billing_best_value: "Best Value",
+  billing_credits_unit: "credits",
+  billing_feature_3d: "3D molecule generation",
+  billing_feature_never_expire: "Credits never expire",
+  billing_buy_now: "Buy Now",
+  billing_redirecting: "Redirecting…",
+  billing_secure_note:
+    "Shopier (TRY) · Lemon Squeezy MoR (USD) · Credits applied after verified webhook",
+  billing_region_tr: "Turkey · TRY · Shopier",
+  billing_region_global: "Global · USD · Lemon Squeezy",
+  billing_via_shopier: "Paid via Shopier",
+  billing_via_lemon: "Paid via Lemon Squeezy (MoR)",
+};
+
+const DASHBOARD_UI: Record<string, string> = {
+  dashboard_badge: "Account Dashboard",
+  dashboard_title: "Your MoleculeStudio Account",
+  dashboard_subtitle: "Manage your AI credits and review your full transaction ledger.",
+  dashboard_email_label: "Signed in as",
+  dashboard_balance_label: "AI Credits",
+  dashboard_buy_credits: "Purchase more credits",
+  dashboard_history_title: "Transaction History",
+  dashboard_col_date: "Date",
+  dashboard_col_type: "Type",
+  dashboard_col_amount: "Amount",
+  dashboard_col_reference: "Reference",
+  dashboard_empty_title: "No transactions yet",
+  dashboard_empty_body: "Run your first AI structure generation to begin your ledger.",
+  dashboard_empty_cta: "Open AI Lab",
+  nav_dashboard: "Dashboard",
 };
 
 const FOCUS_UI: Record<string, string> = {
@@ -52,6 +165,10 @@ const FOCUS_UI: Record<string, string> = {
 const EXTENSIONS: Record<Locale, Record<string, string>> = {
   en: {
     ...MEASUREMENT_UI,
+    ...AUTH_UI,
+    ...BILLING_UI,
+    ...DASHBOARD_UI,
+    ...PROFILE_UI,
     label_status: "Status",
     label_phase: "Phase",
     label_step: "Step",
@@ -418,6 +535,7 @@ export function getUiExtensions(locale: Locale): Record<string, string> {
     ...MEASUREMENT_UI,
     ...FOCUS_UI,
     ...AI_LAB_UI,
+    ...TOAST_UI,
     ...EXPLORE_LAYOUT_UI,
     ...(EXTENSIONS[locale] ?? EXTENSIONS.en),
   };

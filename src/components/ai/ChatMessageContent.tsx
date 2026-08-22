@@ -1,9 +1,8 @@
-"use client";
-
-import type { Components } from "react-markdown";
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { cn } from "@/lib/utils";
 
 export type ChatMessageContentVariant = "assistant" | "user";
@@ -15,8 +14,19 @@ interface ChatMessageContentProps {
   className?: string;
 }
 
-const assistantComponents: Components = {
-  a: ({ href, children }) => (
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    a: [...(defaultSchema.attributes?.a ?? []), ["href", /^https?:\/\//]],
+  },
+};
+
+function SafeLink({ href, children }: { href?: string; children: ReactNode }) {
+  if (!href || !/^https?:\/\//i.test(href)) {
+    return <span>{children}</span>;
+  }
+  return (
     <a
       href={href}
       target="_blank"
@@ -25,7 +35,11 @@ const assistantComponents: Components = {
     >
       {children}
     </a>
-  ),
+  );
+}
+
+const assistantComponents: Components = {
+  a: ({ href, children }) => <SafeLink href={href}>{children}</SafeLink>,
   code: ({ className, children, ...props }) => {
     const isFenced = Boolean(className?.startsWith("language-"));
     if (!isFenced) {
@@ -69,7 +83,7 @@ export function ChatMessageContent({
     <div className={cn("chat-markdown", themeClass, className)}>
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeKatex, [rehypeSanitize, sanitizeSchema]]}
         components={assistantComponents}
       >
         {content}

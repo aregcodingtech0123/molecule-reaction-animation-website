@@ -28,20 +28,24 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function readStoredLocale(): Locale {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
   const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
   return stored && isLocale(stored) ? stored : DEFAULT_LOCALE;
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => readStoredLocale());
+  /** Match SSR defaults on first render to avoid hydration mismatch. */
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+
+  useEffect(() => {
+    const stored = readStoredLocale();
+    setLocaleState(stored);
+    document.documentElement.lang = stored;
+  }, []);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
-      document.documentElement.lang = next;
-    }
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+    document.documentElement.lang = next;
   }, []);
 
   useEffect(() => {

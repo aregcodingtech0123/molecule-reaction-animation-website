@@ -2,9 +2,21 @@
 
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { FlaskConical, Sparkles } from "lucide-react";
+import { FlaskConical, Moon } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { THEME_UI } from "@/lib/theme/config";
+import { APP_THEMES, type AppTheme } from "@/lib/theme/types";
 import { cn } from "@/lib/utils";
+
+const THEME_ICONS: Record<AppTheme, ReactNode> = {
+  "night-lab": <Moon className="h-3.5 w-3.5" />,
+  "white-lab": <FlaskConical className="h-3.5 w-3.5" />,
+};
+
+const THEME_SHORT_LABELS: Record<AppTheme, string> = {
+  "night-lab": "Night",
+  "white-lab": "Lab",
+};
 
 export function ThemeToggle({ compact }: { compact?: boolean }) {
   const { theme, setTheme, ui } = useTheme();
@@ -18,43 +30,43 @@ export function ThemeToggle({ compact }: { compact?: boolean }) {
         compact ? "scale-90" : "",
       )}
       role="group"
-      aria-label="Application theme"
+      aria-label="Application theme: Night Lab or White Lab"
     >
-      <ThemeOption
-        id="cyberpunk"
-        active={theme === "cyberpunk"}
-        label="Cyberpunk Glass"
-        icon={<Sparkles className={cn("h-3.5 w-3.5", compact && "h-3 w-3")} />}
-        onSelect={() => setTheme("cyberpunk")}
-        compact={compact}
-      />
-      <ThemeOption
-        id="white-lab"
-        active={theme === "white-lab"}
-        label="White Lab"
-        icon={<FlaskConical className={cn("h-3.5 w-3.5", compact && "h-3 w-3")} />}
-        onSelect={() => setTheme("white-lab")}
-        compact={compact}
-      />
+      {APP_THEMES.map((themeId) => (
+        <ThemeOption
+          key={themeId}
+          themeId={themeId}
+          active={theme === themeId}
+          label={THEME_UI[themeId].label}
+          shortLabel={THEME_SHORT_LABELS[themeId]}
+          icon={THEME_ICONS[themeId]}
+          onSelect={() => setTheme(themeId)}
+          compact={compact}
+        />
+      ))}
     </div>
   );
 }
 
 function ThemeOption({
-  id,
+  themeId,
   active,
   label,
+  shortLabel,
   icon,
   onSelect,
   compact,
 }: {
-  id: string;
+  themeId: AppTheme;
   active: boolean;
   label: string;
+  shortLabel: string;
   icon: ReactNode;
   onSelect: () => void;
   compact?: boolean;
 }) {
+  const isNightLab = themeId === "night-lab";
+
   return (
     <motion.button
       type="button"
@@ -67,19 +79,28 @@ function ThemeOption({
         "relative flex items-center gap-1.5 rounded-full font-medium transition-colors duration-300",
         compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]",
         active
-          ? "text-indigo-300 dark:text-indigo-200"
+          ? isNightLab
+            ? "text-teal-100"
+            : "text-indigo-950"
           : "text-neutral-500 hover:text-neutral-700 dark:hover:text-gray-300",
       )}
     >
       {active && (
         <motion.span
           layoutId="theme-pill"
-          className="absolute inset-0 rounded-full bg-indigo-500/25 dark:bg-indigo-500/30 border border-indigo-400/30 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+          className={cn(
+            "absolute inset-0 rounded-full border shadow-sm",
+            isNightLab
+              ? "bg-teal-500/20 border-teal-400/35 shadow-[0_0_12px_rgba(45,212,191,0.2)]"
+              : "bg-indigo-100 border-indigo-400/70",
+          )}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
         />
       )}
-      <span className="relative z-10 opacity-90">{icon}</span>
-      {!compact && <span className="relative z-10 hidden lg:inline">{id === "cyberpunk" ? "Cyber" : "Lab"}</span>}
+      <span className={cn("relative z-10 opacity-90", compact && "[&_svg]:h-3 [&_svg]:w-3")}>
+        {icon}
+      </span>
+      {!compact && <span className="relative z-10 hidden lg:inline">{shortLabel}</span>}
     </motion.button>
   );
 }

@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Syne } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AppProviders } from "@/components/providers/AppProviders";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["600", "700", "800"],
+});
 
 export const metadata: Metadata = {
   title: "Molecule Architecture Studio",
@@ -18,8 +23,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" data-theme="cyberpunk" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased transition-colors duration-500`}>
+    <html lang="en" className="dark" data-theme="night-lab" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} ${syne.variable} font-sans antialiased transition-colors duration-500`}
+      >
         <AppProviders>
           <Navbar />
           <div className="flex flex-1 flex-col">{children}</div>

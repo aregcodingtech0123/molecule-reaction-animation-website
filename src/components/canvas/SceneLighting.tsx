@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { useTheme } from "@/context/ThemeContext";
 
 /**
- * Theme-aware lighting rig — dramatic neon (cyberpunk) vs bright lab (white-lab).
+ * Theme-aware lighting rig — low-light observatory (night-lab) vs bright lab (white-lab).
  */
 export function SceneLighting() {
   const { scene } = useTheme();

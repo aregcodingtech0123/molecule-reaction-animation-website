@@ -1,0 +1,51 @@
+import rateLimit from "express-rate-limit";
+
+/** Login: 5 attempts per 15 minutes per IP + email. */
+export const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `${req.ip ?? "unknown"}:${String(req.body?.email ?? "").toLowerCase()}`,
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 900 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Register: 3 registrations per hour per IP. */
+export const registerRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  message: { success: false, error: "TOO_MANY_REGISTRATIONS", retryAfter: 3600 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Google OAuth: 10 per 15 minutes per IP. */
+export const googleRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 900 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Forgot password / resend verification: 5 per hour per IP. */
+export const emailActionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `${req.ip ?? "unknown"}:${String(req.body?.email ?? "").toLowerCase()}`,
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Verify / reset with token: 20 per hour per IP. */
+export const tokenActionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

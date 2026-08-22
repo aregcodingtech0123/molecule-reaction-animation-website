@@ -1,4 +1,4 @@
-import { APP_THEMES, type AppTheme } from "./types";
+import type { AppTheme } from "./types";
 
 /** Tailwind / layout shell classes applied via ThemeShell */
 export interface ThemeUiConfig {
@@ -68,6 +68,34 @@ export interface ThemeUiConfig {
     subtle: string;
     divider: string;
   };
+  /** Primary brand accents — CTAs, highlights, marketing surfaces */
+  accent: {
+    headline: string;
+    section: string;
+    heroBadge: string;
+    heroBadgeRule: string;
+    link: string;
+    icon: string;
+    rule: string;
+    formulaChip: string;
+    featureIndex: string;
+    scrollCue: string;
+    secondaryButton: string;
+    textLink: string;
+  };
+  /** Homepage / marketing layout surfaces */
+  marketing: {
+    catalogCard: string;
+    catalogCardHover: string;
+    catalogDivider: string;
+    featurePanel: string;
+    compareTile: string;
+    compareTileHover: string;
+    showcaseChassis: string;
+    showcaseSection: string;
+    aiShell: string;
+    aiPanel: string;
+  };
 }
 
 /** React Three Fiber staging parameters */
@@ -111,9 +139,9 @@ export interface ThemeSceneConfig {
 }
 
 export const THEME_UI: Record<AppTheme, ThemeUiConfig> = {
-  cyberpunk: {
-    id: "cyberpunk",
-    label: "Cyberpunk Glass",
+  "night-lab": {
+    id: "night-lab",
+    label: "Night Lab",
     htmlClass: "dark",
     shell: {
       page: "bg-black text-white",
@@ -125,7 +153,8 @@ export const THEME_UI: Record<AppTheme, ThemeUiConfig> = {
       link: "text-gray-400 hover:text-white",
       linkActive: "text-white",
       divider: "border-white/10",
-      cta: "bg-white/10 hover:bg-white/20 text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]",
+      cta:
+        "bg-teal-500 text-slate-950 border border-teal-400 font-semibold hover:bg-teal-400 shadow-[0_0_24px_rgba(45,212,191,0.35)]",
       modeTabActive:
         "bg-indigo-500/35 text-white border border-indigo-400/60 shadow-[0_0_22px_rgba(99,102,241,0.35)]",
       modeTabIdle:
@@ -182,6 +211,36 @@ export const THEME_UI: Record<AppTheme, ThemeUiConfig> = {
       subtle: "border-white/10",
       divider: "border-white/10",
     },
+    accent: {
+      headline:
+        "text-teal-400 underline decoration-teal-400/35 decoration-[0.12em] underline-offset-[0.12em]",
+      section: "text-teal-300",
+      heroBadge: "border-white/15 text-teal-200/80 bg-black/40",
+      heroBadgeRule: "bg-teal-400/70",
+      link: "text-teal-300",
+      icon: "text-teal-400/80",
+      rule: "border-teal-500/40",
+      formulaChip: "border-white/10 bg-white/[0.03] text-teal-200/80",
+      featureIndex: "text-white/[0.07]",
+      scrollCue: "bg-gradient-to-b from-teal-500/50 to-transparent",
+      secondaryButton:
+        "border-white/20 bg-transparent text-white hover:border-white/35 hover:bg-white/5",
+      textLink: "text-teal-300 hover:text-teal-200",
+    },
+    marketing: {
+      catalogCard:
+        "rounded-md border border-white/10 bg-white/[0.02] transition-[border-color,background-color] duration-250",
+      catalogCardHover: "hover:border-teal-400/45 hover:bg-white/[0.04]",
+      catalogDivider: "border-white/10",
+      featurePanel: "border-t-2 border-teal-500/35 pt-7 bg-transparent rounded-none",
+      compareTile: "rounded-lg border border-white/12 bg-black/35 transition-colors duration-250",
+      compareTileHover: "hover:border-teal-400/40",
+      showcaseChassis:
+        "rounded-sm border border-white/14 bg-black/55 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.04),0_24px_48px_rgb(0_0_0/0.45)]",
+      showcaseSection: "bg-neutral-950/40",
+      aiShell: "rounded-md border border-white/12 overflow-hidden",
+      aiPanel: "bg-neutral-950/80",
+    },
   },
   "white-lab": {
     id: "white-lab",
@@ -197,7 +256,8 @@ export const THEME_UI: Record<AppTheme, ThemeUiConfig> = {
       link: "text-neutral-700 hover:text-neutral-900",
       linkActive: "text-neutral-900 font-semibold",
       divider: "border-slate-300",
-      cta: "bg-white hover:bg-white text-neutral-900 border border-slate-300 shadow-sm hover:shadow-md",
+      cta:
+        "bg-teal-700 text-white border border-teal-700 font-semibold hover:bg-teal-800 shadow-md hover:shadow-lg",
       modeTabActive:
         "bg-indigo-100 text-indigo-950 border border-indigo-400/70 shadow-sm font-semibold",
       modeTabIdle:
@@ -253,11 +313,42 @@ export const THEME_UI: Record<AppTheme, ThemeUiConfig> = {
       subtle: "border-slate-200",
       divider: "border-slate-200",
     },
+    accent: {
+      headline:
+        "text-teal-800 underline decoration-teal-700/25 decoration-[0.12em] underline-offset-[0.12em]",
+      section: "text-teal-700",
+      heroBadge: "border-slate-300 text-slate-600 bg-white/80",
+      heroBadgeRule: "bg-teal-600/45",
+      link: "text-teal-700",
+      icon: "text-teal-700",
+      rule: "border-teal-600/35",
+      formulaChip: "border-slate-200 bg-slate-50 text-slate-700",
+      featureIndex: "text-slate-200",
+      scrollCue: "bg-gradient-to-b from-teal-600/40 to-transparent",
+      secondaryButton:
+        "border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50",
+      textLink: "text-teal-700 hover:text-teal-800",
+    },
+    marketing: {
+      catalogCard:
+        "rounded-md border border-slate-200 bg-white shadow-sm transition-[border-color,box-shadow] duration-250",
+      catalogCardHover: "hover:border-teal-700/45 hover:shadow-md hover:shadow-teal-900/5",
+      catalogDivider: "border-slate-200",
+      featurePanel: "border-t-2 border-teal-600/35 pt-7 bg-transparent rounded-none",
+      compareTile:
+        "rounded-lg border border-slate-200 bg-white shadow-sm transition-colors duration-250",
+      compareTileHover: "hover:border-teal-700/40",
+      showcaseChassis:
+        "rounded-sm border border-slate-400/55 bg-slate-50 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.8),0_16px_40px_rgb(148_163_184/0.18)]",
+      showcaseSection: "bg-slate-50",
+      aiShell: "rounded-md border border-slate-200 overflow-hidden shadow-md shadow-slate-200/30",
+      aiPanel: "bg-white",
+    },
   },
 };
 
 export const THEME_SCENE: Record<AppTheme, ThemeSceneConfig> = {
-  cyberpunk: {
+  "night-lab": {
     background: "#020209",
     gridCellColor: "#1e293b",
     gridSectionColor: "#818cf8",
@@ -332,7 +423,3 @@ export const THEME_SCENE: Record<AppTheme, ThemeSceneConfig> = {
     },
   },
 };
-
-export function isAppTheme(value: string): value is AppTheme {
-  return (APP_THEMES as readonly string[]).includes(value);
-}

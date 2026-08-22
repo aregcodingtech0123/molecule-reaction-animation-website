@@ -7,6 +7,7 @@ import { BlendFunction } from "postprocessing";
 import { useTheme } from "@/context/ThemeContext";
 import { SceneLighting } from "./SceneLighting";
 import { ParticleField } from "./ParticleField";
+import { CanvasLoadingFallback } from "./CanvasLoadingFallback";
 
 interface SceneStageProps {
   accentColor: string;
@@ -25,7 +26,7 @@ export function SceneStage({ accentColor, children, footer, reduceEffects = fals
   const particleCount = reduceEffects ? 48 : 160;
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CanvasLoadingFallback />}>
       <color attach="background" args={[scene.background]} />
 
       <pointLight

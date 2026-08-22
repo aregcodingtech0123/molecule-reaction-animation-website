@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 interface RenderModeToggleProps {
   accentColor?: string;
   className?: string;
+  /** Nested inside CanvasToolbar — no outer glass chrome */
+  embedded?: boolean;
 }
 
 const MODES: { id: RenderMode; icon: typeof CircleDot; label: string; shortLabel: string }[] = [
@@ -31,6 +33,7 @@ const MODES: { id: RenderMode; icon: typeof CircleDot; label: string; shortLabel
 export function RenderModeToggle({
   accentColor = "#818cf8",
   className,
+  embedded = false,
 }: RenderModeToggleProps) {
   const { renderMode, setRenderMode } = useRenderMode();
   const { isWhiteLab } = useTheme();
@@ -39,8 +42,9 @@ export function RenderModeToggle({
   return (
     <div
       className={cn(
-        "flex items-center gap-0.5 rounded-xl p-0.5 glass shadow-lg",
-        isWhiteLab ? "border-neutral-200/80" : "border-white/10",
+        "flex items-center gap-0.5 rounded-xl p-0.5",
+        !embedded && "glass shadow-lg",
+        !embedded && (isWhiteLab ? "border-neutral-200/80" : "border-white/10"),
         className,
       )}
       role="group"
@@ -81,10 +85,10 @@ export function RenderModeToggle({
                 : undefined
             }
           >
-            <Icon className="h-3.5 w-3.5" strokeWidth={active ? 2.5 : 1.75} />
+            <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
             <span
               className={cn(
-                "text-[10px] uppercase tracking-wider transition-colors",
+                "hidden text-[10px] uppercase tracking-wider transition-colors sm:inline",
                 active
                   ? isWhiteLab
                     ? "text-indigo-950"

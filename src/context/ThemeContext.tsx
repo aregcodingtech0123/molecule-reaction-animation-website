@@ -14,9 +14,9 @@ import type { ThemeSceneConfig, ThemeUiConfig } from "@/lib/theme/config";
 import {
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
+  resolveAppTheme,
   type AppTheme,
 } from "@/lib/theme/types";
-import { isAppTheme } from "@/lib/theme/config";
 
 interface ThemeContextValue {
   theme: AppTheme;
@@ -30,39 +30,38 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readStoredTheme(): AppTheme {
-  if (typeof window === "undefined") return DEFAULT_THEME;
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return stored && isAppTheme(stored) ? (stored as AppTheme) : DEFAULT_THEME;
+  return resolveAppTheme(window.localStorage.getItem(THEME_STORAGE_KEY));
 }
 
 function applyThemeToDocument(theme: AppTheme) {
   const root = document.documentElement;
   root.dataset.theme = theme;
-  root.classList.toggle("dark", theme === "cyberpunk");
+  root.classList.toggle("dark", theme === "night-lab");
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>(() => readStoredTheme());
+  /** Match SSR / layout.tsx defaults on first render to avoid hydration mismatch. */
+  const [theme, setThemeState] = useState<AppTheme>(DEFAULT_THEME);
 
   useEffect(() => {
-    applyThemeToDocument(theme);
-  }, [theme]);
+    const storedRaw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const resolved = resolveAppTheme(storedRaw);
+    if (storedRaw !== resolved) {
+      window.localStorage.setItem(THEME_STORAGE_KEY, resolved);
+    }
+    setThemeState(resolved);
+    applyThemeToDocument(resolved);
+  }, []);
 
   const setTheme = useCallback((next: AppTheme) => {
     setThemeState(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(THEME_STORAGE_KEY, next);
-    }
+    window.localStorage.setItem(THEME_STORAGE_KEY, next);
     applyThemeToDocument(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme(theme === "cyberpunk" ? "white-lab" : "cyberpunk");
+    setTheme(theme === "night-lab" ? "white-lab" : "night-lab");
   }, [theme, setTheme]);
-
-  useEffect(() => {
-    applyThemeToDocument(theme);
-  }, [theme]);
 
   const value = useMemo(
     (): ThemeContextValue => ({
