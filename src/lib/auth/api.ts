@@ -1,4 +1,5 @@
 import { authFetch } from "@/lib/api/auth-interceptor";
+import { safeJson } from "@/lib/api/safe-json";
 import type {
   AuthApiResponse,
   AuthSuccessData,
@@ -14,8 +15,13 @@ export type RegisterRequestResult =
   | AuthSuccessData
   | { message: string };
 
+/**
+ * Never call res.json() directly: an HTML 404/502 body throws a SyntaxError
+ * before the caller's `!res.ok` guard can run. safeJson() degrades to a
+ * { success:false, error } shape so those guards report the real failure.
+ */
 async function parseJson<T>(res: Response): Promise<T> {
-  return res.json() as Promise<T>;
+  return safeJson<T>(res);
 }
 
 function extractError(data: unknown, fallback: string): string {

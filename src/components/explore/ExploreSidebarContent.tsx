@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FlaskConical, Sparkles } from "lucide-react";
 import type { MoleculeData } from "@/lib/molecules/types";
@@ -14,16 +15,25 @@ interface SidebarListItemProps {
   isActive: boolean;
   accent: string;
   index: number;
+  itemId: string;
   onSelect: () => void;
   children: React.ReactNode;
 }
 
-function SidebarListItem({ isActive, accent, index, onSelect, children }: SidebarListItemProps) {
+function SidebarListItem({ isActive, accent, index, onSelect, children, itemId }: SidebarListItemProps) {
   const { ui, isWhiteLab } = useTheme();
+  const itemRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isActive || !itemRef.current) return;
+    itemRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [isActive, itemId]);
 
   return (
     <motion.button
+      ref={itemRef}
       type="button"
+      id={itemId}
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.08 + index * 0.03 }}
@@ -111,6 +121,7 @@ export function ExploreSidebarContent({
               return (
                 <SidebarListItem
                   key={mol.id}
+                  itemId={`explore-mol-${mol.id}`}
                   isActive={isActive}
                   accent={accent}
                   index={i}
@@ -168,6 +179,7 @@ export function ExploreSidebarContent({
               return (
                 <SidebarListItem
                   key={rxn.id}
+                  itemId={`explore-rxn-${rxn.id}`}
                   isActive={isActive}
                   accent={accent}
                   index={i}

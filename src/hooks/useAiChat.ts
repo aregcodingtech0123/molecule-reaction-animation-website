@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/ai/chat-types";
 import { postChatMessages, processAssistantReply } from "@/lib/ai/chat-api";
+import {
+  creditShortfallMessage,
+  INSUFFICIENT_CREDITS_CODE,
+  INSUFFICIENT_CREDITS_MESSAGE,
+  isInsufficientCreditsError,
+} from "@/lib/billing/credit-errors";
 import type { MoleculeData } from "@/lib/molecules/types";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -115,7 +121,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       ]);
       setInput("");
       toast.error(t.ai_gate_credits ?? AUTH_GATE_CREDITS_MESSAGE);
-      openBillingModal();
+      openBillingModal(INSUFFICIENT_CREDITS_MESSAGE);
       return;
     }
 
@@ -144,10 +150,26 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      if (smiles || molecule) {
-        await fetchBalance();
-      }
+      // Every chat turn is metered, so the balance is stale regardless of
+      // whether the reply happened to contain a structure.
+      await fetchBalance();
     } catch (e) {
+      // Out of credits: the server told us exactly what the operation needed,
+      // so surface that rather than a generic failure, and put the top-up path
+      // directly in front of the user.
+      if (isInsufficientCreditsError(e)) {
+        const shortfall = creditShortfallMessage(e);
+        setMessages((prev) => [
+          ...prev,
+          { id: createMessageId(), role: "assistant", content: shortfall },
+        ]);
+        setError(INSUFFICIENT_CREDITS_CODE);
+        toast.error(shortfall);
+        openBillingModal(shortfall);
+        void fetchBalance();
+        return;
+      }
+
       const errMsg =
         e instanceof Error ? e.message : (t.toast_request_failed ?? "Request could not be completed.");
       if (errMsg === "EMAIL_NOT_VERIFIED") {
@@ -168,7 +190,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
             content: t.ai_gate_credits ?? AUTH_GATE_CREDITS_MESSAGE,
           },
         ]);
-        openBillingModal();
+        openBillingModal(INSUFFICIENT_CREDITS_MESSAGE);
       }
       setError(errMsg);
       toast.error(

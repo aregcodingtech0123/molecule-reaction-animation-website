@@ -13,9 +13,11 @@ function isProtectedPath(pathname: string): boolean {
 }
 
 function redirectToAuthRequired(request: NextRequest): NextResponse {
+  // Send unauthenticated users to the dedicated login page — never dump them
+  // onto a public route with an auto-opened modal (?auth=required).
   const url = request.nextUrl.clone();
-  url.pathname = "/";
-  url.searchParams.set("auth", "required");
+  url.pathname = "/login";
+  url.searchParams.delete("auth");
   return NextResponse.redirect(url);
 }
 

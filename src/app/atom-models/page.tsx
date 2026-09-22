@@ -29,8 +29,8 @@ export default function AtomModelsPage() {
           <History className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
           {bundle.ui.atom_models_badge}
         </div>
-        <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2">
-          <span className="text-gradient">{bundle.ui.atom_models_title}</span>
+        <h1 className="home-section-title mb-2 text-2xl sm:text-3xl md:text-5xl">
+          <span className={ui.accent.headline}>{bundle.ui.atom_models_title}</span>
         </h1>
         <p className={cn("text-sm max-w-2xl mx-auto px-2", ui.typography.subtitle)}>
           {bundle.ui.atom_models_subtitle}

@@ -6,10 +6,13 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
+  BookOpen,
   FlaskConical,
+  Grid3X3,
   History,
   Loader2,
   Sparkles,
+  Star,
   User,
   Zap,
 } from "lucide-react";
@@ -20,17 +23,21 @@ import {
   fetchLedgerHistory,
   formatLedgerAmount,
   formatLedgerDate,
+  formatTransactionDescription,
   formatTransactionType,
+  ledgerBadgeVariant,
+  type LedgerBadgeVariant,
   type LedgerTransaction,
 } from "@/lib/billing/history";
 import { PricingCards } from "@/components/billing/PricingCards";
 import { cn } from "@/lib/utils";
 import { safeNavigate } from "@/lib/navigation/safe-navigate";
 import { useCreditCheckout } from "@/lib/billing/useCreditCheckout";
+import { isCheckoutReturnPending } from "@/lib/billing/pre-checkout-view";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isAuthenticated, isHydrated, user, credits, openAuthModal, openBillingModal, fetchBalance } =
+  const { isAuthenticated, isHydrated, user, credits, openBillingModal, fetchBalance } =
     useAuth();
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
@@ -38,13 +45,14 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { purchase, loadingId, error: checkoutError, region, setRegion } = useCreditCheckout();
+  const { purchase, loadingId, error: checkoutError } = useCreditCheckout();
 
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      openAuthModal("login");
-      safeNavigate(router, "/", "replace");
+      // Returning from Lemon: session may still be rehydrating — never flash login.
+      if (isCheckoutReturnPending()) return;
+      safeNavigate(router, "/login", "replace");
       return;
     }
 
@@ -73,10 +81,23 @@ export default function DashboardPage() {
     }
 
     void load();
+
+    const onCreditsRefreshed = () => {
+      void fetchLedgerHistory()
+        .then((rows) => {
+          if (!cancelled) setTransactions(rows);
+        })
+        .catch(() => {
+          /* keep existing ledger rows */
+        });
+    };
+    window.addEventListener("moleculestudio:credits-refreshed", onCreditsRefreshed);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("moleculestudio:credits-refreshed", onCreditsRefreshed);
     };
-  }, [isHydrated, isAuthenticated, router, openAuthModal, fetchBalance]);
+  }, [isHydrated, isAuthenticated, router, fetchBalance]);
 
   if (!isHydrated || !isAuthenticated) {
     return (
@@ -92,7 +113,7 @@ export default function DashboardPage() {
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
+          className="space-y-3"
         >
           <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs", ui.panel.badge)}>
             <User className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
@@ -104,6 +125,109 @@ export default function DashboardPage() {
           <p className={cn("text-sm md:text-base max-w-2xl", ui.typography.subtitle)}>
             {t.dashboard_subtitle ?? "Manage your AI credits and review your full transaction ledger."}
           </p>
+          <nav
+            aria-label={t.dashboard_quick_links ?? "Quick links"}
+            className="flex flex-wrap gap-2 pt-1"
+          >
+            {[
+              { href: "/profile", label: t.nav_profile ?? "Profile" },
+              { href: "/ai-lab", label: t.nav_ai_lab ?? "AI Lab" },
+              { href: "/explore", label: t.nav_explore },
+              { href: "/pricing", label: t.nav_pricing ?? "Pricing" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors",
+                  isWhiteLab
+                    ? "border-slate-200 bg-white text-neutral-800 hover:border-teal-300 hover:bg-teal-50"
+                    : "border-white/12 bg-white/5 text-gray-200 hover:border-teal-400/40 hover:bg-teal-500/10 hover:text-teal-100",
+                )}
+              >
+                {link.label}
+                <ArrowUpRight className="h-3 w-3 opacity-70" />
+              </Link>
+            ))}
+          </nav>
+
+          <div
+            aria-label={t.dashboard_feature_cards ?? "Studio features"}
+            className="grid gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {[
+              {
+                href: "/periodic-table",
+                title: t.dash_card_periodic_title ?? "Periodic Table 🧪",
+                body:
+                  t.dash_card_periodic_body ??
+                  "Inspect elements and atomic structures in 3D",
+                icon: Grid3X3,
+                accent: true,
+              },
+              {
+                href: "/showcase",
+                title: t.dash_card_showcase_title ?? "Interactive Showcase 🌟",
+                body:
+                  t.dash_card_showcase_body ??
+                  "Explore community creations and molecular architectures",
+                icon: Star,
+                accent: false,
+              },
+              {
+                href: "/learn",
+                title: t.dash_card_learn_title ?? "Chemistry Learn Hub 📖",
+                body:
+                  t.dash_card_learn_body ??
+                  "Master bonding types and orbital structures",
+                icon: BookOpen,
+                accent: false,
+              },
+            ].map((card) => {
+              const Icon = card.icon;
+              return (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className={cn(
+                    "group flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-xl transition-all",
+                    card.accent
+                      ? isWhiteLab
+                        ? "border-teal-300/90 bg-teal-50/90 shadow-sm hover:bg-teal-100 hover:shadow-[0_0_22px_rgba(13,148,136,0.18)]"
+                        : "border-teal-400/45 bg-teal-500/12 shadow-[0_0_22px_rgba(45,212,191,0.16)] hover:border-teal-300/60 hover:bg-teal-500/20"
+                      : isWhiteLab
+                        ? "border-slate-200 bg-white/90 hover:border-teal-300/70 hover:bg-teal-50/70"
+                        : "border-white/12 bg-white/5 hover:border-teal-400/35 hover:bg-teal-500/10",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                      isWhiteLab
+                        ? "border-teal-200 bg-teal-50 text-teal-800"
+                        : "border-teal-400/35 bg-teal-500/15 text-teal-200",
+                    )}
+                  >
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("font-display text-sm font-semibold", ui.typography.title)}>
+                      {card.title}
+                    </p>
+                    <p className={cn("mt-0.5 text-xs leading-relaxed", ui.typography.muted)}>
+                      {card.body}
+                    </p>
+                  </div>
+                  <ArrowUpRight
+                    className={cn(
+                      "mt-0.5 h-4 w-4 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
+                      isWhiteLab ? "text-teal-700" : "text-teal-300",
+                    )}
+                  />
+                </Link>
+              );
+            })}
+          </div>
         </motion.header>
 
         <motion.section
@@ -126,7 +250,7 @@ export default function DashboardPage() {
             </p>
             <button
               type="button"
-              onClick={openBillingModal}
+              onClick={() => openBillingModal()}
               className={cn(
                 "inline-flex items-center gap-2 text-sm font-medium transition-colors",
                 isWhiteLab ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-300 hover:text-cyan-200",
@@ -178,7 +302,7 @@ export default function DashboardPage() {
             </h2>
             <p className={cn("text-sm", ui.typography.muted)}>
               {t.dashboard_pricing_subtitle ??
-                "Secure Stripe checkout — credits are deposited instantly after payment."}
+                "Secure Lemon Squeezy checkout — credits are deposited after payment."}
             </p>
           </div>
 
@@ -192,8 +316,6 @@ export default function DashboardPage() {
             layout="dashboard"
             onPurchase={(id) => void purchase(id)}
             loadingId={loadingId}
-            region={region}
-            onRegionChange={setRegion}
           />
         </motion.section>
 
@@ -214,7 +336,7 @@ export default function DashboardPage() {
           >
             <History className={cn("h-5 w-5", ui.typography.iconAccent)} />
             <h2 className={cn("text-lg font-semibold", ui.typography.title)}>
-              {t.dashboard_history_title ?? "Transaction History"}
+              {t.dashboard_history_title ?? "Credit & Usage History"}
             </h2>
           </div>
 
@@ -234,6 +356,51 @@ export default function DashboardPage() {
         </motion.section>
       </div>
     </main>
+  );
+}
+
+const BADGE_STYLES: Record<LedgerBadgeVariant, { light: string; dark: string }> = {
+  purchase: {
+    light: "border-emerald-300 bg-emerald-50 text-emerald-800",
+    dark: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+  },
+  bonus: {
+    light: "border-teal-300 bg-teal-50 text-teal-800",
+    dark: "border-teal-400/30 bg-teal-500/10 text-teal-300",
+  },
+  usage: {
+    light: "border-indigo-300 bg-indigo-50 text-indigo-800",
+    dark: "border-indigo-400/30 bg-indigo-500/10 text-indigo-300",
+  },
+  refund: {
+    light: "border-amber-300 bg-amber-50 text-amber-900",
+    dark: "border-amber-400/30 bg-amber-500/10 text-amber-300",
+  },
+  neutral: {
+    light: "border-slate-300 bg-slate-100 text-slate-700",
+    dark: "border-slate-500/30 bg-slate-500/10 text-slate-300",
+  },
+};
+
+function LedgerTypeBadge({
+  label,
+  variant,
+  isWhiteLab,
+}: {
+  label: string;
+  variant: LedgerBadgeVariant;
+  isWhiteLab: boolean;
+}) {
+  const style = BADGE_STYLES[variant];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+        isWhiteLab ? style.light : style.dark,
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -262,11 +429,11 @@ function TransactionTable({
             <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wider">
               {t.dashboard_col_type ?? "Type"}
             </th>
+            <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
+              {t.dashboard_col_description ?? "Description"}
+            </th>
             <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wider text-right">
               {t.dashboard_col_amount ?? "Amount"}
-            </th>
-            <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
-              {t.dashboard_col_reference ?? "Reference"}
             </th>
           </tr>
         </thead>
@@ -279,8 +446,18 @@ function TransactionTable({
               <td className={cn("px-6 py-4 whitespace-nowrap", ui.typography.body)}>
                 {formatLedgerDate(tx.created_at)}
               </td>
-              <td className={cn("px-6 py-4", ui.typography.body)}>
-                {formatTransactionType(tx.transaction_type)}
+              <td className="px-6 py-4">
+                <LedgerTypeBadge
+                  label={formatTransactionType(tx.transaction_type)}
+                  variant={ledgerBadgeVariant(tx.transaction_type)}
+                  isWhiteLab={isWhiteLab}
+                />
+              </td>
+              <td
+                className={cn("px-6 py-4 hidden sm:table-cell", ui.typography.muted)}
+                title={tx.reference_id ?? undefined}
+              >
+                {formatTransactionDescription(tx)}
               </td>
               <td
                 className={cn(
@@ -295,14 +472,6 @@ function TransactionTable({
                 )}
               >
                 {formatLedgerAmount(tx.amount)}
-              </td>
-              <td
-                className={cn(
-                  "px-6 py-4 hidden sm:table-cell font-mono text-xs truncate max-w-[12rem]",
-                  ui.typography.monoMuted,
-                )}
-              >
-                {tx.reference_id ?? "—"}
               </td>
             </tr>
           ))}

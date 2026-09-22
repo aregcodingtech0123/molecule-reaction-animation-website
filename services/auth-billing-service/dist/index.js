@@ -30,15 +30,9 @@ function resolveListenHost() {
     return env.isProduction ? "127.0.0.1" : "0.0.0.0";
 }
 function logPaymentProviders() {
-    console.log("💳 Shopier (TR/TRY):", env.shopierApiKey && env.shopierApiSecret ? "CONFIGURED" : "MISSING");
-    console.log("💳 Lemon Squeezy (Global/USD):", env.lemonSqueezyApiKey && env.lemonSqueezyStoreId ? "CONFIGURED" : "MISSING");
-    if (env.nodeEnv === "development") {
-        if (!env.shopierApiKey || !env.shopierApiSecret) {
-            console.warn("[auth-billing-service] Set SHOPIER_API_KEY + SHOPIER_API_SECRET for TR checkout.");
-        }
-        if (!env.lemonSqueezyApiKey || !env.lemonSqueezyStoreId) {
-            console.warn("[auth-billing-service] Set LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID + variant IDs for global checkout.");
-        }
+    console.log("💳 Lemon Squeezy (USD — sole provider):", env.lemonSqueezyApiKey && env.lemonSqueezyStoreId ? "CONFIGURED" : "MISSING");
+    if (env.nodeEnv === "development" && (!env.lemonSqueezyApiKey || !env.lemonSqueezyStoreId)) {
+        console.warn("[auth-billing-service] Set LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID + variant IDs for checkout.");
     }
 }
 function logStartupWarnings() {
@@ -69,7 +63,7 @@ async function bootstrap() {
             console.log(`🚀 Auth Microservice running seamlessly on port ${PORT}`);
             console.log(`[auth-billing-service] bound to ${HOST}:${PORT}`);
             console.log(`[auth-billing-service] database: ${isDatabaseReady() ? "connected" : "unavailable — auth/billing routes may return 503"}`);
-            console.log("[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/shopier · POST /api/billing/webhooks/lemonsqueezy");
+            console.log("[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/lemonsqueezy");
             resolve();
         });
         server.on("error", (err) => {

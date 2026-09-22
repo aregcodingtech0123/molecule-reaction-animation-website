@@ -17,6 +17,7 @@ export function errorHandler(
       success: false,
       error: err.message,
       code: err.code,
+      ...err.details,
     });
     return;
   }
@@ -32,10 +33,7 @@ export function errorHandler(
 
   if (
     err instanceof Error &&
-    (err.message.includes("Shopier") ||
-      err.message.includes("Lemon") ||
-      err.message.includes("LEMONSQUEEZY") ||
-      err.message.includes("SHOPIER"))
+    (err.message.includes("Lemon") || err.message.includes("LEMONSQUEEZY"))
   ) {
     console.error("[auth-billing-service] Payment provider error:", {
       message: err.message,

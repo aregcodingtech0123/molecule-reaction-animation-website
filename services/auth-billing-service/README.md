@@ -5,17 +5,20 @@ Unified Express + TypeScript microservice using raw `pg` against the core Postgr
 ## Initialize
 
 ```bash
+# From repo root — start local Postgres (isolated from Supabase)
+npm run docker:up
+
 cd services/auth-billing-service
 npm install
 cp .env.example .env
-# Edit .env — set DATABASE_URL and JWT_SECRET (32+ chars)
+# Keep LOCAL DATABASE_URL pointing at Docker (see comments in .env.example)
 
-# Ensure DB schema is applied first:
-# psql "$DATABASE_URL" -f ../../database/init/001_moleculestudio_core.sql
-
+npm run db:setup   # applies database/init/001 → 005
 npm run dev
 ```
 
+Wipe local schema only: `npm run db:reset`  
+Wipe Docker volume too: from root `npm run docker:reset` then `npm run db:setup`
 ## API
 
 | Method | Path | Auth | Description |

@@ -9,7 +9,11 @@ import { validateAiOutput } from "@/lib/ai/validate-ai-output";
 import { resolveSessionTokenFromRequest } from "@/lib/auth/resolve-session-token";
 import { fetchEmailVerificationStatus } from "@/lib/auth/verification";
 import { isJwtConfigured, verifyJwtToken } from "@/lib/auth/verify-jwt";
-import { deductUserCredits } from "@/lib/billing/server-billing";
+import {
+  AI_OPERATION_COSTS,
+  consumeCreditsForOperation,
+  refundOperationCredits,
+} from "@/lib/billing/server-billing";
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 
 const MAX_MESSAGES = 24;
@@ -119,31 +123,47 @@ export async function POST(request: Request) {
   }
 
   const chatTurnId = randomUUID();
-  const deductResult = await deductUserCredits({
+
+  /** Give the credits back for a failure that is ours, not the user's. */
+  const refund = (reason: string) =>
+    refundOperationCredits({ bearerToken: bearer, referenceId: chatTurnId, reason });
+
+  const charge = await consumeCreditsForOperation({
     bearerToken: bearer,
-    amount: 1,
-    type: "AI_GENERATION_DEDUCTION",
+    operationType: "AI_CHAT_QUERY",
     referenceId: chatTurnId,
+    metadata: { messageCount: messages.length },
   });
 
-  if (!deductResult.ok) {
-    if (deductResult.status === 403) {
+  if (!charge.ok) {
+    if (charge.status === 403) {
       return Response.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
-    if (deductResult.status === 402) {
-      return Response.json({ error: "INSUFFICIENT_CREDITS" }, { status: 402 });
+    if (charge.status === 402) {
+      return Response.json(
+        {
+          success: false,
+          error: "INSUFFICIENT_CREDITS",
+          code: "INSUFFICIENT_CREDITS",
+          requiredCredits: charge.requiredCredits ?? AI_OPERATION_COSTS.AI_CHAT_QUERY,
+        },
+        { status: 402 },
+      );
     }
-    console.error("[api/chat] Credit pre-deduction failed", {
+    // Billing is unreachable or erroring. Fail closed rather than serving a
+    // free generation, but say so honestly instead of blaming the balance.
+    console.error("[api/chat] Credit charge failed", {
       userId: session.sub,
       referenceId: chatTurnId,
-      status: deductResult.status,
+      status: charge.status,
     });
-    return Response.json({ error: "INSUFFICIENT_CREDITS" }, { status: 402 });
+    return Response.json({ error: "BILLING_UNAVAILABLE" }, { status: 503 });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.error("[api/chat] GEMINI_API_KEY is not configured.");
+    await refund("gemini_api_key_missing");
     return Response.json({ error: "AI service unavailable. Please try again." }, { status: 503 });
   }
 
@@ -167,15 +187,20 @@ export async function POST(request: Request) {
 
     const text = response.text?.trim();
     if (!text) {
-      console.error("[api/chat] Gemini returned empty response after deduction", {
+      console.error("[api/chat] Gemini returned empty response after charge", {
         userId: session.sub,
         referenceId: chatTurnId,
       });
+      await refund("empty_ai_response");
       return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
     }
 
     const validation = validateAiOutput(text);
     if (!validation.safe) {
+      // Deliberately NOT refunded. The model ran and we paid for it; the
+      // response was withheld because of what the exchange contained, which is
+      // not a server fault. Refunding here would also make probing the content
+      // filter free.
       console.warn("[api/chat] Output policy violation:", validation.reason, {
         userId: session.sub,
         referenceId: chatTurnId,
@@ -186,13 +211,14 @@ export async function POST(request: Request) {
       );
     }
 
-    return Response.json({ message: text });
+    return Response.json({ message: text, balance: charge.balance ?? null });
   } catch (err) {
-    console.error("[api/chat] Gemini failed after credit deduction — ops review for refund", {
+    console.error("[api/chat] Gemini failed after credit charge — refunding", {
       userId: session.sub,
       referenceId: chatTurnId,
       err,
     });
+    await refund("ai_generation_error");
     return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
   }
 }

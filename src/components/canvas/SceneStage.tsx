@@ -22,12 +22,13 @@ interface SceneStageProps {
  * Shared R3F environment: background, lighting, optional stars/particles, post-processing.
  */
 export function SceneStage({ accentColor, children, footer, reduceEffects = false }: SceneStageProps) {
-  const { scene } = useTheme();
+  const { scene, isWhiteLab } = useTheme();
   const particleCount = reduceEffects ? 48 : 160;
 
   return (
     <Suspense fallback={<CanvasLoadingFallback />}>
-      <color attach="background" args={[scene.background]} />
+      {/* Opaque WebGL clear only in dark mode — light mode shows CSS studio atmosphere through alpha */}
+      {!isWhiteLab && <color attach="background" args={[scene.background]} />}
 
       <pointLight
         position={[0, 4, 4]}

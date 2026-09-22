@@ -9,12 +9,13 @@ export function ThemeToaster() {
   return (
     <Toaster
       position="top-right"
-      expand={false}
+      expand
       richColors
       closeButton
+      visibleToasts={4}
       theme={isWhiteLab ? "light" : "dark"}
       toastOptions={{
-        duration: 4200,
+        duration: 5200,
         classNames: {
           toast: isWhiteLab
             ? "backdrop-blur-md !bg-white/92 !border !border-slate-200 !text-slate-900 !shadow-lg !shadow-slate-200/50"

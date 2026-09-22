@@ -33,22 +33,7 @@ export const env = {
     return readEnv("GOOGLE_CLIENT_ID");
   },
 
-  // ── Shopier (TR / TRY) ────────────────────────────────────────────────────
-  get shopierApiKey() {
-    return readEnv("SHOPIER_API_KEY");
-  },
-  get shopierApiSecret() {
-    return readEnv("SHOPIER_API_SECRET");
-  },
-  get shopierWebsiteIndex() {
-    return readEnv("SHOPIER_WEBSITE_INDEX") || "1";
-  },
-  /** Optional REST webhook token (Shopier-Signature). Classic callback uses API secret. */
-  get shopierWebhookToken() {
-    return readEnv("SHOPIER_WEBHOOK_TOKEN");
-  },
-
-  // ── Lemon Squeezy (Global / USD MoR) ──────────────────────────────────────
+  // ── Lemon Squeezy (sole payment provider — USD MoR) ───────────────────────
   get lemonSqueezyApiKey() {
     return readEnv("LEMONSQUEEZY_API_KEY");
   },
@@ -64,13 +49,25 @@ export const env = {
   get lemonSqueezyVariantPro() {
     return readEnv("LEMONSQUEEZY_VARIANT_PRO");
   },
+  get lemonSqueezyVariantEnterprise() {
+    return readEnv("LEMONSQUEEZY_VARIANT_ENTERPRISE");
+  },
 
   // ── Email (Resend) ────────────────────────────────────────────────────────
   get resendApiKey() {
     return readEnv("RESEND_API_KEY");
   },
+  /** Preferred sender identity. Falls back to EMAIL_FROM for older configs. */
+  get senderEmail() {
+    return (
+      readEnv("SENDER_EMAIL") ||
+      readEnv("EMAIL_FROM") ||
+      "MoleculeStudio <onboarding@resend.dev>"
+    );
+  },
+  /** @deprecated Prefer `senderEmail` / SENDER_EMAIL */
   get emailFrom() {
-    return readEnv("EMAIL_FROM") || "MoleculeStudio <onboarding@resend.dev>";
+    return this.senderEmail;
   },
 } as const;
 
@@ -87,5 +84,6 @@ export function assertEnv(): void {
 export function lemonVariantForPackage(packageId: string): string {
   if (packageId === "starter") return env.lemonSqueezyVariantStarter;
   if (packageId === "pro") return env.lemonSqueezyVariantPro;
+  if (packageId === "enterprise") return env.lemonSqueezyVariantEnterprise;
   return "";
 }

@@ -1,5 +1,5 @@
 -- =============================================================================
--- MoleculeStudio — Dual payment providers (Shopier + Lemon Squeezy)
+-- MoleculeStudio — Lemon Squeezy payment provider + pending checkouts
 -- Idempotent migration — safe to re-run
 -- =============================================================================
 
@@ -22,15 +22,15 @@ ALTER TABLE credit_ledger_transactions
   ADD COLUMN IF NOT EXISTS provider VARCHAR(32);
 
 COMMENT ON COLUMN credit_ledger_transactions.provider IS
-  'Payment provider for purchases: shopier | lemonsqueezy (null for bonuses/deductions).';
+  'Payment provider for purchases: lemonsqueezy (null for bonuses/deductions; legacy values may exist).';
 COMMENT ON COLUMN credit_ledger_transactions.reference_id IS
-  'External correlation ID — Shopier payment_id, Lemon Squeezy order id, AI job id, etc.';
+  'External correlation ID — Lemon Squeezy order id, AI job id, etc.';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_credit_ledger_provider_reference
   ON credit_ledger_transactions (provider, reference_id)
   WHERE provider IS NOT NULL AND reference_id IS NOT NULL;
 
--- Pending checkouts (Shopier platform_order_id ↔ user/package mapping)
+-- Pending checkouts (Lemon order ↔ user/package mapping)
 CREATE TABLE IF NOT EXISTS pending_checkout_orders (
   id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,

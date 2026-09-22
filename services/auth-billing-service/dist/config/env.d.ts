@@ -11,17 +11,16 @@ export declare const env: {
     readonly isProduction: boolean;
     readonly frontendUrl: string;
     readonly googleClientId: string;
-    readonly shopierApiKey: string;
-    readonly shopierApiSecret: string;
-    readonly shopierWebsiteIndex: string;
-    /** Optional REST webhook token (Shopier-Signature). Classic callback uses API secret. */
-    readonly shopierWebhookToken: string;
     readonly lemonSqueezyApiKey: string;
     readonly lemonSqueezyStoreId: string;
     readonly lemonSqueezyWebhookSecret: string;
     readonly lemonSqueezyVariantStarter: string;
     readonly lemonSqueezyVariantPro: string;
+    readonly lemonSqueezyVariantEnterprise: string;
     readonly resendApiKey: string;
+    /** Preferred sender identity. Falls back to EMAIL_FROM for older configs. */
+    readonly senderEmail: string;
+    /** @deprecated Prefer `senderEmail` / SENDER_EMAIL */
     readonly emailFrom: string;
 };
 export declare function assertEnv(): void;

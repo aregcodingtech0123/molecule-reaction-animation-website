@@ -10,9 +10,9 @@ A premium interactive chemistry platform for exploring molecules in 3D, running 
 | **AI Lab** | Gemini-powered molecule generation gated by auth and credit balance |
 | **Atom Models** | Timeline of historical atomic models with animated 3D scenes |
 | **Periodic Table** | Full interactive table with element detail panel, orbit animation, and real-world views |
-| **Dashboard** | Account overview, credit balance, transaction ledger, and dual-gateway checkout |
+| **Dashboard** | Account overview, credit balance, transaction ledger, and checkout |
 | **Auth** | Email/password registration & login, Google OAuth, JWT sessions |
-| **Billing** | Credit packs via Shopier (TRY) + Lemon Squeezy MoR (USD); immutable PostgreSQL ledger |
+| **Billing** | Credit packs via Lemon Squeezy MoR (USD); immutable PostgreSQL ledger |
 
 ## Architecture
 
@@ -24,12 +24,13 @@ Browser (Next.js 16, port 3000)
     └── /api/chat       ──► Gemini (server-side, cookie session)
 
 auth-billing-service (Express + TypeScript, internal :4000)
-    ├── PostgreSQL (molecule_studio_db)
-    ├── Shopier (TR / TRY checkout + notify webhook)
-    └── Lemon Squeezy (Global / USD MoR + order_created webhook)
+    ├── PostgreSQL (local Docker, Neon, or Supabase)
+    └── Lemon Squeezy (USD MoR checkout + order_created webhook)
 ```
 
 The Next.js app acts as a **BFF gateway** — the browser calls `/api/auth/*` and `/api/billing/*` on the same origin; route handlers proxy to the Express microservice. Sessions use an **httpOnly `session_token` cookie** (JWT is never stored in `localStorage`). The legacy `/api/ai/*` proxy has been **removed**; all AI traffic goes through secured `/api/chat`.
+
+**Checkout must go through the API.** Do not share raw Lemon Squeezy store/product links for production purchases — those omit `custom_data` (`user_id`, `package_id`, `pending_order_id`). Always create checkouts via `POST /api/billing/checkout` so the webhook can attribute and credit the correct account.
 
 ## Tech Stack
 
@@ -40,17 +41,17 @@ The Next.js app acts as a **BFF gateway** — the browser calls `/api/auth/*` an
 - 12-locale i18n (EN, TR, DE, ES, FR, …)
 
 **Backend**
-- `services/auth-billing-service` — Express 5, `pg`, JWT, bcrypt, Shopier, Lemon Squeezy, Google OAuth
-- PostgreSQL 14+ with `post_credit_transaction()` ledger function
+- `services/auth-billing-service` — Express 5, `pg`, JWT, bcrypt, Lemon Squeezy, Google OAuth
+- PostgreSQL 14+ with `post_credit_transaction()` ledger function (local Docker, Neon, or Supabase)
 
 ## Prerequisites
 
 - Node.js 20+
-- PostgreSQL 14+
-- [Shopier](https://www.shopier.com) API key/secret (Turkey / TRY)
-- [Lemon Squeezy](https://www.lemonsqueezy.com) store + API key + variants (Global / USD MoR)
+- Docker Desktop (recommended for local Postgres) **or** PostgreSQL 14+ / Neon / Supabase
+- [Lemon Squeezy](https://www.lemonsqueezy.com) store + API key + variants (USD MoR)
 - [Google Cloud](https://console.cloud.google.com) OAuth Web client ID (optional, for Google sign-in)
 - [Gemini API key](https://ai.google.dev) (for AI Lab)
+- [ngrok](https://ngrok.com) (optional — local Lemon webhook testing against Express `:4000`)
 
 ## Quick Start
 
@@ -62,27 +63,54 @@ cp .env.example .env
 # Edit .env — see Environment Variables below
 ```
 
-### 2. Set up the database and auth-billing service
+### 2. Local Postgres (Docker) + auth-billing service
 
 ```bash
+# Start isolated local Postgres (never touches production Neon/Supabase)
+npm run docker:up
+
 cd services/auth-billing-service
 npm install
 cp .env.example .env
-# Edit .env — DATABASE_URL, JWT_SECRET (32+ chars), Shopier + Lemon Squeezy keys, etc.
+# Keep the LOCAL DATABASE_URL (Docker). Do not paste a production URI here for day-to-day dev.
 
-npm run db:setup    # creates molecule_studio_db + applies schema
+npm run db:setup    # waits for health, creates DB if needed, applies 001→005
 npm run dev         # http://localhost:4000
 ```
 
-### 3. Run the Next.js dev server
+**3-step local DB loop**
+
+```bash
+npm run docker:up                                          # 1. start Postgres
+cd services/auth-billing-service && npm run db:setup       # 2. migrate
+npm run dev                                                # 3. run Express (from service dir)
+```
+
+Wipe local data and re-migrate: `npm run docker:reset` then `npm run db:setup`  
+Or SQL-only reset (refuses production URLs): `npm run db:reset` from the service folder.
+
+### 3. Run the full local stack (recommended)
 
 From the repository root:
 
 ```bash
-npm run dev         # http://localhost:3000
+npm run db:setup    # once, after Docker is healthy
+npm run dev:all     # tries docker:up, then Next (:3000) + Express (:4000)
 ```
 
-Restart both processes after changing any `.env` file.
+`npm run dev` still starts **Next.js only**. Use `npm run dev:all:nodocker` if you want both apps without touching Docker.
+
+> **Env changes require a restart.** After editing any `.env` file, stop and restart Next.js and/or `auth-billing-service` (or re-run `npm run dev:all`). Stale processes keep old `AUTH_SERVICE_URL` / `BILLING_SERVICE_URL` / Lemon keys and can surface mysterious 404s or failed checkouts.
+
+### Switching to hosted Postgres (Neon / Supabase)
+
+1. In `services/auth-billing-service/.env`, set `DATABASE_URL` to your hosted URI (`?sslmode=require`).
+2. Run `npm run db:setup` **once** against that URI (idempotent migrations).
+3. Never run `db:reset` / `docker:reset` against production.
+
+#### Neon cold starts
+
+Neon (and similar serverless Postgres) may **auto-suspend** idle databases. The first query after wake can take several seconds. The Lemon webhook **fast-acknowledge** design (below) returns `200 OK` *before* any DB work, so Neon cold-start latency does **not** cause Lemon deliveries to sit in “Pending” or time out. Credit allocation still runs in the background once the pool connects.
 
 ## Environment Variables
 
@@ -100,41 +128,107 @@ Restart both processes after changing any `.env` file.
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Local Docker, Neon, or Supabase (see `.env.example`) |
 | `JWT_SECRET` | At least 32 characters |
 | `GOOGLE_CLIENT_ID` | Google OAuth Web client ID |
 | `FRONTEND_URL` | e.g. `http://localhost:3000` (return URLs) |
-| `SHOPIER_API_KEY` / `SHOPIER_API_SECRET` | Shopier classic API (TR / TRY) |
 | `LEMONSQUEEZY_API_KEY` / `LEMONSQUEEZY_STORE_ID` | Lemon Squeezy MoR (USD) |
 | `LEMONSQUEEZY_WEBHOOK_SECRET` | HMAC secret for `X-Signature` |
-| `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` | Variant IDs per credit pack |
+| `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` | Variant IDs (Starter $5/50, Pro $20/250, Studio $50/700) |
 
-See `.env.example` files in each location for full templates.
+See `.env.example` files in each location for full templates (placeholders only — never commit real secrets).
 
-## Dual payment gateways (MVP)
+## Payment gateway (Lemon Squeezy)
 
-1. Apply migrations: `npm run db:setup` (includes `003_dual_payment_providers.sql`).
-2. Point **Shopier notify URL** at a **public** Express URL (not the Next.js BFF), e.g. via ngrok:
-   `POST https://YOUR_HOST/api/billing/webhooks/shopier`
-3. Point **Lemon Squeezy** webhook (event: `order_created`) at:
-   `POST https://YOUR_HOST/api/billing/webhooks/lemonsqueezy`
-4. Checkout from the UI with region toggle: **TR → Shopier form**, **GLOBAL → Lemon Squeezy redirect**.
-5. Credits are granted only after signature-verified webhooks (`CREDIT_PURCHASE` + `provider` + `reference_id`).
+Lemon Squeezy is the **sole** payment provider (Merchant of Record, USD).
 
-**Important:** Webhook HMAC verification requires the **raw body**. Expose `auth-billing-service` publicly (or tunnel) for provider callbacks; do not route webhooks through a JSON-rewriting proxy.
+### Credit packs
+
+| Package ID | Price | Credits | Env variant |
+|------------|-------|---------|-------------|
+| `starter` | $5 | 50 | `LEMONSQUEEZY_VARIANT_STARTER` |
+| `pro` | $20 | 250 | `LEMONSQUEEZY_VARIANT_PRO` |
+| `enterprise` | $50 | 700 | `LEMONSQUEEZY_VARIANT_ENTERPRISE` |
+
+### Purchase flow
+
+1. UI calls **`POST /api/billing/checkout`** `{ packageId }` (authenticated BFF → Express).
+2. Express creates a Lemon checkout with `custom_data` (`user_id`, `package_id`, `pending_order_id`) and returns `checkoutUrl`.
+3. Browser redirects to Lemon’s hosted checkout.
+4. Lemon POSTs `order_created` to Express:
+   `POST /api/billing/webhooks/lemonsqueezy`
+5. After a verified webhook, credits are posted as `CREDIT_PURCHASE` via `post_credit_transaction()`.
+
+> **Do not use raw store links in production.** Purchases that bypass `POST /api/billing/checkout` often arrive without `custom_data`. The webhook can still fall back to buyer email, but API checkout is required for reliable attribution.
+
+### Webhook URL (Express only — not Next.js)
+
+```text
+POST https://YOUR_PUBLIC_HOST/api/billing/webhooks/lemonsqueezy
+```
+
+Subscribe to **`order_created`**. HMAC verification needs the **raw body** — expose `auth-billing-service` directly (or tunnel to **port 4000**). Do not route webhooks through a JSON-rewriting proxy or the Next.js BFF on port 3000.
+
+### Local webhook testing (ngrok)
+
+Tunnel **Express `:4000`**, not Next `:3000`:
+
+```bash
+ngrok http 4000 --domain=<your-static-domain>
+```
+
+Then set the Lemon dashboard webhook to:
+
+```text
+https://<your-static-domain>/api/billing/webhooks/lemonsqueezy
+```
+
+Signing secret in the dashboard must match `LEMONSQUEEZY_WEBHOOK_SECRET`.
+
+### 3-stage webhook architecture (`auth-billing-service`)
+
+```
+Lemon POST /api/billing/webhooks/lemonsqueezy
+        │
+        ├─ Stage 1  Synchronous gate (crypto only)
+        │           HMAC-SHA256(rawBody, LEMONSQUEEZY_WEBHOOK_SECRET)
+        │           vs X-Signature (timingSafeEqual)
+        │           ✗ mismatch → 401  (no DB)
+        │
+        ├─ Stage 2  Fast acknowledge
+        │           200 OK  { "received: true" }   (~ms, before Postgres)
+        │
+        └─ Stage 3  setImmediate background fulfillment
+                    resolve user → CREDIT_PURCHASE ledger write
+```
+
+| Stage | Behavior |
+|-------|----------|
+| **1 — Synchronous gate** | Verify `X-Signature` over the raw body. Invalid/missing signature → **401** immediately. **No database I/O.** |
+| **2 — Fast acknowledge** | Respond **`200 { "received": true }`** before any Postgres work so Lemon leaves “Pending” quickly (insulates against Neon cold starts). |
+| **3 — Async fulfillment** | `setImmediate` runs user resolution + idempotent `CREDIT_PURCHASE`. Failures are logged (`[Webhook] FAILED…`) and must be **replayed manually** from the Lemon dashboard (Lemon will not retry after a 200). |
+
+### User resolution fallback
+
+1. **Primary:** `meta.custom_data.user_id` when it is a valid UUID that exists in `users`.
+2. **Fallback:** `data.attributes.user_email` → lookup by email if `custom_data` is missing, malformed, or points at an unknown user.
+
+Package resolution prefers the Lemon **variant id** map, then falls back to `custom_data.package_id` (e.g. `"starter"`). Historical ledger rows may still carry legacy `provider` strings; the column is a plain `VARCHAR(32)`.
+
 ## Project Structure
 
 ```
 ├── src/
-│   ├── app/                    # Next.js routes (explore, ai-lab, dashboard, periodic-table, …)
-│   ├── app/api/                # BFF gateway handlers
+│   ├── app/                    # Next.js routes (explore, ai-lab, dashboard, pricing, …)
+│   ├── app/api/                # BFF gateway handlers (not Lemon webhooks)
 │   ├── components/             # UI, layout, billing, periodic-table, atom-models
 │   ├── context/                # Auth, theme, language providers
 │   └── lib/                    # i18n, theme tokens, billing, gateway, periodic-table data
 ├── services/
-│   └── auth-billing-service/   # Auth + billing microservice (primary backend)
+│   └── auth-billing-service/   # Auth + billing microservice (checkout + webhooks on :4000)
 ├── database/
 │   └── init/                   # PostgreSQL schema & ledger functions
+├── docker-compose.yml          # Local Postgres 16
 └── .env.example
 ```
 
@@ -142,10 +236,16 @@ See `.env.example` files in each location for full templates.
 
 | Command | Location | Description |
 |---------|----------|-------------|
-| `npm run dev` | root | Start Next.js on port 3000 |
+| `npm run docker:up` | root | Start local Postgres (`postgres:16-alpine`) |
+| `npm run docker:down` | root | Stop local Postgres (keeps volume) |
+| `npm run docker:reset` | root | Wipe volume + recreate container |
+| `npm run db:setup` | root or service | Apply migrations `001`→`005` |
+| `npm run db:reset` | service | DROP/CREATE local DB + migrate (blocks production URLs) |
+| `npm run dev` | root | Start Next.js only (`:3000`) |
+| `npm run dev:all` | root | Ensure Docker (best-effort) + Next.js + auth-billing together |
+| `npm run dev:all:nodocker` | root | Same pair without attempting Docker |
 | `npm run build` | root | Production build |
 | `npm run dev` | `services/auth-billing-service` | Start Express on port 4000 |
-| `npm run db:setup` | `services/auth-billing-service` | Create DB + apply migrations |
 
 ## Themes
 

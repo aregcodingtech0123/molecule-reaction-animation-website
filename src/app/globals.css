@@ -124,12 +124,22 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
   html {
     @apply font-sans antialiased;
     background-color: var(--studio-page-bg);
     color: var(--studio-page-fg);
+  }
+  /* Brand display face (Syne) for all semantic headings app-wide */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    letter-spacing: -0.025em;
   }
 }
 
@@ -152,6 +162,9 @@ html[data-theme="night-lab"] {
 html[data-theme="white-lab"] {
   --studio-page-bg: #f8fafc;
   --studio-page-fg: #0f172a;
+  --studio-atmosphere-center: #f0f9ff;
+  --studio-atmosphere-mid: #f8fafc;
+  --studio-atmosphere-edge: #e2e8f0;
   --glass-bg: rgb(255 255 255 / 0.72);
   --glass-border: rgb(203 213 225 / 1);
   --glass-blur: 14px;
@@ -259,12 +272,61 @@ html[data-theme="white-lab"] {
     );
   }
 
+  /**
+   * Light-mode studio atmosphere for 3D hero / canvas stages.
+   * Dark mode (`night-lab`) is untouched — these rules only apply under white-lab.
+   */
+  html[data-theme="white-lab"] .studio-canvas-atmosphere {
+    background:
+      radial-gradient(
+        ellipse 85% 75% at 50% 42%,
+        #f0f9ff 0%,
+        #f8fafc 42%,
+        #e2e8f0 100%
+      );
+    isolation: isolate;
+  }
+
+  html[data-theme="white-lab"] .studio-canvas-atmosphere::before {
+    content: "";
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 22% 32%, rgb(14 165 233 / 0.12), transparent 42%),
+      radial-gradient(circle at 78% 48%, rgb(20 184 166 / 0.1), transparent 44%),
+      radial-gradient(circle at 48% 78%, rgb(14 165 233 / 0.08), transparent 40%);
+    filter: blur(64px);
+  }
+
+  html[data-theme="white-lab"] .studio-canvas-atmosphere::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.15;
+    background-image: radial-gradient(#94a3b8 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 70% 65% at 50% 45%,
+      #000 12%,
+      transparent 72%
+    );
+    mask-image: radial-gradient(
+      ellipse 70% 65% at 50% 45%,
+      #000 12%,
+      transparent 72%
+    );
+  }
+
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-300 via-teal-400 to-cyan-400;
   }
 
   html[data-theme="white-lab"] .text-gradient {
-    @apply from-indigo-800 via-indigo-700 to-violet-800;
+    @apply from-teal-800 via-teal-700 to-cyan-700;
   }
 
   html[data-theme="white-lab"] .text-glow {
@@ -272,11 +334,12 @@ html[data-theme="white-lab"] {
   }
 
   .text-glow {
-    text-shadow: 0 0 20px rgba(129, 140, 248, 0.5);
+    text-shadow: 0 0 20px rgba(45, 212, 191, 0.45);
   }
 
-  /* ── Homepage brand typography (Syne display + Inter body) ── */
-  .font-display {
+  /* ── Brand typography (Syne display + Inter body) ── */
+  .font-display,
+  .font-heading {
     font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
   }
 

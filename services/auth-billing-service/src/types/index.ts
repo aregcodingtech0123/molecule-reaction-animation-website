@@ -23,6 +23,8 @@ export class AppError extends Error {
     public readonly statusCode: number,
     message: string,
     public readonly code?: string,
+    /** Extra machine-readable fields merged into the JSON error body. */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "AppError";

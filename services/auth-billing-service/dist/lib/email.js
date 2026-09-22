@@ -6,7 +6,7 @@ import { env } from "../config/env.js";
  */
 export async function sendEmail(params) {
     const apiKey = env.resendApiKey;
-    const from = env.emailFrom;
+    const from = env.senderEmail;
     if (!apiKey) {
         if (env.isProduction) {
             throw new Error("RESEND_API_KEY is required in production to send email.");

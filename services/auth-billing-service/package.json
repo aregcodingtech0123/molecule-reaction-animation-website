@@ -7,6 +7,8 @@
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "dev:server": "tsx watch --clear-screen=false src/index.ts",
     "db:setup": "node scripts/setup-db.mjs",
+    "db:migrate": "node scripts/setup-db.mjs",
+    "db:reset": "node scripts/reset-db.mjs",
     "db:migrate-profiles": "node scripts/migrate-user-profiles.mjs",
     "db:migrate-email": "node scripts/migrate-email-verification.mjs",
     "db:migrate-oauth": "node scripts/migrate-oauth-revocation.mjs",
@@ -21,7 +23,8 @@
     "google-auth-library": "^10.7.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "resend": "^6.28.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

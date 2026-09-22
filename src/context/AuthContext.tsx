@@ -19,8 +19,20 @@ import {
   registerRequest,
   type RegisterRequestResult,
 } from "@/lib/auth/api";
+import { createCheckoutSession } from "@/lib/billing/checkout";
+import { markCheckoutStarted } from "@/lib/billing/checkout-watch";
+import {
+  clearCheckoutIntent,
+  peekCheckoutIntent,
+} from "@/lib/billing/checkout-intent";
 import { toast } from "@/lib/toast";
 import { AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY, type AuthUser } from "@/lib/auth/types";
+import { useCheckoutSuccess } from "@/hooks/useCheckoutSuccess";
+import { useBalanceAutoRefresh } from "@/hooks/useBalanceAutoRefresh";
+import {
+  isCheckoutReturnPending,
+  savePreCheckoutView,
+} from "@/lib/billing/pre-checkout-view";
 
 export type AuthModalMode = "login" | "register";
 
@@ -44,9 +56,11 @@ interface AuthContextValue {
   sessionExpired: boolean;
   sessionExpiredMessage: string | null;
   billingModalOpen: boolean;
+  /** Why the billing modal was opened, e.g. an out-of-credits prompt. */
+  billingModalMessage: string | null;
   openAuthModal: (mode?: AuthModalMode) => void;
   closeAuthModal: () => void;
-  openBillingModal: () => void;
+  openBillingModal: (message?: string) => void;
   closeBillingModal: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (
@@ -56,7 +70,8 @@ interface AuthContextValue {
   ) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => void;
-  fetchBalance: () => Promise<void>;
+  /** Refetches the balance; resolves with the new value, or null if unavailable. */
+  fetchBalance: () => Promise<number | null>;
   patchUser: (updates: Partial<AuthUser>) => void;
 }
 
@@ -136,67 +151,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [billingModalMessage, setBillingModalMessage] = useState<string | null>(null);
 
-  const fetchBalance = useCallback(async () => {
+  const fetchBalance = useCallback(async (): Promise<number | null> => {
     if (!readStoredUser() && !user) {
       setCredits(null);
-      return;
+      return null;
     }
 
     try {
       const data = await fetchBalanceRequest();
       setCredits(data.balance);
+      return data.balance;
     } catch {
-      setCredits(null);
+      // Keep the last known balance rather than blanking it. The auto-refresh
+      // poll runs every few seconds, and clearing here made the Navbar flash
+      // "—" on a single dropped request. Real session loss is handled by the
+      // unauthorized handler, which clears credits explicitly.
+      return null;
     }
   }, [user]);
 
   useEffect(() => {
     window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 
-    const storedUser = readStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
-      void Promise.all([fetchBalanceRequest(), fetchProfileRequest()])
-        .then(([balance, profile]) => {
-          setCredits(balance.balance);
-          persistUser(profile);
-          setUser(profile);
-        })
-        .catch(() => {
+    let cancelled = false;
+
+    async function hydrateSession() {
+      const storedUser = readStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
+      }
+
+      try {
+        // Prefer cookie session restore so a full-page Lemon return still
+        // rehydrates even if localStorage was empty or briefly unavailable.
+        const [balance, profile] = await Promise.all([
+          fetchBalanceRequest(),
+          fetchProfileRequest(),
+        ]);
+        if (cancelled) return;
+        persistUser(profile);
+        setUser(profile);
+        setCredits(balance.balance);
+      } catch {
+        if (cancelled) return;
+        // Do not wipe a stored session on transient API errors — especially
+        // mid checkout-return. Real expiry is handled by the unauthorized handler.
+        if (!storedUser && !isCheckoutReturnPending()) {
           clearPersistedUser();
           setUser(null);
           setCredits(null);
-        });
+        }
+      } finally {
+        if (!cancelled) setIsHydrated(true);
+      }
     }
-    setIsHydrated(true);
+
+    void hydrateSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    registerUnauthorizedHandler(({ sessionExpired: expired }) => {
+    registerUnauthorizedHandler(({ sessionExpired: expired } = {}) => {
       if (!expired) return;
+      // Never interrupt a checkout return with a login wall — the session may
+      // still be valid and the balance poll will settle shortly.
+      if (isCheckoutReturnPending()) return;
+
+      // Guest hydrate probes (balance/profile) always 401 — clear quietly and
+      // never auto-open the login modal. Modal opens only on explicit gestures.
+      const hadSession = Boolean(readStoredUser());
       clearPersistedUser();
       void clearSessionCookie();
       setUser(null);
       setCredits(null);
-      setSessionExpired(true);
-      setSessionExpiredMessage("Your session has expired. Please sign in again.");
-      setAuthModalMode("login");
-      setAuthModalOpen(true);
+      setSessionExpired(false);
+      setSessionExpiredMessage(null);
+      setAuthModalOpen(false);
+
+      if (hadSession) {
+        toast.info("Your session has expired. Please sign in again.");
+      }
     });
     return () => registerUnauthorizedHandler(null);
   }, []);
 
+  // Strip legacy ?auth=required from old middleware redirects without opening the modal.
   useEffect(() => {
     if (!isHydrated) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("auth") === "required") {
-      setAuthModalMode("login");
-      setAuthModalOpen(true);
-      params.delete("auth");
-      const next = `${window.location.pathname}${params.size ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    }
+    if (params.get("auth") !== "required") return;
+    params.delete("auth");
+    const next = `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
   }, [isHydrated]);
 
   useEffect(() => {
@@ -204,23 +254,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void fetchBalance();
   }, [isHydrated, user, fetchBalance]);
 
-  useEffect(() => {
-    if (!isHydrated) return;
-    const params = new URLSearchParams(window.location.search);
-    const billingStatus = params.get("billing");
-    if (billingStatus === "success") {
-      void fetchBalance();
+  useCheckoutSuccess({
+    isHydrated,
+    fetchBalance,
+    onSuccess: () => {
       setBillingModalOpen(false);
-      toast.success(t.toast_credits_purchased ?? "Credits applied to your balance.");
-      params.delete("billing");
-      const next = `${window.location.pathname}${params.size ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    } else if (billingStatus === "cancel") {
-      params.delete("billing");
-      const next = `${window.location.pathname}${params.size ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    }
-  }, [isHydrated, fetchBalance, t.toast_credits_purchased]);
+      setBillingModalMessage(null);
+    },
+  });
+
+  useBalanceAutoRefresh({
+    isHydrated,
+    isAuthenticated: Boolean(user),
+    fetchBalance,
+    onCreditsIncreased: (balance, previous) => {
+      setBillingModalOpen(false);
+      setBillingModalMessage(null);
+      const gained = previous === null ? null : balance - previous;
+      toast.success(
+        gained && gained > 0
+          ? `${gained} credits added. New balance: ${balance}.`
+          : (t.toast_credits_purchased ?? "Credits applied to your balance."),
+      );
+    },
+  });
 
   const applySession = useCallback(
     async (nextToken: string, nextUser: AuthUser, mode: "login" | "register") => {
@@ -231,8 +288,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionExpiredMessage(null);
       setAuthModalOpen(false);
 
+      let balanceAtSignIn: number | null = null;
       try {
         const data = await fetchBalanceRequest();
+        balanceAtSignIn = data.balance;
         setCredits(data.balance);
         if (mode === "register") {
           toast.success(VERIFY_EMAIL_REGISTER_MESSAGE);
@@ -247,8 +306,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : (t.toast_signed_in ?? "You're signed in."),
         );
       }
+
+      // Resume Lemon checkout if the user started from a public pricing CTA.
+      const checkoutPackageId = peekCheckoutIntent();
+      if (checkoutPackageId) {
+        try {
+          toast.info(t.billing_redirecting ?? "Redirecting to checkout…");
+          const returnPath =
+            typeof window !== "undefined" ? window.location.pathname : "/dashboard";
+          const checkout = await createCheckoutSession(checkoutPackageId, { returnPath });
+          if (checkout.checkoutUrl) {
+            clearCheckoutIntent();
+            markCheckoutStarted(checkoutPackageId, balanceAtSignIn);
+            savePreCheckoutView();
+            window.location.href = checkout.checkoutUrl;
+            return;
+          }
+        } catch (err) {
+          clearCheckoutIntent();
+          const message =
+            err instanceof Error
+              ? err.message
+              : (t.toast_checkout_failed ?? "Checkout could not be started.");
+          toast.error(message);
+        }
+      }
     },
-    [t.toast_signed_in],
+    [t.toast_signed_in, t.billing_redirecting, t.toast_checkout_failed],
   );
 
   const login = useCallback(
@@ -338,6 +422,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [t.toast_signed_out]);
 
   const openAuthModal = useCallback((mode: AuthModalMode = "login") => {
+    if (isCheckoutReturnPending()) return;
     setAuthModalMode(mode);
     setAuthModalOpen(true);
   }, []);
@@ -348,12 +433,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpiredMessage(null);
   }, []);
 
-  const openBillingModal = useCallback(() => {
+  const openBillingModal = useCallback((message?: string) => {
+    setBillingModalMessage(message ?? null);
     setBillingModalOpen(true);
   }, []);
 
   const closeBillingModal = useCallback(() => {
     setBillingModalOpen(false);
+    setBillingModalMessage(null);
   }, []);
 
   const patchUser = useCallback((updates: Partial<AuthUser>) => {
@@ -379,6 +466,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionExpired,
       sessionExpiredMessage,
       billingModalOpen,
+      billingModalMessage,
       openAuthModal,
       closeAuthModal,
       openBillingModal,
@@ -401,6 +489,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionExpired,
       sessionExpiredMessage,
       billingModalOpen,
+      billingModalMessage,
       openAuthModal,
       closeAuthModal,
       openBillingModal,

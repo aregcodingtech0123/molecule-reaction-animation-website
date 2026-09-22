@@ -105,6 +105,33 @@ export function CanvasToolbar({
   );
 }
 
+/** Standalone Molecules / Reactions switch for page headers (not over the 3D canvas). */
+export function StudioModeToggle({ className }: { className?: string }) {
+  const { activeMode, setActiveMode } = useStudioMode();
+  const { t } = useLanguage();
+  const { isWhiteLab } = useTheme();
+
+  return (
+    <div
+      className={cn(
+        "inline-flex rounded-2xl border p-1 shadow-lg backdrop-blur-xl",
+        isWhiteLab
+          ? "border-slate-200/90 bg-white/90 shadow-slate-200/40"
+          : "border-white/12 bg-neutral-950/85 shadow-black/40",
+        className,
+      )}
+    >
+      <StudioModeGroup
+        activeMode={activeMode}
+        onChange={setActiveMode}
+        isWhiteLab={isWhiteLab}
+        moleculesLabel={t.tab_molecules}
+        reactionsLabel={t.tab_reactions}
+      />
+    </div>
+  );
+}
+
 function StudioModeGroup({
   activeMode,
   onChange,
@@ -165,7 +192,7 @@ function StudioModeTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3",
+        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-display text-[11px] font-semibold transition-all sm:px-3",
         active
           ? isWhiteLab
             ? "bg-white text-teal-900 shadow-sm"

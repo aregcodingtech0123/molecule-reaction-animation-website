@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import { useAiChat } from "@/hooks/useAiChat";
 import { AiChatPanel } from "@/components/ai/AiChatPanel";
 import { AiLabCanvas } from "@/components/ai/AiLabCanvas";
+import { StudioContextPills } from "@/components/layout/StudioContextPills";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import type { MoleculeData } from "@/lib/molecules/types";
@@ -33,7 +34,7 @@ export default function AiLabPage() {
               <Sparkles className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
               {t.ai_lab_badge ?? "MoleculeStudio AI Lab"}
             </div>
-            <h1 className={cn("text-3xl md:text-4xl font-bold", ui.typography.title)}>
+            <h1 className={cn("home-section-title text-3xl md:text-4xl", ui.typography.title)}>
               {t.ai_lab_title ?? "Your Personal AI Lab"}
             </h1>
             <p className={cn("mt-2 max-w-xl text-sm md:text-base", ui.typography.subtitle)}>
@@ -41,6 +42,7 @@ export default function AiLabPage() {
                 "Deep scientific conversations with instant 3D molecular visualization — powered by the same engine as the floating assistant."}
             </p>
           </div>
+          <StudioContextPills className="justify-end" />
         </motion.div>
       </div>
 

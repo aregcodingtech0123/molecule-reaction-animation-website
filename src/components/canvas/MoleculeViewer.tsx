@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useDynamicMolecule } from "@/context/DynamicMoleculeContext";
 import { formatMessage, getElementName, localizeMolecule } from "@/lib/i18n/localize";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import type { AtomData, ElementSymbol } from "@/lib/molecules/types";
+import type { AtomData, ElementSymbol, MoleculeData } from "@/lib/molecules/types";
 import { ELEMENT_PROPERTIES } from "@/lib/molecules/elements";
 import { ALL_MOLECULES } from "@/lib/molecules/data";
 import { MoleculeScene } from "@/components/canvas/Scene";
@@ -22,14 +22,26 @@ import {
 } from "lucide-react";
 
 interface MoleculeViewerProps {
-  initialMoleculeId?: string;
+  /** Controlled molecule id — keeps sidebar + viewport in sync. */
+  moleculeId: string;
+  /** Catalog order (should match the explore sidebar list). Defaults to ALL_MOLECULES. */
+  molecules?: MoleculeData[];
+  /** Fired when prev/next/dots change the active molecule. */
+  onMoleculeChange?: (id: string) => void;
 }
 
-export function MoleculeViewer({ initialMoleculeId }: MoleculeViewerProps) {
+export function MoleculeViewer({
+  moleculeId,
+  molecules: moleculesProp,
+  onMoleculeChange,
+}: MoleculeViewerProps) {
   const { locale, t } = useLanguage();
   const { ui, isWhiteLab } = useTheme();
-  const initialIndex = Math.max(0, ALL_MOLECULES.findIndex((m) => m.id === initialMoleculeId));
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const catalog = moleculesProp?.length ? moleculesProp : ALL_MOLECULES;
+  const currentIndex = Math.max(
+    0,
+    catalog.findIndex((m) => m.id === moleculeId),
+  );
   const [showLabels, setShowLabels] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const [selectedAtom, setSelectedAtom] = useState<AtomData | null>(null);
@@ -38,37 +50,64 @@ export function MoleculeViewer({ initialMoleculeId }: MoleculeViewerProps) {
   const { dynamicMolecule, setDynamicMolecule } = useDynamicMolecule();
   const { measurementMode, selectedAtomIds } = useMeasurement();
   const { isFocused, clearFocus } = useFocus();
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const rawMolecule = dynamicMolecule ?? ALL_MOLECULES[currentIndex];
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    setSelectedAtom(null);
+    setIsTransitioning(false);
+  }, [moleculeId]);
+
+  const rawMolecule = dynamicMolecule ?? catalog[currentIndex] ?? catalog[0] ?? ALL_MOLECULES[0];
   const molecule = useMemo(
     () => localizeMolecule(rawMolecule, locale),
     [rawMolecule, locale],
   );
   const localizedAll = useMemo(
-    () => ALL_MOLECULES.map((m) => localizeMolecule(m, locale)),
-    [locale],
+    () => catalog.map((m) => localizeMolecule(m, locale)),
+    [catalog, locale],
   );
   const accentColor = molecule.education?.color ?? "#818cf8";
 
-  const switchMolecule = useCallback((newIndex: number) => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setSelectedAtom(null);
-    clearFocus();
-    setDynamicMolecule(null);
-    setTimeout(() => {
-      setCurrentIndex(newIndex);
-      setIsTransitioning(false);
-    }, 200);
-  }, [isTransitioning, setDynamicMolecule, clearFocus]);
+  const switchMolecule = useCallback(
+    (newIndex: number) => {
+      if (isTransitioning) return;
+      const next = catalog[newIndex];
+      if (!next || next.id === moleculeId) return;
+
+      setIsTransitioning(true);
+      setSelectedAtom(null);
+      clearFocus();
+      setDynamicMolecule(null);
+
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = setTimeout(() => {
+        onMoleculeChange?.(next.id);
+        setIsTransitioning(false);
+      }, 200);
+    },
+    [
+      isTransitioning,
+      catalog,
+      moleculeId,
+      setDynamicMolecule,
+      clearFocus,
+      onMoleculeChange,
+    ],
+  );
 
   const nextMolecule = useCallback(() => {
-    switchMolecule((currentIndex + 1) % ALL_MOLECULES.length);
-  }, [currentIndex, switchMolecule]);
+    switchMolecule((currentIndex + 1) % catalog.length);
+  }, [currentIndex, catalog.length, switchMolecule]);
 
   const prevMolecule = useCallback(() => {
-    switchMolecule((currentIndex - 1 + ALL_MOLECULES.length) % ALL_MOLECULES.length);
-  }, [currentIndex, switchMolecule]);
+    switchMolecule((currentIndex - 1 + catalog.length) % catalog.length);
+  }, [currentIndex, catalog.length, switchMolecule]);
 
   const handleAtomSelect = useCallback((atom: AtomData | null) => {
     if (measurementMode) return;
@@ -193,21 +232,25 @@ export function MoleculeViewer({ initialMoleculeId }: MoleculeViewerProps) {
           <div className="flex gap-2.5 items-center pointer-events-auto flex-1 justify-center">
             {localizedAll.map((m, i) => {
               const dotColor = m.education?.color ?? "#818cf8";
+              const isActive = m.id === moleculeId;
               return (
                 <button
                   key={m.id}
+                  type="button"
                   onClick={() => switchMolecule(i)}
                   title={m.name}
+                  aria-label={m.name}
+                  aria-current={isActive ? "true" : undefined}
                   className="transition-all duration-300 rounded-full focus:outline-none"
                   style={{
-                    width: i === currentIndex ? "28px" : "8px",
+                    width: isActive ? "28px" : "8px",
                     height: "8px",
-                    background: i === currentIndex
+                    background: isActive
                       ? dotColor
                       : isWhiteLab
                         ? "rgba(15,23,42,0.2)"
                         : "rgba(255,255,255,0.2)",
-                    boxShadow: i === currentIndex ? `0 0 10px ${dotColor}80` : "none",
+                    boxShadow: isActive ? `0 0 10px ${dotColor}80` : "none",
                   }}
                 />
               );

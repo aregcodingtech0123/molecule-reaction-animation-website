@@ -1,4 +1,9 @@
 import type { ChatErrorBody, ChatMessage, ChatRequestBody, ChatResponseBody } from "./chat-types";
+import { safeJson } from "@/lib/api/safe-json";
+import {
+  insufficientCreditsFromBody,
+  isInsufficientCreditsResponse,
+} from "@/lib/billing/credit-errors";
 import { extractSmilesFromMessage, stripSmilesTags } from "./smiles";
 import { fetchMoleculeFromSMILES } from "@/lib/molecules/sdf-parser";
 import type { MoleculeData } from "@/lib/molecules/types";
@@ -13,9 +18,13 @@ export async function postChatMessages(
     body: JSON.stringify({ messages } satisfies ChatRequestBody),
   });
 
-  const data: unknown = await res.json();
+  const data: unknown = await safeJson<unknown>(res);
 
   if (!res.ok) {
+    if (isInsufficientCreditsResponse(res.status, data)) {
+      throw insufficientCreditsFromBody(data);
+    }
+
     const errMsg =
       data && typeof data === "object" && "error" in data && typeof (data as ChatErrorBody).error === "string"
         ? (data as ChatErrorBody).error

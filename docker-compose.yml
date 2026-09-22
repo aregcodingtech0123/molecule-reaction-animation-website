@@ -1,0 +1,33 @@
+# =============================================================================
+# Molecule Architecture Studio — local PostgreSQL (Docker)
+# =============================================================================
+# Isolated from production (Supabase). Do NOT point production DATABASE_URL here.
+#
+# Usage (from repo root):
+#   docker compose up -d
+#   cd services/auth-billing-service && npm run db:setup
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: molecule_studio_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: molecule_studio_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d molecule_studio_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    name: molecule_studio_postgres_data

@@ -1,33 +1,26 @@
 import type { PaymentProvider } from "../config/packages.js";
-import { type BillingRegion } from "../config/packages.js";
-export type CheckoutMode = "redirect" | "shopier_form";
+import { type BillingCurrency } from "../config/packages.js";
+/** Lemon Squeezy is redirect-based; retained as a literal for API stability. */
+export type CheckoutMode = "redirect";
 export interface CheckoutResult {
     provider: PaymentProvider;
-    currency: "TRY" | "USD";
-    region: BillingRegion;
+    currency: BillingCurrency;
     mode: CheckoutMode;
-    /** Present for Lemon Squeezy (and any redirect-based provider). */
-    checkoutUrl?: string;
-    /** Present for Shopier classic hosted form auto-submit. */
-    shopierForm?: {
-        action: string;
-        fields: Record<string, string>;
-    };
+    checkoutUrl: string;
     orderId: string;
 }
 export declare function createUnifiedCheckout(params: {
     userId: string;
     userEmail: string;
     packageId: unknown;
-    regionOrCurrency: unknown;
-    buyerName?: string;
+    returnPath?: unknown;
 }): Promise<CheckoutResult>;
 export interface FulfillPurchaseParams {
     userId: string;
     packageId: string;
     credits: number;
     provider: PaymentProvider;
-    /** Shopier payment_id or Lemon Squeezy order id — stored as reference_id */
+    /** Lemon Squeezy order id — stored as reference_id */
     paymentReference: string;
     /** Optional pending checkout row to mark completed */
     pendingOrderId?: string;

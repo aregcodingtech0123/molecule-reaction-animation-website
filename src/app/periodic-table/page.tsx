@@ -34,7 +34,7 @@ export default function PeriodicTablePage() {
             Interactive Periodic Table
           </div>
           <h1 className={cn("font-display text-3xl font-bold sm:text-4xl md:text-5xl", ui.typography.title)}>
-            <span className="text-gradient">Explore the Elements</span>
+            <span className={ui.accent.headline}>Explore the Elements</span>
           </h1>
           <p className={cn("mx-auto mt-3 max-w-2xl text-sm sm:text-base", ui.typography.subtitle)}>
             Click any element to reveal its atomic structure, properties, and role in the universe —

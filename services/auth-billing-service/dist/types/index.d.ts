@@ -19,5 +19,9 @@ declare global {
 export declare class AppError extends Error {
     readonly statusCode: number;
     readonly code?: string | undefined;
-    constructor(statusCode: number, message: string, code?: string | undefined);
+    /** Extra machine-readable fields merged into the JSON error body. */
+    readonly details?: Record<string, unknown> | undefined;
+    constructor(statusCode: number, message: string, code?: string | undefined, 
+    /** Extra machine-readable fields merged into the JSON error body. */
+    details?: Record<string, unknown> | undefined);
 }

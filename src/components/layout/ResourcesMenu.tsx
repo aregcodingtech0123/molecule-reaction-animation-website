@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const RESOURCE_LINKS = [
   { href: "/learn", labelKey: "nav_learn" as const, external: false },
   { href: "/showcase", labelKey: "nav_showcase" as const, external: false },
+  { href: "/periodic-table", labelKey: "nav_periodic_table" as const, external: false },
   { href: "https://github.com", labelKey: "footer_github" as const, external: true },
 ] as const;
 

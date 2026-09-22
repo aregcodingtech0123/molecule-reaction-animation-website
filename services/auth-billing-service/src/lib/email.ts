@@ -14,7 +14,7 @@ export interface SendEmailParams {
  */
 export async function sendEmail(params: SendEmailParams): Promise<void> {
   const apiKey = env.resendApiKey;
-  const from = env.emailFrom;
+  const from = env.senderEmail;
 
   if (!apiKey) {
     if (env.isProduction) {

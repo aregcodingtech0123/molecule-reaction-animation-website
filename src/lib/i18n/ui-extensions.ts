@@ -17,9 +17,29 @@ const EXPLORE_LAYOUT_UI: Record<string, string> = {
   button_replay_reaction: "Replay",
 };
 
+const CTA_UI: Record<string, string> = {
+  cta_studio_context: "Studio resources",
+  cta_periodic_table: "Interactive Periodic Table 🧪",
+  cta_learn_theory: "Learn & Theory 📚",
+  home_periodic_cta_title: "Explore Elements in 3D",
+  home_periodic_cta_body: "Interactive Periodic Table — orbitals, states, and structure.",
+  dash_card_periodic_title: "Periodic Table 🧪",
+  dash_card_periodic_body: "Inspect elements and atomic structures in 3D",
+  dash_card_showcase_title: "Interactive Showcase 🌟",
+  dash_card_showcase_body: "Explore community creations and molecular architectures",
+  dash_card_learn_title: "Chemistry Learn Hub 📖",
+  dash_card_learn_body: "Master bonding types and orbital structures",
+  dashboard_feature_cards: "Studio features",
+};
+
 const AI_LAB_UI: Record<string, string> = {
   nav_ai_lab: "AI Lab",
   nav_resources: "Resources",
+  nav_periodic_table: "Periodic Table",
+  footer_col_product: "Product",
+  footer_col_resources: "Resources",
+  footer_col_account: "Account",
+  footer_col_company: "Company",
   ai_home_badge: "Powered by Gemini",
   ai_home_title_prefix: "Generate with",
   ai_home_title_highlight: "AI",
@@ -44,6 +64,8 @@ const AI_LAB_UI: Record<string, string> = {
 
 const TOAST_UI: Record<string, string> = {
   toast_credits_purchased: "Credits applied to your balance.",
+  toast_payment_success:
+    "🎉 Payment Successful! {credits} Credits have been added to your account.",
   toast_signup_credits: "10 starter credits added to your balance.",
   toast_signed_in: "You're signed in.",
   toast_account_created: "Your account is ready.",
@@ -117,20 +139,22 @@ const PROFILE_UI: Record<string, string> = {
 
 const BILLING_UI: Record<string, string> = {
   billing_title: "Purchase AI Credits",
-  billing_subtitle: "Buy AI credits with Shopier (TR) or Lemon Squeezy (global).",
+  billing_subtitle: "Buy AI credits securely with Lemon Squeezy.",
   billing_current_balance: "Current balance",
   billing_best_value: "Best Value",
   billing_credits_unit: "credits",
   billing_feature_3d: "3D molecule generation",
   billing_feature_never_expire: "Credits never expire",
   billing_buy_now: "Buy Now",
+  billing_get_started: "Get Started",
   billing_redirecting: "Redirecting…",
   billing_secure_note:
-    "Shopier (TRY) · Lemon Squeezy MoR (USD) · Credits applied after verified webhook",
-  billing_region_tr: "Turkey · TRY · Shopier",
-  billing_region_global: "Global · USD · Lemon Squeezy",
-  billing_via_shopier: "Paid via Shopier",
+    "Lemon Squeezy MoR (USD) · Credits applied after verified webhook",
   billing_via_lemon: "Paid via Lemon Squeezy (MoR)",
+  pricing_page_title: "Pricing",
+  pricing_page_subtitle:
+    "Browse credit packs freely. Guests can explore all plans — sign in only when you are ready to purchase.",
+  nav_pricing: "Pricing",
 };
 
 const DASHBOARD_UI: Record<string, string> = {
@@ -140,14 +164,16 @@ const DASHBOARD_UI: Record<string, string> = {
   dashboard_email_label: "Signed in as",
   dashboard_balance_label: "AI Credits",
   dashboard_buy_credits: "Purchase more credits",
-  dashboard_history_title: "Transaction History",
+  dashboard_history_title: "Credit & Usage History",
   dashboard_col_date: "Date",
   dashboard_col_type: "Type",
+  dashboard_col_description: "Description",
   dashboard_col_amount: "Amount",
   dashboard_col_reference: "Reference",
   dashboard_empty_title: "No transactions yet",
   dashboard_empty_body: "Run your first AI structure generation to begin your ledger.",
   dashboard_empty_cta: "Open AI Lab",
+  dashboard_quick_links: "Quick links",
   nav_dashboard: "Dashboard",
 };
 
@@ -211,6 +237,18 @@ const EXTENSIONS: Record<Locale, Record<string, string>> = {
     reaction_step_default: "Reaksiyon adımı",
     atom_detail: "Atom numarası {number} · {radius} Å yarıçap",
     aria_languages: "Diller",
+    cta_studio_context: "Stüdyo kaynakları",
+    cta_periodic_table: "Etkileşimli Periyodik Tablo 🧪",
+    cta_learn_theory: "Öğren & Teori 📚",
+    home_periodic_cta_title: "Elementleri 3B Keşfet",
+    home_periodic_cta_body: "Etkileşimli Periyodik Tablo — orbitaller, haller ve yapı.",
+    dash_card_periodic_title: "Periyodik Tablo 🧪",
+    dash_card_periodic_body: "Elementleri ve atomik yapıları 3B inceleyin",
+    dash_card_showcase_title: "Etkileşimli Vitrin 🌟",
+    dash_card_showcase_body: "Topluluk çalışmalarını ve moleküler mimarileri keşfedin",
+    dash_card_learn_title: "Kimya Öğrenme Merkezi 📖",
+    dash_card_learn_body: "Bağ türlerini ve orbital yapılarını öğrenin",
+    dashboard_feature_cards: "Stüdyo özellikleri",
     element_H: "Hidrojen",
     element_C: "Karbon",
     element_N: "Azot",
@@ -535,6 +573,7 @@ export function getUiExtensions(locale: Locale): Record<string, string> {
     ...MEASUREMENT_UI,
     ...FOCUS_UI,
     ...AI_LAB_UI,
+    ...CTA_UI,
     ...TOAST_UI,
     ...EXPLORE_LAYOUT_UI,
     ...(EXTENSIONS[locale] ?? EXTENSIONS.en),

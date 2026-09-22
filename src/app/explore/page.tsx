@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { Suspense, useMemo, useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { MoleculeViewer } from "@/components/canvas/MoleculeViewer";
@@ -24,7 +24,8 @@ import { ExploreSidebarToggle } from "@/components/explore/ExploreSidebarToggle"
 import { ExploreMobileDrawer } from "@/components/explore/ExploreMobileDrawer";
 import { ExploreQuickFactsPanel } from "@/components/explore/ExploreQuickFactsPanel";
 import { ReactionPlaybackControls } from "@/components/reactions/ReactionPlaybackControls";
-import { CanvasToolbar } from "@/components/canvas/CanvasToolbar";
+import { StudioModeToggle } from "@/components/canvas/CanvasToolbar";
+import { StudioContextPills } from "@/components/layout/StudioContextPills";
 import type { ReactionAnimationStatus } from "@/lib/reactions/animation/status";
 
 function useExploreMoleculeOrder(): MoleculeData[] {
@@ -45,7 +46,7 @@ function moleculeIdFromSearchParams(
   return resolveMoleculeIdFromQuery(param) ?? getDefaultMoleculeId();
 }
 
-export default function ExplorePage() {
+function ExplorePageContent() {
   const searchParams = useSearchParams();
   const { activeMode, setActiveMode } = useStudioMode();
   const { locale, t } = useLanguage();
@@ -85,6 +86,20 @@ export default function ExplorePage() {
       setActiveMode("explorer");
     }
   }, [searchParams, setActiveMode]);
+
+  useEffect(() => {
+    const tab = (searchParams.get("tab") ?? searchParams.get("mode") ?? "").toLowerCase();
+    if (tab === "reactions" || tab === "reaction") {
+      setActiveMode("reaction");
+    }
+    const reactionParam = searchParams.get("reaction");
+    if (!reactionParam) return;
+    const match = reactions.find((r) => r.id === reactionParam);
+    if (match) {
+      setActiveReactionId(match.id);
+      setActiveMode("reaction");
+    }
+  }, [searchParams, setActiveMode, reactions]);
 
   useEffect(() => {
     clearFocus();
@@ -132,7 +147,7 @@ export default function ExplorePage() {
   };
 
   const headerTitle = (
-    <span className="text-gradient">
+    <span className={cn("home-section-title", ui.accent.headline)}>
       {activeMode === "explorer" ? t.title_molecule_explorer : t.title_reaction_lab}
     </span>
   );
@@ -141,187 +156,185 @@ export default function ExplorePage() {
     activeMode === "explorer" ? t.subtitle_molecule_explorer : t.subtitle_reaction;
 
   return (
-    <main className="min-h-screen flex flex-col lg:overflow-hidden">
+    <main className="flex h-dvh max-h-dvh flex-col overflow-hidden pt-[4.25rem] sm:pt-[4.75rem] md:pt-20">
       <ExploreMobileDrawer {...sidebarProps} />
 
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
+      {/* Compact workbench chrome — stays above the fold */}
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="relative z-20 pt-20 md:pt-24 pb-4 md:pb-6 px-4 md:px-6 text-center flex-shrink-0"
+        transition={{ duration: 0.45, delay: 0.05 }}
+        className="relative z-20 flex shrink-0 flex-col items-center gap-2 px-3 pb-2 pt-1 sm:px-4 sm:pb-2.5 md:px-6"
       >
-        <div
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs mb-3 md:mb-4",
-            ui.panel.badge,
-          )}
-        >
-          {activeMode === "explorer" ? (
-            <Atom className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
-          ) : (
-            <Sparkles className={cn("w-3.5 h-3.5", ui.typography.iconAccentAlt)} />
-          )}
-          {activeMode === "explorer" ? t.badge_interactive_studio : t.badge_reaction_animation}
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.h1
-            key={activeMode + "-title"}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2"
-          >
-            {headerTitle}
-          </motion.h1>
-        </AnimatePresence>
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={activeMode + "-sub"}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className={cn("text-sm max-w-md mx-auto px-2", ui.typography.subtitle)}
-          >
-            {headerSubtitle}
-          </motion.p>
-        </AnimatePresence>
-      </motion.div>
+          <div className="flex w-full max-w-6xl flex-col items-center gap-2 sm:gap-2.5 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 md:items-start">
+              <div
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] sm:text-xs",
+                  ui.panel.badge,
+                )}
+              >
+                {activeMode === "explorer" ? (
+                  <Atom className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", ui.typography.iconAccent)} />
+                ) : (
+                  <Sparkles className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", ui.typography.iconAccentAlt)} />
+                )}
+                {activeMode === "explorer" ? t.badge_interactive_studio : t.badge_reaction_animation}
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={activeMode + "-title"}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className="home-section-title truncate text-lg sm:text-xl md:text-2xl"
+                >
+                  {headerTitle}
+                </motion.h1>
+              </AnimatePresence>
+              <p
+                className={cn(
+                  "hidden max-w-md truncate text-xs sm:block md:text-sm",
+                  ui.typography.subtitle,
+                )}
+              >
+                {headerSubtitle}
+              </p>
+            </div>
 
-      {/* lg+: 3-column row | <lg: scrollable stack */}
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
+              <StudioContextPills />
+              <StudioModeToggle className="shrink-0" />
+            </div>
+          </div>
+      </motion.header>
+
+      {/* Workbench row: sidebars scroll; canvas fills remaining height */}
       <div
         className={cn(
-          "flex-1 min-h-0 px-4 md:px-6 pb-6 md:pb-8 gap-4 md:gap-5",
-          "flex flex-col overflow-y-auto lg:overflow-hidden",
-          "lg:flex-row lg:px-6",
+          "flex min-h-0 flex-1 gap-3 px-3 pb-3 sm:gap-4 sm:px-4 sm:pb-4 md:px-6 md:pb-5",
+          "flex-col overflow-hidden",
+          "lg:flex-row",
         )}
       >
-        {/* Desktop sidebar — hidden below lg */}
         <ExploreSidebarPanel {...sidebarProps} />
 
-        {/* Canvas + Quick Facts: stack on mobile, 2-col on md, canvas grows on lg */}
-        <div className="flex flex-col md:grid md:grid-cols-2 lg:contents gap-4 md:gap-5 min-h-0 flex-1">
-          <div className="flex flex-col gap-2 min-h-0 lg:contents">
-            <ExploreSidebarToggle activeMode={activeMode} className="self-start flex-shrink-0" />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex-row lg:contents">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:contents">
+            <ExploreSidebarToggle activeMode={activeMode} className="shrink-0 self-start lg:hidden" />
 
             <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-            className={cn(
-              "relative rounded-2xl md:rounded-3xl overflow-hidden flex-shrink-0 canvas-card canvas-stage",
-              "h-[50vh] min-h-[260px] max-h-[420px]",
-              "md:min-h-[320px] md:max-h-none md:h-full md:min-h-0",
-              "lg:flex-1 lg:min-h-[420px] lg:h-auto lg:max-h-none",
-            )}
-          >
-            <div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.55, delay: 0.1 }}
               className={cn(
-                "absolute inset-0 pointer-events-none z-10 rounded-2xl md:rounded-3xl canvas-vignette",
-                isWhiteLab && "canvas-vignette-light",
+                "relative min-h-0 flex-1 overflow-hidden rounded-2xl canvas-card canvas-stage md:rounded-3xl",
+                "lg:min-h-0 lg:flex-1",
               )}
-            />
+            >
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-0 z-10 rounded-2xl canvas-vignette md:rounded-3xl",
+                  isWhiteLab && "canvas-vignette-light",
+                )}
+              />
 
-            {/* Studio mode switch — floats over canvas, outside global Navbar */}
-            <CanvasToolbar
-              showRenderModes={false}
-              showStudioModes
-              position="bottom-right"
-              className={cn(
-                "z-20",
-                activeMode === "explorer" ? "bottom-[4.5rem] sm:bottom-24" : "bottom-4",
-              )}
-            />
-
-            <AnimatePresence mode="wait">
-              {activeMode === "explorer" ? (
-                <motion.div
-                  key="view-explorer"
-                  className="absolute inset-0 z-[5]"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <MoleculeViewer initialMoleculeId={activeMoleculeId} key={activeMoleculeId} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="view-reaction"
-                  className="absolute inset-0 z-[5]"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <ReactionStage
-                    reaction={activeReaction}
-                    playSignal={playSignal}
-                    resetSignal={resetSignal}
-                    onSequenceEnd={handleReactionSequenceEnd}
-                    className="h-full min-h-[260px]"
-                  />
-
-                  <div className="absolute top-3 left-3 right-3 md:top-5 md:left-5 md:right-5 z-20 flex flex-wrap items-start justify-between gap-2 md:gap-3 pointer-events-none">
-                    <motion.div
-                      key={activeReaction.id + "-rxn-header"}
-                      initial={{ opacity: 0, x: -16 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="pointer-events-auto max-w-[min(100%,20rem)]"
-                    >
-                      <div
-                        className={cn(
-                          "px-4 py-3 md:px-5 md:py-3.5 rounded-2xl border",
-                          ui.panel.overlay,
-                          ui.panel.overlayBorder,
-                        )}
-                        style={{
-                          borderColor: isWhiteLab
-                            ? activeReaction.accentColor
-                            : `${activeReaction.accentColor}33`,
-                          boxShadow: isWhiteLab
-                            ? `0 4px 14px ${activeReaction.accentColor}18`
-                            : `0 0 24px ${activeReaction.accentColor}12`,
-                        }}
-                      >
-                        <p
-                          className="text-[10px] font-semibold uppercase tracking-widest mb-1"
-                          style={{ color: activeReaction.accentColor }}
-                        >
-                          {activeReaction.reactionType}
-                        </p>
-                        <h2 className={cn("text-base md:text-lg font-bold leading-tight", ui.typography.title)}>
-                          {activeReaction.name}
-                        </h2>
-                        <p className={cn("text-xs font-mono mt-1 leading-snug", ui.typography.mono)}>
-                          {activeReaction.equation}
-                        </p>
-                      </div>
-                    </motion.div>
-
-                    <ReactionPlaybackControls
-                      status={reactionStatus}
-                      accentColor={activeReaction.accentColor}
-                      onPlay={handlePlayReaction}
-                      onReset={handleResetReaction}
+              <AnimatePresence mode="wait">
+                {activeMode === "explorer" ? (
+                  <motion.div
+                    key="view-explorer"
+                    className="absolute inset-0 z-[5]"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.02 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <MoleculeViewer
+                      moleculeId={activeMoleculeId}
+                      molecules={rawMolecules}
+                      onMoleculeChange={selectMolecule}
                     />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="view-reaction"
+                    className="absolute inset-0 z-[5]"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.02 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <ReactionStage
+                      reaction={activeReaction}
+                      playSignal={playSignal}
+                      resetSignal={resetSignal}
+                      onSequenceEnd={handleReactionSequenceEnd}
+                      className="h-full min-h-0"
+                    />
+
+                    <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 flex flex-wrap items-start justify-between gap-2 md:left-5 md:right-5 md:top-5 md:gap-3">
+                      <motion.div
+                        key={activeReaction.id + "-rxn-header"}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="pointer-events-auto max-w-[min(100%,20rem)]"
+                      >
+                        <div
+                          className={cn(
+                            "rounded-2xl border px-4 py-3 md:px-5 md:py-3.5",
+                            ui.panel.overlay,
+                            ui.panel.overlayBorder,
+                          )}
+                          style={{
+                            borderColor: isWhiteLab
+                              ? activeReaction.accentColor
+                              : `${activeReaction.accentColor}33`,
+                            boxShadow: isWhiteLab
+                              ? `0 4px 14px ${activeReaction.accentColor}18`
+                              : `0 0 24px ${activeReaction.accentColor}12`,
+                          }}
+                        >
+                          <p
+                            className="mb-1 text-[10px] font-semibold uppercase tracking-widest"
+                            style={{ color: activeReaction.accentColor }}
+                          >
+                            {activeReaction.reactionType}
+                          </p>
+                          <h2
+                            className={cn(
+                              "text-base font-bold leading-tight md:text-lg",
+                              ui.typography.title,
+                            )}
+                          >
+                            {activeReaction.name}
+                          </h2>
+                          <p className={cn("mt-1 text-xs font-mono leading-snug", ui.typography.mono)}>
+                            {activeReaction.equation}
+                          </p>
+                        </div>
+                      </motion.div>
+
+                      <ReactionPlaybackControls
+                        status={reactionStatus}
+                        accentColor={activeReaction.accentColor}
+                        onPlay={handlePlayReaction}
+                        onReset={handleResetReaction}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
-          {/* Quick Facts: below canvas on mobile; beside on md; right column on lg */}
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
+          <motion.aside
+            initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
             className={cn(
-              "flex flex-col gap-3 flex-shrink-0 pb-4 md:pb-0",
-              "md:overflow-y-auto md:max-h-[50vh] md:scrollbar-thin",
-              "lg:w-52 lg:max-h-full lg:flex-shrink-0 lg:overflow-y-auto lg:pr-1",
+              "flex min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain scrollbar-thin",
+              "max-h-[28%] md:max-h-none md:w-52 md:flex-none lg:w-56 lg:pr-1",
             )}
           >
             <ExploreQuickFactsPanel
@@ -329,9 +342,21 @@ export default function ExplorePage() {
               activeMolecule={activeMolecule}
               activeReaction={activeReaction}
             />
-          </motion.div>
+          </motion.aside>
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * useSearchParams() opts a route into client-side rendering, which the static
+ * prerender pass rejects unless the consumer sits behind a Suspense boundary.
+ */
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={null}>
+      <ExplorePageContent />
+    </Suspense>
   );
 }

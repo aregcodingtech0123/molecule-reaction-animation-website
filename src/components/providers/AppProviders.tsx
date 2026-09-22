@@ -8,6 +8,7 @@ import { DocumentMeta } from "@/components/layout/DocumentMeta";
 import { LabAssistantChat } from "@/components/ai/LabAssistantChat";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { BillingModal } from "@/components/billing/BillingModal";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { DynamicMoleculeProvider } from "@/context/DynamicMoleculeContext";
 import { RenderModeProvider } from "@/context/RenderModeContext";
 import { MeasurementProvider } from "@/context/MeasurementContext";
@@ -35,6 +36,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                         <LabAssistantChat />
                         <AuthModal />
                         <BillingModal />
+                        <WelcomeModal />
                       </ThemeShell>
                     </ExploreSidebarProvider>
                   </DynamicMoleculeProvider>

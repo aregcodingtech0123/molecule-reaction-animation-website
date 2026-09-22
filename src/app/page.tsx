@@ -12,10 +12,11 @@ import { formatMessage, localizeMolecule } from "@/lib/i18n/localize";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { HomeAiLabSection } from "@/components/ai/HomeAiLabSection";
+import { HomeStudioShowcases } from "@/components/home/HomeStudioShowcases";
 
 export default function Home() {
   const { locale, t } = useLanguage();
-  const { ui } = useTheme();
+  const { ui, isWhiteLab } = useTheme();
 
   const molecules = useMemo(
     () => ALL_MOLECULES.map((m) => localizeMolecule(m, locale)),
@@ -93,7 +94,7 @@ export default function Home() {
               </span>
             </Link>
             <Link
-              href="/learn"
+              href="/showcase"
               className={cn(
                 "px-8 py-3.5 rounded-sm font-medium border transition-all",
                 ui.accent.secondaryButton,
@@ -199,6 +200,8 @@ export default function Home() {
         </div>
       </section>
 
+      <HomeStudioShowcases />
+
       <section className={cn("relative z-10 py-32 px-6 max-w-7xl mx-auto border-t", ui.borders.divider)}>
         <div className="mb-16 md:mb-20 text-center max-w-3xl mx-auto">
           <h2 className="home-section-title text-3xl md:text-5xl mb-4">
@@ -272,6 +275,19 @@ export default function Home() {
                 </motion.li>
               ))}
             </ul>
+
+            <Link
+              href="/showcase"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-all",
+                isWhiteLab
+                  ? "border-teal-300 bg-teal-50 text-teal-900 hover:bg-teal-100"
+                  : "border-teal-400/40 bg-teal-500/10 text-teal-100 hover:bg-teal-500/20",
+              )}
+            >
+              {t.nav_showcase}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
 
           <div className={cn("flex-1 w-full aspect-square p-1.5", ui.marketing.showcaseChassis)}>

@@ -1,31 +1,42 @@
-export type BillingRegion = "TR" | "GLOBAL";
-export type BillingCurrency = "TRY" | "USD";
-export type PaymentProvider = "shopier" | "lemonsqueezy";
+/**
+ * Credit packages.
+ *
+ * Lemon Squeezy is the sole payment provider and settles in the store
+ * currency (USD), so every package has a single USD price point.
+ */
+export type BillingCurrency = "USD";
+export type PaymentProvider = "lemonsqueezy";
+
+/** Historical ledger rows may carry providers that are no longer active. */
+export const ACTIVE_PAYMENT_PROVIDER: PaymentProvider = "lemonsqueezy";
+export const BILLING_CURRENCY: BillingCurrency = "USD";
 
 export interface CreditPackageConfig {
   id: string;
   name: string;
   credits: number;
-  /** USD list price in cents (Lemon Squeezy / global). */
+  /** USD list price in cents — must match the Lemon Squeezy variant price. */
   priceUsdCents: number;
-  /** TRY list price in kuruş (Shopier / Turkey). */
-  priceTryKurus: number;
 }
 
 export const CREDIT_PACKAGES: Record<string, CreditPackageConfig> = {
   starter: {
     id: "starter",
     name: "Starter Pack",
-    credits: 100,
+    credits: 50,
     priceUsdCents: 500,
-    priceTryKurus: 19900,
   },
   pro: {
     id: "pro",
     name: "Pro Pack",
-    credits: 500,
+    credits: 250,
     priceUsdCents: 2000,
-    priceTryKurus: 74900,
+  },
+  enterprise: {
+    id: "enterprise",
+    name: "Studio Pack",
+    credits: 700,
+    priceUsdCents: 5000,
   },
 };
 
@@ -34,28 +45,4 @@ export function resolveCreditPackage(packageId: unknown): CreditPackageConfig {
     throw new Error("INVALID_PACKAGE");
   }
   return CREDIT_PACKAGES[packageId];
-}
-
-export function resolveBillingRegion(input: unknown): BillingRegion {
-  if (typeof input !== "string") return "GLOBAL";
-  const normalized = input.trim().toUpperCase();
-  if (normalized === "TR" || normalized === "TRY" || normalized === "TURKEY") {
-    return "TR";
-  }
-  return "GLOBAL";
-}
-
-export function regionToCurrency(region: BillingRegion): BillingCurrency {
-  return region === "TR" ? "TRY" : "USD";
-}
-
-export function regionToProvider(region: BillingRegion): PaymentProvider {
-  return region === "TR" ? "shopier" : "lemonsqueezy";
-}
-
-export function packageAmountMinor(
-  pkg: CreditPackageConfig,
-  currency: BillingCurrency,
-): number {
-  return currency === "TRY" ? pkg.priceTryKurus : pkg.priceUsdCents;
 }

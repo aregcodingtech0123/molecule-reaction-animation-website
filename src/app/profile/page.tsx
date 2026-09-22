@@ -26,6 +26,7 @@ import {
   validateLastName,
 } from "@/lib/auth/profile-validation";
 import { safeNavigate } from "@/lib/navigation/safe-navigate";
+import { isCheckoutReturnPending } from "@/lib/billing/pre-checkout-view";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ function formatDisplayDate(isoDate: string): string {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isAuthenticated, isHydrated, openAuthModal, patchUser } = useAuth();
+  const { isAuthenticated, isHydrated, patchUser } = useAuth();
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
 
@@ -104,12 +105,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      openAuthModal("login");
-      safeNavigate(router, "/", "replace");
+      if (isCheckoutReturnPending()) return;
+      safeNavigate(router, "/login", "replace");
       return;
     }
     void loadProfile();
-  }, [isHydrated, isAuthenticated, router, openAuthModal, loadProfile]);
+  }, [isHydrated, isAuthenticated, router, loadProfile]);
 
   const cancelEdit = useCallback(() => {
     if (profile) {
@@ -558,8 +559,10 @@ export default function ProfilePage() {
                   <Link
                     href="/dashboard"
                     className={cn(
-                      "text-xs font-medium transition-colors",
-                      isWhiteLab ? "text-teal-700 hover:text-teal-900" : "text-teal-300 hover:text-teal-200",
+                      "inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-all",
+                      isWhiteLab
+                        ? "border-teal-300/80 bg-teal-50 text-teal-800 shadow-sm hover:bg-teal-100 hover:text-teal-950"
+                        : "border-teal-400/45 bg-teal-500/15 text-teal-200 shadow-[0_0_18px_rgba(45,212,191,0.25)] hover:border-teal-300/70 hover:bg-teal-500/25 hover:text-teal-50",
                     )}
                   >
                     {t.nav_dashboard ?? "Dashboard"} →

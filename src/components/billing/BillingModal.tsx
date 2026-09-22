@@ -10,10 +10,11 @@ import { useCreditCheckout } from "@/lib/billing/useCreditCheckout";
 import { cn } from "@/lib/utils";
 
 export function BillingModal() {
-  const { billingModalOpen, closeBillingModal, isAuthenticated, credits } = useAuth();
+  const { billingModalOpen, billingModalMessage, closeBillingModal, isAuthenticated, credits } =
+    useAuth();
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
-  const { purchase, loadingId, error, region, setRegion } = useCreditCheckout({
+  const { purchase, loadingId, error } = useCreditCheckout({
     onRequireAuth: closeBillingModal,
   });
 
@@ -84,8 +85,7 @@ export function BillingModal() {
                     {t.billing_title ?? "Purchase AI Credits"}
                   </h2>
                   <p className={cn("text-sm mt-1", ui.typography.muted)}>
-                    {t.billing_subtitle ??
-                      "Buy AI credits with Shopier (TR) or Lemon Squeezy (global)."}
+                    {t.billing_subtitle ?? "Buy AI credits securely with Lemon Squeezy."}
                   </p>
                   {isAuthenticated && credits !== null && (
                     <p
@@ -105,6 +105,21 @@ export function BillingModal() {
             </div>
 
             <div className="px-6 sm:px-8 py-6 sm:py-8">
+              {billingModalMessage && (
+                <p
+                  role="status"
+                  className={cn(
+                    "mb-4 flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-medium",
+                    isWhiteLab
+                      ? "border-amber-300/80 bg-amber-50 text-amber-900"
+                      : "border-amber-400/30 bg-amber-500/10 text-amber-200",
+                  )}
+                >
+                  <Zap className="mt-px h-3.5 w-3.5 shrink-0" />
+                  <span>{billingModalMessage}</span>
+                </p>
+              )}
+
               {error && (
                 <p
                   className="mb-4 text-xs text-red-500 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2"
@@ -118,13 +133,11 @@ export function BillingModal() {
                 onPurchase={(id) => void purchase(id)}
                 loadingId={loadingId}
                 layout="modal"
-                region={region}
-                onRegionChange={setRegion}
               />
 
               <p className={cn("mt-6 text-center text-[11px]", ui.typography.muted)}>
                 {t.billing_secure_note ??
-                  "Shopier (TRY) · Lemon Squeezy MoR (USD) · Credits applied after verified webhook"}
+                  "Lemon Squeezy MoR (USD) · Credits applied after verified webhook"}
               </p>
             </div>
           </motion.div>

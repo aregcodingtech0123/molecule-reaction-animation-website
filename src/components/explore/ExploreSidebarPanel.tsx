@@ -10,13 +10,14 @@ interface ExploreSidebarPanelProps extends ExploreSidebarContentProps {
 
 /**
  * Desktop sidebar shell — reuses ExploreSidebarContent.
+ * Fixed to the workbench viewport height; scrolls independently of the 3D stage.
  * Hidden below `lg`; mobile uses ExploreMobileDrawer instead.
  */
 export function ExploreSidebarPanel({ className, ...contentProps }: ExploreSidebarPanelProps) {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col gap-3 w-64 flex-shrink-0 overflow-y-auto max-h-full pr-1",
+        "hidden min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain pr-1 scrollbar-thin lg:flex xl:w-64",
         className,
       )}
     >

@@ -9,12 +9,16 @@ export interface LemonCheckoutParams {
   userEmail: string;
   packageId: string;
   productName: string;
+  /** Credits granted by this package — embedded in the post-checkout redirect URL. */
+  credits: number;
+  /** Same-origin pathname to return to after payment (e.g. `/pricing`). */
+  returnPath?: string;
 }
 
 export interface LemonOrderCreatedEvent {
   meta: {
     event_name: string;
-    custom_data?: Record<string, string | undefined>;
+    custom_data?: Record<string, unknown>;
   };
   data: {
     id: string;
@@ -34,35 +38,23 @@ export interface LemonOrderCreatedEvent {
       first_order_item?: {
         variant_id: number;
         product_name: string;
+        price?: number;
       };
     };
   };
 }
 
-function requireLemonConfig(): {
-  apiKey: string;
-  storeId: string;
-  webhookSecret: string;
-} {
+function requireLemonApiConfig(): { apiKey: string; storeId: string } {
   const apiKey = env.lemonSqueezyApiKey;
   const storeId = env.lemonSqueezyStoreId;
-  const webhookSecret = env.lemonSqueezyWebhookSecret;
   if (!apiKey || !storeId) {
     throw new AppError(503, "Lemon Squeezy is not configured.", "LEMONSQUEEZY_NOT_CONFIGURED");
   }
-  return { apiKey, storeId, webhookSecret };
+  return { apiKey, storeId };
 }
 
-/**
- * Lemon Squeezy webhook HMAC-SHA256 (hex) over the raw body.
- * Header: X-Signature
- * Docs: https://docs.lemonsqueezy.com/help/webhooks/signing-requests
- */
-export function verifyLemonSqueezySignature(
-  rawBody: Buffer,
-  signatureHeader: string | undefined,
-): void {
-  const { webhookSecret } = requireLemonConfig();
+function requireWebhookSecret(): string {
+  const webhookSecret = env.lemonSqueezyWebhookSecret;
   if (!webhookSecret) {
     throw new AppError(
       503,
@@ -70,6 +62,22 @@ export function verifyLemonSqueezySignature(
       "LEMONSQUEEZY_NOT_CONFIGURED",
     );
   }
+  return webhookSecret;
+}
+
+/**
+ * Lemon Squeezy webhook HMAC-SHA256 (hex) over the raw request body.
+ * Header: `X-Signature`
+ * Docs: https://docs.lemonsqueezy.com/help/webhooks/signing-requests
+ *
+ * Rejects with 401 when the header is missing or the digest does not match
+ * (constant-time compare via `crypto.timingSafeEqual`).
+ */
+export function verifyLemonSqueezySignature(
+  rawBody: Buffer,
+  signatureHeader: string | undefined,
+): void {
+  const webhookSecret = requireWebhookSecret();
   if (!signatureHeader?.trim()) {
     throw new AppError(401, "Missing X-Signature header.", "INVALID_SIGNATURE");
   }
@@ -99,10 +107,59 @@ export function parseLemonSqueezyEvent(rawBody: Buffer): LemonOrderCreatedEvent 
   return parsed as LemonOrderCreatedEvent;
 }
 
+/** Reverse-map a Lemon variant id to our package id (`starter` | `pro` | `enterprise`). */
+export function packageIdForLemonVariant(variantId: string | number | null | undefined): string | null {
+  if (variantId === null || variantId === undefined) return null;
+  const id = String(variantId).trim();
+  if (!id) return null;
+
+  // Env-configured mappings (preferred).
+  const pairs: Array<[string, string]> = [
+    [env.lemonSqueezyVariantStarter, "starter"],
+    [env.lemonSqueezyVariantPro, "pro"],
+    [env.lemonSqueezyVariantEnterprise, "enterprise"],
+  ];
+
+  for (const [variant, packageId] of pairs) {
+    if (variant && variant === id) return packageId;
+  }
+
+  // Hardcoded fallbacks so credits still apply if .env variants are missing/stale.
+  const HARDCODED: Record<string, string> = {
+    "2154652": "starter",
+    "2154661": "pro",
+    "2154665": "enterprise",
+  };
+  return HARDCODED[id] ?? null;
+}
+
+/** Coerce Lemon custom_data values (may arrive as string | number | boolean). */
+export function readCustomDataString(
+  custom: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  if (!custom || !(key in custom)) return null;
+  const value = custom[key];
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  return str.length > 0 ? str : null;
+}
+
+function sanitizeReturnPath(raw: string | undefined): string {
+  if (!raw) return "/dashboard";
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return "/dashboard";
+  const pathOnly = trimmed.split("?")[0]?.split("#")[0] ?? "/dashboard";
+  if (!pathOnly.startsWith("/") || pathOnly.startsWith("//") || pathOnly.length > 200) {
+    return "/dashboard";
+  }
+  return pathOnly || "/dashboard";
+}
+
 export async function createLemonSqueezyCheckoutUrl(
   params: LemonCheckoutParams & { pendingOrderId?: string },
 ): Promise<string> {
-  const { apiKey, storeId } = requireLemonConfig();
+  const { apiKey, storeId } = requireLemonApiConfig();
   const variantId = lemonVariantForPackage(params.packageId);
   if (!variantId) {
     throw new AppError(
@@ -112,7 +169,9 @@ export async function createLemonSqueezyCheckoutUrl(
     );
   }
 
-  const redirectUrl = `${env.frontendUrl}/dashboard?billing=success`;
+  const credits = Math.max(0, Math.floor(params.credits));
+  const returnPath = sanitizeReturnPath(params.returnPath);
+  const redirectUrl = `${env.frontendUrl}${returnPath}?payment=success&credits=${credits}`;
 
   const custom: Record<string, string> = {
     user_id: params.userId,

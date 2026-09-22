@@ -9,6 +9,7 @@ export function errorHandler(err, req, res, _next) {
             success: false,
             error: err.message,
             code: err.code,
+            ...err.details,
         });
         return;
     }
@@ -21,10 +22,7 @@ export function errorHandler(err, req, res, _next) {
         return;
     }
     if (err instanceof Error &&
-        (err.message.includes("Shopier") ||
-            err.message.includes("Lemon") ||
-            err.message.includes("LEMONSQUEEZY") ||
-            err.message.includes("SHOPIER"))) {
+        (err.message.includes("Lemon") || err.message.includes("LEMONSQUEEZY"))) {
         console.error("[auth-billing-service] Payment provider error:", {
             message: err.message,
             requestId: req.headers["x-request-id"] ?? null,

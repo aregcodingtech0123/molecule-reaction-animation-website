@@ -17,6 +17,12 @@ function buildContentSecurityPolicy(): string {
     ...(isDev ? ["'unsafe-eval'"] : []),
   ];
 
+  // Google Identity Services injects a stylesheet from accounts.google.com/gsi/style.
+  // Without the origin here, GSI renders unstyled or the button fails to mount.
+  const styleSrc = ["'self'", "'unsafe-inline'", "https://accounts.google.com"];
+
+  const frameSrc = ["'self'", "https://accounts.google.com"];
+
   const connectSrc = [
     "'self'",
     "https://pubchem.ncbi.nlm.nih.gov",
@@ -28,10 +34,10 @@ function buildContentSecurityPolicy(): string {
   return [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
-    "style-src 'self' 'unsafe-inline'",
+    `style-src ${styleSrc.join(" ")}`,
     "img-src 'self' data: https: blob:",
     `connect-src ${connectSrc.join(" ")}`,
-    "frame-src https://accounts.google.com",
+    `frame-src ${frameSrc.join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
   ].join("; ");

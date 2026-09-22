@@ -4,12 +4,9 @@ import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
-import {
-  CREDIT_PACKAGES,
-  type BillingRegion,
-  type CreditPackage,
-} from "@/lib/billing/checkout";
+import { CREDIT_PACKAGES, type CreditPackage } from "@/lib/billing/checkout";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export interface PricingCardsProps {
   onPurchase: (packageId: string) => void;
@@ -17,8 +14,6 @@ export interface PricingCardsProps {
   disabled?: boolean;
   className?: string;
   layout?: "modal" | "dashboard";
-  region: BillingRegion;
-  onRegionChange?: (region: BillingRegion) => void;
 }
 
 export function PricingCards({
@@ -27,50 +22,15 @@ export function PricingCards({
   disabled = false,
   className,
   layout = "modal",
-  region,
-  onRegionChange,
 }: PricingCardsProps) {
-  const { ui, isWhiteLab } = useTheme();
-  const { t } = useLanguage();
-
   return (
     <div className={cn("space-y-5", className)}>
-      {onRegionChange && (
-        <div
-          className={cn(
-            "mx-auto flex w-full max-w-sm rounded-full border p-1",
-            isWhiteLab ? "border-slate-200 bg-slate-100" : "border-white/10 bg-white/5",
-          )}
-        >
-          {(
-            [
-              { id: "TR" as const, label: t.billing_region_tr ?? "Turkey · TRY · Shopier" },
-              { id: "GLOBAL" as const, label: t.billing_region_global ?? "Global · USD · Lemon Squeezy" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => onRegionChange(tab.id)}
-              className={cn(
-                "flex-1 rounded-full px-3 py-2 text-[11px] font-semibold transition-all",
-                region === tab.id
-                  ? isWhiteLab
-                    ? "bg-white text-teal-900 shadow-sm border border-teal-200/60"
-                    : "bg-teal-500/25 text-teal-100 border border-teal-400/40 shadow-[0_0_20px_rgba(45,212,191,0.22)]"
-                  : cn(ui.typography.muted, "hover:opacity-90"),
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div
         className={cn(
           "grid gap-4",
-          layout === "dashboard" ? "sm:grid-cols-2 lg:gap-6" : "sm:grid-cols-2",
+          layout === "dashboard"
+            ? "sm:grid-cols-2 lg:grid-cols-3 lg:gap-6"
+            : "sm:grid-cols-2 lg:grid-cols-3",
         )}
       >
         {CREDIT_PACKAGES.map((pkg, index) => (
@@ -78,7 +38,6 @@ export function PricingCards({
             key={pkg.id}
             pkg={pkg}
             index={index}
-            region={region}
             loading={loadingId === pkg.id}
             disabled={disabled || Boolean(loadingId && loadingId !== pkg.id)}
             onBuy={() => onPurchase(pkg.id)}
@@ -93,7 +52,6 @@ export function PricingCards({
 function PricingCard({
   pkg,
   index,
-  region,
   loading,
   disabled,
   onBuy,
@@ -101,7 +59,6 @@ function PricingCard({
 }: {
   pkg: CreditPackage;
   index: number;
-  region: BillingRegion;
   loading: boolean;
   disabled: boolean;
   onBuy: () => void;
@@ -109,7 +66,10 @@ function PricingCard({
 }) {
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
-  const isTr = region === "TR";
+  const { isAuthenticated } = useAuth();
+  const ctaLabel = isAuthenticated
+    ? (t.billing_buy_now ?? "Buy Now")
+    : (t.billing_get_started ?? "Get Started");
 
   return (
     <motion.article
@@ -164,15 +124,11 @@ function PricingCard({
           </span>
         </div>
         <p className={cn("text-2xl font-semibold mt-1", ui.typography.title)}>
-          {isTr ? `₺${pkg.priceTry}` : `$${pkg.priceUsd}`}
-          <span className={cn("text-sm font-normal ml-1.5", ui.typography.muted)}>
-            {isTr ? "TRY" : "USD"}
-          </span>
+          {`$${pkg.priceUsd}`}
+          <span className={cn("text-sm font-normal ml-1.5", ui.typography.muted)}>USD</span>
         </p>
         <p className={cn("text-[11px] mt-1", ui.typography.muted)}>
-          {isTr
-            ? (t.billing_via_shopier ?? "Paid via Shopier")
-            : (t.billing_via_lemon ?? "Paid via Lemon Squeezy (MoR)")}
+          {t.billing_via_lemon ?? "Paid via Lemon Squeezy (MoR)"}
         </p>
       </div>
 
@@ -206,7 +162,7 @@ function PricingCard({
             {t.billing_redirecting ?? "Redirecting…"}
           </>
         ) : (
-          (t.billing_buy_now ?? "Purchase")
+          ctaLabel
         )}
       </button>
     </motion.article>

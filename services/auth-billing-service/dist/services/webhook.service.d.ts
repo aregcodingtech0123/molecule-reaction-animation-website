@@ -1,104 +1,35 @@
-/** Classic Shopier form callback / notify (urlencoded). */
-export declare function handleShopierCallback(body: Record<string, unknown>): Promise<{
-    processed: boolean;
-    reason: "payment_not_successful";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "missing_ids";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "unknown_order";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "already_processed";
-    userId: string;
-} | {
-    processed: boolean;
-    reason: "invalid_package_id";
-    userId?: undefined;
-} | {
-    userId: string;
-    creditAmount: number;
-    provider: "shopier";
-    processed: boolean;
-    ledgerId: string | null;
-    reason?: string;
-}>;
+import { type LemonOrderCreatedEvent } from "../lib/lemonsqueezy.js";
 /**
- * Optional REST webhook path when Shopier-Signature + raw JSON body are used.
- * Expects classic-compatible fields nested or flat; we normalize to callback shape.
+ * Stage 1 — SYNCHRONOUS gate. No I/O, no database.
+ *
+ * Verifies the `X-Signature` HMAC-SHA256 over the raw body and parses the JSON.
+ * Throws `AppError(401)` on a bad/missing signature and `AppError(503)` when
+ * `LEMONSQUEEZY_WEBHOOK_SECRET` is unset. Callers run this BEFORE acknowledging
+ * so an unauthenticated request never reaches the database.
  */
-export declare function handleShopierRestWebhook(rawBody: Buffer, signatureHeader: string | undefined): Promise<{
+export declare function verifyAndParseLemonEvent(rawBody: Buffer, signatureHeader: string | undefined): LemonOrderCreatedEvent;
+export interface ProcessOutcome {
     processed: boolean;
-    reason: "payment_not_successful";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "missing_ids";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "unknown_order";
-    userId?: undefined;
-} | {
-    processed: boolean;
-    reason: "already_processed";
-    userId: string;
-} | {
-    processed: boolean;
-    reason: "invalid_package_id";
-    userId?: undefined;
-} | {
-    userId: string;
-    creditAmount: number;
-    provider: "shopier";
-    processed: boolean;
-    ledgerId: string | null;
     reason?: string;
-}>;
-export declare function handleLemonSqueezyWebhook(rawBody: Buffer, signatureHeader: string | undefined): Promise<{
-    processed: boolean;
-    reason: "ignored_event_type";
-    eventName: string;
-    status?: undefined;
-} | {
-    processed: boolean;
-    reason: "order_not_paid";
-    status: string;
-    eventName?: undefined;
-} | {
-    processed: boolean;
-    reason: "order_refunded";
-    eventName?: undefined;
-    status?: undefined;
-} | {
-    processed: boolean;
-    reason: "missing_custom_data";
-    eventName?: undefined;
-    status?: undefined;
-} | {
-    processed: boolean;
-    reason: "invalid_package_id";
-    eventName?: undefined;
-    status?: undefined;
-} | {
-    processed: boolean;
-    reason: "currency_mismatch";
-    eventName?: undefined;
-    status?: undefined;
-} | {
-    userId: string;
-    creditAmount: number;
-    provider: "lemonsqueezy";
-    orderId: string;
-    processed: boolean;
-    ledgerId: string | null;
-    reason?: string;
-    eventName?: undefined;
-    status?: undefined;
-}>;
+    ledgerId?: string | null;
+    userId?: string;
+    packageId?: string;
+    creditAmount?: number;
+    variantId?: string | number | null;
+    orderId?: string;
+}
+/**
+ * Stage 2 — ASYNCHRONOUS fulfilment. Runs AFTER the 200 OK has been flushed,
+ * so its latency never holds the Lemon Squeezy delivery open.
+ *
+ * 1) Resolve user from `meta.custom_data.user_id` (fallback: order email)
+ * 2) Resolve package from variant_id, falling back to `custom_data.package_id`
+ * 3) Credit the user via the immutable ledger (`CREDIT_PURCHASE`)
+ *
+ * Never throws for business-rule rejections — it returns a reason so the caller
+ * can log it. Genuine faults (for example the database being unreachable) do
+ * propagate, and the caller is responsible for catching them.
+ */
+export declare function processLemonSqueezyEvent(event: LemonOrderCreatedEvent): Promise<ProcessOutcome>;
 /** Health probe — verify DB connectivity for billing ops. */
 export declare function pingBillingDb(): Promise<void>;

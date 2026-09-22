@@ -92,7 +92,7 @@ export function MoleculeScene({
   return (
     <div
       className={cn(
-        "relative w-full h-full canvas-touch-surface",
+        "relative w-full h-full canvas-touch-surface studio-canvas-atmosphere",
         deviceTier.isMobile && "max-h-[min(50vh,28rem)] touch-none overscroll-contain",
         className,
       )}
@@ -114,46 +114,48 @@ export function MoleculeScene({
           className={toggleClassName}
         />
       )}
-      <Canvas
-        camera={{ position: [0, 0, cameraDistance], fov: 42 }}
-        dpr={deviceTier.dpr}
-        gl={{
-          antialias: !deviceTier.isMobile,
-          alpha: true,
-          powerPreference: deviceTier.isMobile ? "default" : "high-performance",
-        }}
-        style={{ background: "transparent", touchAction: "none" }}
-        onPointerMissed={handlePointerMissed}
-      >
-        <CanvasRaycasterConfig />
-        <SceneStage
-          reduceEffects={reduceEffects ?? deviceTier.isMobile}
-          accentColor={accentColor}
-          footer={
-            <>
-              <StudioFloor accentColor={accentColor} shadowScale={16} y={studioFloorY} />
-              <CameraRig
-                autoRotate={autoRotate && !isFocused}
-                enableZoom={enableZoom}
-                enablePan={enablePan}
-                cameraDistance={cameraDistance}
-              />
-            </>
-          }
+      <div className="relative z-[1] h-full w-full">
+        <Canvas
+          camera={{ position: [0, 0, cameraDistance], fov: 42 }}
+          dpr={deviceTier.dpr}
+          gl={{
+            antialias: !deviceTier.isMobile,
+            alpha: true,
+            powerPreference: deviceTier.isMobile ? "default" : "high-performance",
+          }}
+          style={{ background: "transparent", touchAction: "none" }}
+          onPointerMissed={handlePointerMissed}
         >
-          <MoleculeRenderer
-            molecule={molecule}
-            scale={moleculeScale}
-            showLabels={showLabels}
-            onAtomSelect={handleAtomSelect}
-            selectedAtomId={measurementMode ? null : selectedAtomId}
+          <CanvasRaycasterConfig />
+          <SceneStage
+            reduceEffects={reduceEffects ?? deviceTier.isMobile}
             accentColor={accentColor}
-            sphereSegments={sphereSegments}
-            atomHitScale={deviceTier.atomHitScale}
-            espsEnabled={deviceTier.espsEnabled}
-          />
-        </SceneStage>
-      </Canvas>
+            footer={
+              <>
+                <StudioFloor accentColor={accentColor} shadowScale={16} y={studioFloorY} />
+                <CameraRig
+                  autoRotate={autoRotate && !isFocused}
+                  enableZoom={enableZoom}
+                  enablePan={enablePan}
+                  cameraDistance={cameraDistance}
+                />
+              </>
+            }
+          >
+            <MoleculeRenderer
+              molecule={molecule}
+              scale={moleculeScale}
+              showLabels={showLabels}
+              onAtomSelect={handleAtomSelect}
+              selectedAtomId={measurementMode ? null : selectedAtomId}
+              accentColor={accentColor}
+              sphereSegments={sphereSegments}
+              atomHitScale={deviceTier.atomHitScale}
+              espsEnabled={deviceTier.espsEnabled}
+            />
+          </SceneStage>
+        </Canvas>
+      </div>
     </div>
   );
 }
@@ -170,11 +172,7 @@ export function Scene() {
       {isClient ? (
         <MoleculeScene molecule={WATER} showLabels={false} enableZoom={false} />
       ) : (
-        <div
-          className="absolute inset-0"
-          style={{ background: "var(--studio-page-bg)" }}
-          aria-hidden
-        />
+        <div className="absolute inset-0 studio-canvas-atmosphere" aria-hidden />
       )}
     </div>
   );

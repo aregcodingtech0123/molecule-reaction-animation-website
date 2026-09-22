@@ -1,6 +1,5 @@
 import { pool, withTransaction } from "../db/index.js";
-import { packageAmountMinor, regionToCurrency, regionToProvider, resolveBillingRegion, resolveCreditPackage, } from "../config/packages.js";
-import { prepareShopierPaymentPayload } from "../lib/shopier.js";
+import { ACTIVE_PAYMENT_PROVIDER, BILLING_CURRENCY, resolveCreditPackage, } from "../config/packages.js";
 import { createLemonSqueezyCheckoutUrl } from "../lib/lemonsqueezy.js";
 import { AppError } from "../types/index.js";
 async function insertPendingOrder(client, params) {
@@ -21,69 +20,39 @@ async function insertPendingOrder(client, params) {
     }
     return id;
 }
+/**
+ * Single checkout path — every request, regardless of buyer region,
+ * routes through the Lemon Squeezy hosted checkout.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function createUnifiedCheckout(params) {
-    const pkg = resolveCreditPackage(params.packageId);
-    const region = resolveBillingRegion(params.regionOrCurrency);
-    const currency = regionToCurrency(region);
-    const provider = regionToProvider(region);
-    const amountMinor = packageAmountMinor(pkg, currency);
-    if (provider === "shopier") {
-        return createShopierCheckout({
-            userId: params.userId,
-            userEmail: params.userEmail,
-            buyerName: params.buyerName ?? params.userEmail.split("@")[0] ?? "Customer",
-            pkg,
-            amountMinor,
-            region,
-        });
+    // Refuse to mint a checkout URL we cannot attribute. Without a valid
+    // custom_data.user_id the webhook can only fall back to buyer email, and a
+    // buyer who pays with a different email than their account would go
+    // uncredited. Fail loudly here instead of silently at fulfilment time.
+    if (!params.userId?.trim() || !UUID_RE.test(params.userId.trim())) {
+        throw new AppError(401, "Cannot start checkout without an authenticated user.", "CHECKOUT_MISSING_USER");
     }
+    if (!params.userEmail?.trim()) {
+        throw new AppError(401, "Cannot start checkout without an account email.", "CHECKOUT_MISSING_EMAIL");
+    }
+    const pkg = resolveCreditPackage(params.packageId);
+    const returnPath = typeof params.returnPath === "string" ? params.returnPath : undefined;
     return createLemonCheckout({
         userId: params.userId,
         userEmail: params.userEmail,
         pkg,
-        amountMinor,
-        region,
+        amountMinor: pkg.priceUsdCents,
+        returnPath,
     });
-}
-async function createShopierCheckout(params) {
-    const orderId = await withTransaction(async (client) => {
-        return insertPendingOrder(client, {
-            userId: params.userId,
-            packageId: params.pkg.id,
-            provider: "shopier",
-            currency: "TRY",
-            amountMinor: params.amountMinor,
-            credits: params.pkg.credits,
-        });
-    });
-    const totalOrderValue = (params.amountMinor / 100).toFixed(2);
-    const form = prepareShopierPaymentPayload({
-        platformOrderId: orderId,
-        productName: `${params.pkg.name} — ${params.pkg.credits} Credits`,
-        totalOrderValue,
-        buyerEmail: params.userEmail,
-        buyerName: params.buyerName,
-        buyerId: params.userId,
-    });
-    return {
-        provider: "shopier",
-        currency: "TRY",
-        region: params.region,
-        mode: "shopier_form",
-        shopierForm: {
-            action: form.action,
-            fields: { ...form.fields },
-        },
-        orderId,
-    };
 }
 async function createLemonCheckout(params) {
     const orderId = await withTransaction(async (client) => {
         return insertPendingOrder(client, {
             userId: params.userId,
             packageId: params.pkg.id,
-            provider: "lemonsqueezy",
-            currency: "USD",
+            provider: ACTIVE_PAYMENT_PROVIDER,
+            currency: BILLING_CURRENCY,
             amountMinor: params.amountMinor,
             credits: params.pkg.credits,
         });
@@ -93,12 +62,13 @@ async function createLemonCheckout(params) {
         userEmail: params.userEmail,
         packageId: params.pkg.id,
         productName: `${params.pkg.name} — ${params.pkg.credits} Credits`,
+        credits: params.pkg.credits,
         pendingOrderId: orderId,
+        returnPath: params.returnPath,
     });
     return {
-        provider: "lemonsqueezy",
-        currency: "USD",
-        region: params.region,
+        provider: ACTIVE_PAYMENT_PROVIDER,
+        currency: BILLING_CURRENCY,
         mode: "redirect",
         checkoutUrl,
         orderId,

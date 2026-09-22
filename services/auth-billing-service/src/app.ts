@@ -3,7 +3,7 @@ import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
 import usersRoutes from "./routes/users.routes.js";
-import { lemonSqueezyWebhook, shopierWebhook } from "./controllers/billing.controller.js";
+import { lemonSqueezyWebhook } from "./controllers/billing.controller.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { isDatabaseReady, getDatabaseError } from "./db/index.js";
@@ -82,27 +82,12 @@ export function createApp() {
     });
   });
 
-  // ── Provider webhooks (raw / urlencoded BEFORE express.json) ───────────────
+  // ── Provider webhook (raw body BEFORE express.json, for HMAC verification) ─
   app.post(
     "/api/billing/webhooks/lemonsqueezy",
     express.raw({ type: "application/json", limit: "256kb", verify: captureRawBody }),
-    (req, res, next) => {
-      void lemonSqueezyWebhook(req, res, next);
-    },
+    lemonSqueezyWebhook,
   );
-
-  // ── Shopier classic notify / callback (urlencoded form POST) ───────────────
-  // Aliases: /webhooks/shopier  and  /shopier-callback
-  const shopierCallbackMiddleware = [
-    express.raw({ type: "application/json", limit: "256kb", verify: captureRawBody }),
-    express.urlencoded({ extended: false, limit: "256kb" }),
-    (req: Request, res: Response, next: NextFunction) => {
-      void shopierWebhook(req, res, next);
-    },
-  ] as const;
-
-  app.post("/api/billing/webhooks/shopier", ...shopierCallbackMiddleware);
-  app.post("/api/billing/shopier-callback", ...shopierCallbackMiddleware);
 
   app.use(express.json({ limit: "32kb" }));
 
