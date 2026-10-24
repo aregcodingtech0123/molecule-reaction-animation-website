@@ -188,8 +188,20 @@ describe("ledger formatting helpers", () => {
 
   // FINDING-28 (Info): the fallback formatter only upper-cases first letters, so unknown types render
   // as "SOME NEW TYPE" instead of the intended Title Case.
-  it.fails("unknown ledger types fall back to Title Case (FINDING-28)", () => {
+  it("unknown ledger types fall back to Title Case (FINDING-28)", () => {
     expect(formatTransactionType("SOME_NEW_TYPE")).toBe("Some New Type");
+    expect(formatTransactionType("PROMO")).toBe("Promo");
+    expect(formatTransactionType("GIFT__CARD_")).toBe("Gift Card");
+    expect(formatTransactionType("")).toBe("");
+  });
+
+  it("an unknown type in the table is shown in Title Case with a neutral badge (FINDING-28)", async () => {
+    auth.current = signedIn();
+    const row = { id: "9", amount: 3, transaction_type: "PARTNER_PROMO_GRANT", reference_id: "p1", created_at: "2026-10-20T10:00:00Z" };
+    vi.stubGlobal("fetch", routeFetch({ "GET /api/billing/history": () => json({ success: true, data: { transactions: [row] } }) }));
+    renderWithProviders(<DashboardPage />);
+    const table = await screen.findByRole("table");
+    expect(within(table).getAllByRole("row")[1]!.textContent).toMatch(/Partner Promo Grant.*Partner Promo Grant.*\+3/);
   });
 
   it("amounts are signed; zero has no plus", () => {

@@ -115,7 +115,13 @@ export function formatTransactionDescription(tx: {
 }
 
 export function formatTransactionType(type: string): string {
-  return TYPE_LABELS[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (Object.hasOwn(TYPE_LABELS, type)) return TYPE_LABELS[type]!;
+  // A type added server-side before this table knows it: SOME_NEW_TYPE → "Some New Type" (FINDING-28).
+  return type
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export function formatLedgerAmount(amount: number): string {
