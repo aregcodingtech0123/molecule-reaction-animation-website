@@ -1,4 +1,4 @@
-# Production runbook — Phase 1.5 remediation (Batches 0–4)
+# Production runbook — Phase 1.5 remediation (Batches 0–5)
 
 **Who runs this:** the project owner, by hand. Nothing in this repository connects to a hosted
 database automatically. Every command below runs from `services/auth-billing-service` unless noted.
@@ -7,7 +7,8 @@ database automatically. Every command below runs from `services/auth-billing-ser
 hardening (`008`), AI credit reservations (`009`), session versioning (`010`), the internal service
 key, the new reserve → capture/release AI charging, the BFF-owned session cookie, client-IP handling
 for rate limits, the Google account-takeover fix, checkout-order expiry (`011`), env-only Lemon variant
-mapping, and ledger-history pagination.
+mapping, and ledger-history pagination. Batch 5 (frontend only) adds no migration, env var or deploy step: the
+self-hosted HDR files ship in `public/hdri/` with the Next.js build.
 
 > ⚠️ **Old and new code are mutually incompatible on the AI metering path.** An old BFF calling a
 > new Express gets `404` (no internal key) → every AI Lab turn fails with `503 BILLING_UNAVAILABLE`.

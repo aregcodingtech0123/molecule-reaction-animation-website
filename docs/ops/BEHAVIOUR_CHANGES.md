@@ -96,6 +96,14 @@ contract with a different observable result; **Ops** = affects operators and dep
 | Behaviour (API) | Checkout with Lemon or the pack's variant not configured → `503` **before** any order row is written. A Lemon failure after the row exists marks it `failed` (was left `pending`). |
 | Ops | Migration `011`: `expire_stale_checkout_orders(interval DEFAULT '24 hours')` (minimum 1 hour) marks old `pending` checkout rows `expired`; schedule it (runbook §9). A late payment for an `expired`/`failed` row is still credited and the row marked `completed`. |
 
-## Batch 5 — frontend (3D, dates, i18n, theme)
+## Batch 5 — frontend (FINDING-06, 26, 27, 28, 31)
 
-_To be filled when Batch 5 lands._
+| Kind | Change |
+| --- | --- |
+| Behaviour (API) | `dateOfBirth` in every auth/profile response is the stored calendar date regardless of the server's time zone (servers east of UTC returned the previous day, and each profile save stored that). Format unchanged (`YYYY-MM-DD`). Accounts that were saved on such a server may already hold a shifted date — not repaired automatically. |
+| Behaviour (frontend) | The profile page shows the date of birth correctly in browsers west of UTC (it showed the previous day). |
+| Behaviour (frontend) | White Lab is applied before first paint (inline `<head>` script). |
+| Behaviour (frontend) | Auth dialog, pricing, checkout, dashboard and profile are translated in all 11 non-English locales (machine translation — `docs/testing/I18N_REVIEW.md`). |
+| Behaviour (frontend) | Unknown ledger types show in Title Case on the dashboard. |
+| Behaviour (frontend) | 3D environment maps are served from this site (`/hdri/*.hdr`, ~3.1 MB, cached by the browser); no request goes to `raw.githack.com`. If a map fails to load, the scene renders without environment lighting instead of crashing. A strict CSP needs no CDN exception any more. |
+| Ops | `.gitattributes` marks `*.hdr` binary. CI type-checks source and test files (`npm run typecheck:tests`, service `npm run typecheck`). |

@@ -1,4 +1,4 @@
-# Findings — Phase 1 (Functional)
+# Findings — Phase 1 (Functional) · remediated in Phase 1.5
 
 Every finding below that can be expressed as a test has one, written as the **expected** behaviour
 and marked `it.fails(...)` with its `FINDING-xx` id. Fixing the bug turns that test red ("expected
@@ -16,16 +16,16 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 02 | High | DB | Migrations are not re-runnable (001 fails after 003) | **Fixed** `030a484` — 001 creates the legacy overload only on an empty DB; 001–007 each re-runnable (tested) |
 | 34 | High | Auth / OAuth | Google sign-in links to and verifies an UNVERIFIED password account → pre-account takeover (found in Phase 1.5) | **Fixed** `ce43380` — Google user takes the account over: password invalidated, sessions revoked, pending tokens deleted |
 | 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets | **Fixed** `ce43380` `0b4a13c` — BFF forwards the platform client IP (`CLIENT_IP_HEADER`) with the internal key; service honours it only then; `TRUST_PROXY_HOPS` (default 0) stops X-Forwarded-For spoofing |
-| 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable | Open — Batch 5 |
+| 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable | **Fixed** `2f2d975` — HDRs self-hosted under `public/hdri/`; loaded outside React's throw path, so a missing map is a warning, never a page error; E2E stand-in removed |
 | 29 | High | Tooling | `db:reset` guard refuses only Supabase — a Neon URL is dropped | **Fixed** `030a484` — `db:reset` accepts local hosts only (shared `assertLocalDatabaseUrl`) |
 | 07 | Medium | Billing | `/deduct` double-charges under concurrency; users can write ADMIN_ADJUSTMENT rows | **Fixed** `fba88e7` — `/deduct` removed (no callers); no client-chosen ledger types remain |
 | 22 | Medium | Chat | Refund after a failed generation is a single best-effort call (no retry) | **Fixed** `fba88e7` — nothing debited before capture; retries; unsettled holds expire uncharged and are reported |
 | 23 | Medium | BFF / Webhook | BFF proxies the webhook path but strips `X-Signature` | **Fixed** `0b4a13c` — BFF answers 404 for `/api/billing/webhooks/*`; `.env.example` points at Express |
 | 24 | Medium | Auth | JWT returned in JSON bodies (readable by page JS) despite httpOnly cookie | **Fixed** `0b4a13c` — BFF sets the httpOnly cookie and strips `token` from bodies; `/api/auth/set-cookie` removed |
-| 06 | Medium | Auth / Profile | Date of birth shifts one day earlier on servers east of UTC (and drifts on each save) | Open — Batch 5 |
+| 06 | Medium | Auth / Profile | Date of birth shifts one day earlier on servers east of UTC (and drifts on each save) | **Fixed** `05352ba` — pg `DATE` parsed as text; profile page formats the date in UTC (it showed the previous day west of UTC) |
 | 09 | Medium | Auth | Registration reveals whether an email already has an account | **Fixed** `ce43380` — register answers `200` + the same message for every email and never signs in |
 | 18 | Medium | Auth | Password reset does not revoke existing sessions | **Fixed** `ce43380` — `token_version` (`010`); JWT claim `tv`; password reset revokes older sessions |
-| 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales | Open — Batch 5 |
+| 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales | **Fixed** `aa563d4` — 84 keys × 11 locales, machine-translated, review list in `I18N_REVIEW.md` |
 | 05 | Medium | DB | Ledger can be `TRUNCATE`d; `user_balances` can drift from the ledger | **Fixed** `030a484` — `008`: TRUNCATE blocked; balance writes only via `post_credit_transaction`; `ledger_reconciliation()` |
 | 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail | **Fixed** `b4d96da` — non-UUID value ignored with a warning; purchase credited |
 | 11 | Low | Webhook | Losing concurrent duplicate delivery is logged as `[Webhook] FAILED` | **Fixed** `b4d96da` — unique violation on the payment reference → `already_processed` |
@@ -39,10 +39,10 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 25 | Low | Chat | Billing unreachable → unhandled exception (500) instead of `503 BILLING_UNAVAILABLE` | **Fixed** `fba88e7` — unreachable/misconfigured billing → `503 BILLING_UNAVAILABLE` |
 | 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping | **Fixed** `3ae839d` — env-only mapping (service + frontend); production refuses to start without all three variants |
 | 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable | **Fixed** `f6273fc` — keyset cursor on (`created_at`, `id`), `nextCursor`; dashboard "Load more" |
-| 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash | Open — Batch 5 |
+| 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash | **Fixed** `ba12e97` — inline `<head>` script; residual: context-styled components switch at hydration (see below) |
 | 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" | **Fixed** `b4d96da` — body "Invalid webhook body" |
 | 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) | **Fixed** `0b4a13c` — the verification token is submitted once |
-| 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case | Open — Batch 5 |
+| 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case | **Fixed** `a249a8c` — Title Case fallback |
 | 33 | Medium | Auth UI | Stale 401s from guest-era requests close the sign-up dialog / delete a just-created session cookie (found in Phase 1.5) | **Fixed** `47fc4b8` `0b4a13c` — guest 401s neither close dialogs nor clear cookies; 401s from requests started before the latest sign-in are ignored |
 | 30 | Info | Repo | Hygiene: committed `node_modules`/`dist`, outdated README, deprecated `middleware.ts` | **Fixed** `69e1034` — vendored `node_modules`/`dist` untracked; README updated; JWT_SECRET entropy check. `middleware.ts` rename intentionally deferred |
 
@@ -53,7 +53,21 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 Branch `fix/phase1-findings`. Test changes made while fixing are logged in
 [TEST_CHANGES.md](./TEST_CHANGES.md); production steps are in
 [docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md); every caller-visible change is in
-[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). Batches 0–4 are done; Batch 5 in progress.
+[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). All batches (0–5) are done: **34 of 34 findings fixed**, none deferred. The rename of `middleware.ts` → `proxy.ts`
+(FINDING-30) was intentionally not done, as instructed. Every caller-visible change is listed in the behaviour-changes
+document; the deploy owner's steps are in the runbook.
+
+**Residual notes (not regressions):**
+* **FINDING-26:** the inline script sets `data-theme` / `dark` on `<html>` before first paint, so CSS-driven colours
+  (page background, globals) are right immediately. 48 components take Tailwind classes from the theme *context*; the
+  server HTML renders those with Night Lab classes and they switch at hydration (now in a layout effect, before the
+  hydrated paint). Removing that last window means moving those classes to CSS (`dark:` variants) — a refactor, not
+  part of this fix.
+* **FINDING-27:** the 83 missing keys are translated. Separately, 56–80 keys per locale (AI Lab, toasts, measurement /
+  atom-focus labels, studio CTA cards) *exist* in every locale but still hold the English text. Out of scope here;
+  recommended for Phase 3.
+* **FINDING-31:** the brief suggested `files=`; the map is passed as `map=` (loaded by three's `HDRLoader` from the same
+  self-hosted files) because R3F 9 reports even error-boundary-caught loader errors as uncaught page errors.
 
 ## FINDING-33 — Medium — Guest auth dialog closed by a late hydration probe (new in Phase 1.5)
 
@@ -324,7 +338,18 @@ Non-production files added/changed: `.gitignore` (test artefacts, `.env.test`, n
 
 ---
 
-## Coverage report (measured on the final run)
+## Coverage report — Phase 1.5 final run (2026-10-24)
+
+| Suite | Files | Result | Coverage |
+| --- | --- | --- | --- |
+| **Service total** (unit · api · db) | 21 | **487 pass · 0 expected-fail** | **88.1 %** lines, 87.9 % statements, 92.2 % functions, **73.5 % branches** (Phase 1: 85.3 / 85.1 / 90.3 / 69.9) |
+| Root (BFF api + frontend unit) | 20 | **402 pass · 0 expected-fail** | BFF files **93.7 %** lines (Phase 1: 87.3 %); whole `src/` include-set 49.6 % (Phase 1: 46 %) |
+| E2E (Chromium + Pixel 7) | 3 | **29 / 29**, two consecutive runs, ~1.4 min each | paid journey desktop + mobile; guest, FINDING-26 and FINDING-31 checks |
+| Type check | — | `npm run typecheck:tests` (root) and `npm run typecheck` (service): **0 errors** | new CI steps |
+
+No `it.fails` / `test.fail` marker remains. No test is skipped.
+
+### Phase 1 baseline (for comparison)
 
 | Suite | Files | Result | Line coverage (target) |
 | --- | --- | --- | --- |
