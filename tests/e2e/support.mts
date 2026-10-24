@@ -23,11 +23,7 @@ export const uniqueEmail = (tag: string) => `e2e.${tag}.${randomUUID().slice(0, 
  * replaced by a stub document; everything else external (Google GSI,
  * Wikipedia images…) is aborted.
  */
-/** Smallest valid Radiance HDR (1×1 px) — stands in for drei's CDN environment maps. */
-const TINY_HDR = Buffer.concat([
-  Buffer.from("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 1\n", "ascii"),
-  Buffer.from([128, 128, 128, 129]),
-]);
+/** drei's preset CDN — the app must never need it (FINDING-31: maps are self-hosted under /hdri/). */
 export const HDR_CDN = /raw\.githack\.com\/pmndrs\/drei-assets\/.*\.hdr$/;
 
 export async function isolateBrowser(page: Page) {
@@ -35,11 +31,6 @@ export async function isolateBrowser(page: Page) {
     const url = new URL(route.request().url());
     if (url.hostname === CHECKOUT_HOST) {
       return route.fulfill({ status: 200, contentType: "text/html", body: "<h1>Lemon checkout (E2E stub)</h1>" });
-    }
-    // drei <Environment preset> fetches HDRs from a CDN at runtime (FINDING-31). Serve a local
-    // stand-in so journeys are deterministic; FINDING-31 tests block this host explicitly.
-    if (HDR_CDN.test(url.toString())) {
-      return route.fulfill({ status: 200, contentType: "application/octet-stream", body: TINY_HDR });
     }
     if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") return route.continue();
     return route.abort();

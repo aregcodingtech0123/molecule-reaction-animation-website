@@ -20,9 +20,9 @@ test.describe("guest journeys", () => {
   // FINDING-31 (High): drei <Environment preset> downloads its HDR from a third-party CDN at
   // runtime. When that host is unreachable (outage, offline, CSP, corporate proxy) every 3D page
   // throws an uncaught "Could not load potsdamer_platz_1k.hdr"; the AI Lab page crashes entirely.
+  // Fixed: maps are self-hosted under /hdri/; no stand-in is served for the CDN any more.
   for (const path of ["/", "/explore", "/atom-models"]) {
     test(`${path} renders without uncaught errors when the HDR CDN is unreachable (FINDING-31)`, async ({ page }) => {
-      test.fail(true, "FINDING-31: environment map fetched from a third-party CDN with no fallback");
       await page.route(HDR_CDN, (route) => route.abort()); // later routes take precedence
       const errors = trackPageErrors(page);
       await page.goto(path);
