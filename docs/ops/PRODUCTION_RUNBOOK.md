@@ -1,4 +1,4 @@
-# Production runbook — Phase 1.5 remediation (Batches 0–3)
+# Production runbook — Phase 1.5 remediation (Batches 0–4)
 
 **Who runs this:** the project owner, by hand. Nothing in this repository connects to a hosted
 database automatically. Every command below runs from `services/auth-billing-service` unless noted.
@@ -6,7 +6,8 @@ database automatically. Every command below runs from `services/auth-billing-ser
 **What it deploys:** tracked migrations (adopting the existing production database), ledger
 hardening (`008`), AI credit reservations (`009`), session versioning (`010`), the internal service
 key, the new reserve → capture/release AI charging, the BFF-owned session cookie, client-IP handling
-for rate limits, and the Google account-takeover fix.
+for rate limits, the Google account-takeover fix, checkout-order expiry (`011`), env-only Lemon variant
+mapping, and ledger-history pagination.
 
 > ⚠️ **Old and new code are mutually incompatible on the AI metering path.** An old BFF calling a
 > new Express gets `404` (no internal key) → every AI Lab turn fails with `503 BILLING_UNAVAILABLE`.
@@ -225,7 +226,8 @@ randomly generated key passes. Test locally: `node -e "import('./dist/config/sec
 
 1. Announce a ~10-minute AI Lab maintenance window (other pages stay up).
 2. Deploy **Express** (`auth-billing-service`) **first**. It exits at boot if `INTERNAL_SERVICE_SECRET`
-   or `JWT_SECRET` is weak/missing — check the logs for `FATAL:`. From this moment existing sessions are
+   or `JWT_SECRET` is weak/missing, or if any `LEMONSQUEEZY_VARIANT_*` is missing, non-numeric or shared
+   (FINDING-13) — check the logs for `FATAL:`. From this moment existing sessions are
    refused (no `tv`) and users are asked to sign in again — expected.
 3. Immediately deploy **Next.js**. It refuses to start (instrumentation) without a strong
    `INTERNAL_SERVICE_SECRET`; `next build` does not need it. Check its startup log for the
@@ -266,6 +268,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/auth/
 curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/auth/set-cookie   # 404 (removed)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/billing/webhooks/lemonsqueezy   # 404
 ```
+
+Checkout and history (Batch 4): buy nothing — open the dashboard as a staff user and confirm the history
+loads (and shows **Load more** if the account has more than 100 rows). A webhook for one of the three
+production variant ids must still credit (watch the next real order's `[Webhook] Credited user` line).
 
 Rate limits per user: after deploy, check the Express logs for `signup_ip` values of new accounts — they
 must be end-user addresses, not the Next.js server's.

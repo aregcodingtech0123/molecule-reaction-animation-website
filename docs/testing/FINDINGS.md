@@ -27,20 +27,20 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 18 | Medium | Auth | Password reset does not revoke existing sessions | **Fixed** `ce43380` — `token_version` (`010`); JWT claim `tv`; password reset revokes older sessions |
 | 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales | Open — Batch 5 |
 | 05 | Medium | DB | Ledger can be `TRUNCATE`d; `user_balances` can drift from the ledger | **Fixed** `030a484` — `008`: TRUNCATE blocked; balance writes only via `post_credit_transaction`; `ledger_reconciliation()` |
-| 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail | Open — Batch 4 |
-| 11 | Low | Webhook | Losing concurrent duplicate delivery is logged as `[Webhook] FAILED` | Open — Batch 4 |
-| 12 | Low | API | Body-parser errors (oversized / malformed JSON) return 500 | Open — Batch 4 |
-| 08 | Low | Billing | `/history?limit=abc` (or `2.7`) → 500 | Open — Batch 4 |
-| 15 | Low | Billing | Failed checkouts leave orphan `pending` orders, never expired | Open — Batch 4 |
-| 16 | Low | Billing | `packageId: "__proto__"` / `"constructor"` → 500 instead of 400 | Open — Batch 4 |
+| 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail | **Fixed** `b4d96da` — non-UUID value ignored with a warning; purchase credited |
+| 11 | Low | Webhook | Losing concurrent duplicate delivery is logged as `[Webhook] FAILED` | **Fixed** `b4d96da` — unique violation on the payment reference → `already_processed` |
+| 12 | Low | API | Body-parser errors (oversized / malformed JSON) return 500 | **Fixed** `b4d96da` — 400 `INVALID_JSON` / 413 `PAYLOAD_TOO_LARGE` / 415 |
+| 08 | Low | Billing | `/history?limit=abc` (or `2.7`) → 500 | **Fixed** `b4d96da` — non-integer limit → default 100 |
+| 15 | Low | Billing | Failed checkouts leave orphan `pending` orders, never expired | **Fixed** `fc403c2` — failures marked `failed`; `011` `expire_stale_checkout_orders()` + scheduled job; late payments still complete |
+| 16 | Low | Billing | `packageId: "__proto__"` / `"constructor"` → 500 instead of 400 | **Fixed** `b4d96da` — `Object.hasOwn` → 400 `INVALID_PACKAGE` |
 | 19 | Low | Auth | Google sign-in misconfiguration reported as 401 "invalid token" | **Fixed** `ce43380` — misconfiguration → `503 GOOGLE_AUTH_DISABLED` |
 | 20 | Low | API | Any unhandled unique violation is answered `200 {success:true, "account created"}` | **Fixed** `ce43380` — unhandled unique violation → `409 CONFLICT` |
 | 21 | Low | Chat | Gemini call has no timeout / abort signal | **Fixed** `fba88e7` — `AbortSignal.timeout(GEMINI_TIMEOUT_MS)`; timeout → 504, reservation released |
 | 25 | Low | Chat | Billing unreachable → unhandled exception (500) instead of `503 BILLING_UNAVAILABLE` | **Fixed** `fba88e7` — unreachable/misconfigured billing → `503 BILLING_UNAVAILABLE` |
-| 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping | Open — Batch 4 |
-| 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable | Open — Batch 4 |
+| 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping | **Fixed** `3ae839d` — env-only mapping (service + frontend); production refuses to start without all three variants |
+| 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable | **Fixed** `f6273fc` — keyset cursor on (`created_at`, `id`), `nextCursor`; dashboard "Load more" |
 | 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash | Open — Batch 5 |
-| 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" | Open — Batch 4 |
+| 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" | **Fixed** `b4d96da` — body "Invalid webhook body" |
 | 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) | **Fixed** `0b4a13c` — the verification token is submitted once |
 | 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case | Open — Batch 5 |
 | 33 | Medium | Auth UI | Stale 401s from guest-era requests close the sign-up dialog / delete a just-created session cookie (found in Phase 1.5) | **Fixed** `47fc4b8` `0b4a13c` — guest 401s neither close dialogs nor clear cookies; 401s from requests started before the latest sign-in are ignored |
@@ -53,7 +53,7 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 Branch `fix/phase1-findings`. Test changes made while fixing are logged in
 [TEST_CHANGES.md](./TEST_CHANGES.md); production steps are in
 [docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md); every caller-visible change is in
-[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). Batches 0–3 are done; Batches 4–5 in progress.
+[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). Batches 0–4 are done; Batch 5 in progress.
 
 ## FINDING-33 — Medium — Guest auth dialog closed by a late hydration probe (new in Phase 1.5)
 

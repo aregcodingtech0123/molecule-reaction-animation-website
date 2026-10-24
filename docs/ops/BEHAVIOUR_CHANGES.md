@@ -16,8 +16,11 @@ contract with a different observable result; **Ops** = affects operators and dep
 | New required env | `INTERNAL_SERVICE_SECRET` (both services, ≥ 32 chars, identical) | operator |
 | New recommended env | `CLIENT_IP_HEADER` (Next.js) | operator |
 | New optional env | `TRUST_PROXY_HOPS`, `GEMINI_TIMEOUT_MS`, `BILLING_RETRY_DELAYS_MS`, `AI_HOLD_TTL_SECONDS`, `AI_HOLD_SWEEP_INTERVAL_MS`, `MIGRATION_DATABASE_URL` | operator |
-| Migrations | `008`, `009`, `010` via the tracked runner (`db:migrate --baseline` once in production) | operator |
+| Migrations | `008`–`011` via the tracked runner (`db:migrate --baseline` once in production) | operator |
 | Lemon Squeezy | Webhook URL **must** point at Express; the Next.js host answers 404 | operator |
+| Lemon variants | `LEMONSQUEEZY_VARIANT_*` required in production — Express refuses to start without them; no hard-coded fallback | operator |
+| Scheduled job | `SELECT expire_stale_checkout_orders();` (hourly/daily) | operator |
+| Billing history API | adds `nextCursor`; new `400 INVALID_CURSOR`; dashboard "Load more" | frontend, API callers |
 | AI Lab | Charged only on success; new 409 / 504 / 503 answers | AI Lab users, frontend |
 | Sign-up | Never signs in; same answer for new and existing emails | new users, frontend |
 
@@ -75,9 +78,23 @@ contract with a different observable result; **Ops** = affects operators and dep
 | Behaviour (rate limits) | Express ignores `X-Forwarded-For` from direct callers unless `TRUST_PROXY_HOPS` > 0 (default `0`). Spoofed headers no longer select a fresh rate-limit bucket. `signup_ip` / login audit IPs are now real end-user addresses. |
 | Behaviour (frontend) | `/verify-email` submits the token exactly once. A 401 from a request started before the latest sign-in (or from a guest probe) no longer signs the user out, closes the auth dialog or clears the cookie. |
 
-## Batch 4 — billing, webhook and API edge cases
+## Batch 4 — billing, webhook and API edge cases (FINDING-08, 10, 11, 12, 13, 14, 15, 16, 17)
 
-_To be filled when Batch 4 lands._
+| Kind | Change |
+| --- | --- |
+| **Breaking (ops)** | Express **refuses to start in production** unless `LEMONSQUEEZY_VARIANT_STARTER/_PRO/_ENTERPRISE` are all set, numeric and distinct. The hard-coded production variant ids (`2154652/2154661/2154665`) are gone from the service **and** the frontend. Outside production a warning is logged. |
+| Behaviour (Lemon) | A paid order whose variant id is not configured is no longer mapped to a pack by a built-in table; it falls back to `custom_data.package_id` (amount-checked) or is logged "Unable to resolve package". |
+| Behaviour (frontend) | `?variant_id=` deep links resolve only through the build-time `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_*`; unset → ignored. `loginUrlForPackage` omits `variant_id` when unset. `?redirect_checkout=` is unaffected. |
+| Behaviour (Lemon) | A non-UUID `custom_data.pending_order_id` is ignored with a warning; the purchase is credited (it used to fail the whole fulfilment). |
+| Behaviour (ops) | The losing delivery of two **concurrent** duplicate webhooks is reported as `already_processed` (a "Not credited" warn line), no longer as `[Webhook] FAILED … replay manually`. |
+| Behaviour (Lemon) | Valid signature + unparsable body → `400 {"error":"Invalid webhook body"}` (was "Invalid signature"). Lemon does not act on the body. |
+| Behaviour (API) | Body-parser errors on every Express route: malformed JSON → `400 INVALID_JSON`; body over the limit (32 kb, webhook 256 kb) → `413 PAYLOAD_TOO_LARGE`; unsupported charset/encoding → `415 UNSUPPORTED_MEDIA_TYPE`. All were `500 INTERNAL_ERROR`. |
+| Behaviour (API) | `GET /api/billing/history?limit=` that is not an integer (`abc`, `2.7`, `NaN`, repeated) → the default page size (100). Was `500`. Integers keep the 1–200 clamp. |
+| Behaviour (API) | `POST /api/billing/checkout` with `packageId` = `__proto__`, `constructor`, `toString` … → `400 INVALID_PACKAGE` (was `500`). |
+| Behaviour (API) | `GET /api/billing/history` returns `data.nextCursor` (opaque string, `null` on the last page) next to `data.transactions`; pass it back as `?cursor=` for older rows. Order is now `created_at DESC, id DESC` (stable for equal timestamps). An invalid cursor → `400 INVALID_CURSOR`. Without `cursor` the rows are the same as before. |
+| Behaviour (frontend) | Dashboard history shows a **Load more** button while older rows exist. |
+| Behaviour (API) | Checkout with Lemon or the pack's variant not configured → `503` **before** any order row is written. A Lemon failure after the row exists marks it `failed` (was left `pending`). |
+| Ops | Migration `011`: `expire_stale_checkout_orders(interval DEFAULT '24 hours')` (minimum 1 hour) marks old `pending` checkout rows `expired`; schedule it (runbook §9). A late payment for an `expired`/`failed` row is still credited and the row marked `completed`. |
 
 ## Batch 5 — frontend (3D, dates, i18n, theme)
 
