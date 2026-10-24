@@ -39,6 +39,8 @@ jobs:
           cache: npm
           cache-dependency-path: services/auth-billing-service/package-lock.json
       - run: npm ci
+      # Source and test files must type-check (vitest strips types without checking them).
+      - run: npm run typecheck
       - run: npm run test:coverage
       - uses: actions/upload-artifact@v4
         if: always()
@@ -70,6 +72,7 @@ jobs:
       - run: npm ci
       # The BFF suite boots the real Express service in-process.
       - run: npm ci --prefix services/auth-billing-service
+      - run: npm run typecheck:tests
       - run: npx vitest run --coverage
       - uses: actions/upload-artifact@v4
         if: always()

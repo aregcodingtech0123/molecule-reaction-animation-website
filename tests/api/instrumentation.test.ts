@@ -5,6 +5,7 @@ import { weakSecretReason as bffCheck } from "@/lib/security/secret-strength";
 import { weakSecretReason as serviceCheck } from "../../services/auth-billing-service/src/config/secretStrength";
 
 const strong = randomBytes(48).toString("base64");
+const env = (vars: Record<string, string | undefined>) => vars as NodeJS.ProcessEnv;
 
 describe("Next.js startup check for INTERNAL_SERVICE_SECRET (instrumentation.ts)", () => {
   it.each([
@@ -13,20 +14,20 @@ describe("Next.js startup check for INTERNAL_SERVICE_SECRET (instrumentation.ts)
     ["too short", "short-but-random-Xy7", /at least 32/],
     ["low entropy", "x".repeat(40), /low entropy/],
   ])("refuses to start when the secret is %s", (_l, value, reason) => {
-    expect(() => assertServerSecrets({ INTERNAL_SERVICE_SECRET: value } as NodeJS.ProcessEnv)).toThrow(reason);
+    expect(() => assertServerSecrets(env({ INTERNAL_SERVICE_SECRET: value }))).toThrow(reason);
   });
 
   it("starts with a strong secret", () => {
-    expect(() => assertServerSecrets({ INTERNAL_SERVICE_SECRET: strong } as NodeJS.ProcessEnv)).not.toThrow();
+    expect(() => assertServerSecrets(env({ INTERNAL_SERVICE_SECRET: strong }))).not.toThrow();
   });
 
   it("never runs during `next build` (NEXT_PHASE=phase-production-build), even without the secret", () => {
-    expect(() => assertServerSecrets({ NEXT_PHASE: "phase-production-build" } as NodeJS.ProcessEnv)).not.toThrow();
+    expect(() => assertServerSecrets(env({ NEXT_PHASE: "phase-production-build" }))).not.toThrow();
   });
 
   it("does run for `next dev` / `next start` phases", () => {
     for (const phase of ["phase-development-server", "phase-production-server"]) {
-      expect(() => assertServerSecrets({ NEXT_PHASE: phase } as NodeJS.ProcessEnv)).toThrow(/not set/);
+      expect(() => assertServerSecrets(env({ NEXT_PHASE: phase }))).toThrow(/not set/);
     }
   });
 

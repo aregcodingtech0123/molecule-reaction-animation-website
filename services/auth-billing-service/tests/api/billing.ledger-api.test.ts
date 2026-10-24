@@ -177,8 +177,8 @@ describe("GET /api/billing/history", () => {
     const pages: Array<{ transactions: Array<{ id: string; created_at: string }>; nextCursor: string | null }> = [];
     let cursor: string | null = null;
     do {
-      const qs = new URLSearchParams({ limit: String(limit), ...(cursor ? { cursor } : {}) });
-      const res = await request(app).get(`/api/billing/history?${qs}`).set("Authorization", bearer(u));
+      const qs: URLSearchParams = new URLSearchParams({ limit: String(limit), ...(cursor ? { cursor } : {}) });
+      const res: request.Response = await request(app).get(`/api/billing/history?${qs}`).set("Authorization", bearer(u));
       expect(res.status).toBe(200);
       pages.push(res.body.data);
       cursor = res.body.data.nextCursor;

@@ -29,7 +29,7 @@ beforeEach(() => {
 
 const ATTACKER_PASSWORD = "Attacker-pass-1";
 const profile = { firstName: "Mal", lastName: "Lory", dateOfBirth: "1990-01-01" };
-const post = (path: string, body: unknown) => request(app).post(path).set("X-Forwarded-For", freshIp()).send(body);
+const post = (path: string, body: object) => request(app).post(path).set("X-Forwarded-For", freshIp()).send(body);
 const me = (token: string) => request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
 
 /** The attack: register the victim's address before they ever arrive, and keep a session. */
