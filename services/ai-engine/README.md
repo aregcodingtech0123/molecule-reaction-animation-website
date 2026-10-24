@@ -1,3 +1,5 @@
+> ⚠️ **LEGACY — not wired into the running stack, kept for reference, pending removal.** See [LEGACY.md](./LEGACY.md).
+
 # MoleculeStudio AI Engine
 
 FastAPI microservice: Gemini prompt-to-SMILES → RDKit 3D optimization (MMFF94/UFF).
