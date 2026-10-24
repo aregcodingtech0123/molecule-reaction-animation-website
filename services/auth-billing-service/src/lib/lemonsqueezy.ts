@@ -156,18 +156,28 @@ function sanitizeReturnPath(raw: string | undefined): string {
   return pathOnly || "/dashboard";
 }
 
-export async function createLemonSqueezyCheckoutUrl(
-  params: LemonCheckoutParams & { pendingOrderId?: string },
-): Promise<string> {
+function requireLemonCheckoutConfig(packageId: string): { apiKey: string; storeId: string; variantId: string } {
   const { apiKey, storeId } = requireLemonApiConfig();
-  const variantId = lemonVariantForPackage(params.packageId);
+  const variantId = lemonVariantForPackage(packageId);
   if (!variantId) {
     throw new AppError(
       503,
-      `Lemon Squeezy variant is not configured for package "${params.packageId}".`,
+      `Lemon Squeezy variant is not configured for package "${packageId}".`,
       "LEMONSQUEEZY_VARIANT_MISSING",
     );
   }
+  return { apiKey, storeId, variantId };
+}
+
+/** Throws the same 503s as a checkout would — before anything is written. */
+export function assertLemonCheckoutConfigured(packageId: string): void {
+  requireLemonCheckoutConfig(packageId);
+}
+
+export async function createLemonSqueezyCheckoutUrl(
+  params: LemonCheckoutParams & { pendingOrderId?: string },
+): Promise<string> {
+  const { apiKey, storeId, variantId } = requireLemonCheckoutConfig(params.packageId);
 
   const credits = Math.max(0, Math.floor(params.credits));
   const returnPath = sanitizeReturnPath(params.returnPath);

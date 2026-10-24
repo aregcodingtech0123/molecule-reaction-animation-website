@@ -68,8 +68,8 @@ Interpret the dry run:
 
 | Dry-run says | Meaning | Action |
 | --- | --- | --- |
-| `baseline: 7 … 001…007` and `would apply 008, 009` | expected if 006/007 were applied by hand earlier | continue |
-| `baseline: 5 … 001…005` and `would apply 006, 007, 008, 009` | the production DB never got 006/007 (FINDING-01): **AI usage has been failing in production** (every `/api/chat` turn → 503) | continue — step 4 fixes it |
+| `baseline: 7 … 001…007` and `would apply 008, 009, 010, 011` | expected if 006/007 were applied by hand earlier | continue |
+| `baseline: 5 … 001…005` and `would apply 006, 007, 008, 009, 010, 011` | the production DB never got 006/007 (FINDING-01): **AI usage has been failing in production** (every `/api/chat` turn → 503) | continue — step 4 fixes it |
 | `INCONSISTENT_SCHEMA` | a later migration appears present while an earlier one is not | **stop**; the schema was changed by hand. Send me the output of `\d+` for the tables named in the message |
 | `POOLED_URL` | you passed a pooled URL | use the direct URL |
 
@@ -157,15 +157,16 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008`, `009` and `010` are backward compatible with the currently deployed code:
+`008`–`011` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
 never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
-(default 0), which the old code ignores.
+(default 0), which the old code ignores. `011` only adds `expire_stale_checkout_orders()` and a partial
+index on `pending_checkout_orders`.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008, 009, 010)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–011)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -301,15 +302,24 @@ In the Lemon dashboard → Settings → Webhooks:
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
   two are revenue loss, not customer harm.
+- **Stale checkouts** (hourly or daily — FINDING-15): `SELECT expire_stale_checkout_orders();` marks
+  `pending_checkout_orders` rows older than 24 h as `expired` (pass an interval for another threshold;
+  under 1 hour is refused). Bookkeeping only: it never touches credits, and a late payment for an
+  expired order is still credited and the row marked `completed`. Example cron:
+  `15 * * * * psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"`.
+  Checkouts that fail at Lemon are now marked `failed` immediately.
 - **Expired reservations** are settled by Express every 5 minutes. If you run several Express
   instances or disable the timer, schedule `SELECT release_expired_ai_holds();` instead (idempotent).
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–010 (only if they cause a problem)
+### 10.1 Migrations 008–011 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 011
+DROP FUNCTION IF EXISTS expire_stale_checkout_orders(INTERVAL);
+DROP INDEX IF EXISTS idx_pending_checkout_pending_created;
 -- 009
 DROP FUNCTION IF EXISTS release_expired_ai_holds();
 DROP TABLE IF EXISTS ai_credit_holds;            -- export it first if you need the history
@@ -322,7 +332,8 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 -- 010: the token_version column is harmless for older code and is kept (re-applying 010 is
 -- idempotent). Its tracking row must go too, otherwise a later roll-forward sees a gap.
 DELETE FROM schema_migrations
-WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql');
+WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
+                   '011_checkout_order_expiry.sql');
 COMMIT;
 ```
 

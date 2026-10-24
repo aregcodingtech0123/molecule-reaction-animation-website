@@ -241,11 +241,48 @@ describe("POST /api/billing/checkout — Lemon failures", () => {
 
   // FINDING-15 (Low): the pending order row is inserted before Lemon is called, so every failed
   // checkout leaves an orphan 'pending' row that nothing ever expires.
-  it.fails("a failed checkout does not leave an orphan pending order (FINDING-15)", async () => {
+  // Fixed: the row is kept for audit but marked 'failed' (TEST_CHANGES TC-34).
+  it("a failed checkout does not leave an orphan pending order (FINDING-15)", async () => {
     stubExternal(LEMON, () => jsonResponse({ errors: [{ detail: "nope" }] }, 500));
     const user = await createUser(db);
     await request(app).post("/api/billing/checkout").set("Authorization", bearer(user)).send({ packageId: "starter" });
-    expect(await pendingOrdersFor(user.id)).toHaveLength(0);
+    const orders = await pendingOrdersFor(user.id);
+    expect(orders.filter((o) => o.status === "pending")).toHaveLength(0);
+    expect(orders).toEqual([expect.objectContaining({ package_id: "starter", status: "failed" })]);
+  });
+
+  it.each([
+    ["Lemon 5xx", () => stubExternal(LEMON, () => jsonResponse({ errors: [{ detail: "x" }] }, 503))],
+    ["Lemon 200 without a URL", () => stubExternal(LEMON, () => jsonResponse({ data: { attributes: {} } }))],
+    ["network error", () => stubExternal(LEMON, () => { throw new TypeError("fetch failed"); })],
+    ["HTML error page", () => stubExternal(LEMON, () => new Response("<html>502</html>", { status: 502 }))],
+  ])("%s → no row stays 'pending' (FINDING-15)", async (_label, arrange) => {
+    arrange();
+    const user = await createUser(db);
+    const res = await request(app).post("/api/billing/checkout").set("Authorization", bearer(user)).send({ packageId: "pro" });
+    expect(res.status).toBeGreaterThanOrEqual(500);
+    expect((await pendingOrdersFor(user.id)).map((o) => o.status)).toEqual(["failed"]);
+  });
+
+  it("Lemon or the pack's variant not configured → refused before any order row is written (FINDING-15)", async () => {
+    const saved = process.env.LEMONSQUEEZY_VARIANT_STARTER;
+    process.env.LEMONSQUEEZY_VARIANT_STARTER = "";
+    try {
+      const user = await createUser(db);
+      const res = await request(app).post("/api/billing/checkout").set("Authorization", bearer(user)).send({ packageId: "starter" });
+      expect(res.status).toBe(503);
+      expect(await pendingOrdersFor(user.id)).toHaveLength(0);
+    } finally {
+      process.env.LEMONSQUEEZY_VARIANT_STARTER = saved;
+    }
+  });
+
+  it("a successful checkout leaves exactly one 'pending' row referenced by the checkout", async () => {
+    stubLemonOk();
+    const user = await createUser(db);
+    const res = await request(app).post("/api/billing/checkout").set("Authorization", bearer(user)).send({ packageId: "starter" });
+    expect(res.status).toBe(200);
+    expect(await pendingOrdersFor(user.id)).toEqual([expect.objectContaining({ id: res.body.data.orderId, status: "pending" })]);
   });
 
   it("a token for a user id that no longer exists fails without calling Lemon", async () => {

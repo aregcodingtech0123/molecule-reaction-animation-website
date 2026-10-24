@@ -221,6 +221,23 @@ describe("pending checkout orders", () => {
     expect(logs.lines().some((l) => l.includes("[Webhook] FAILED"))).toBe(false);
   });
 
+  it.each([["expired"], ["failed"]])(
+    "a paid order for a pending row already marked %s still credits and marks it completed (late payment, FINDING-15)",
+    async (status) => {
+      const buyer = await createUser(db);
+      const { rows } = await db.query<{ id: string }>(
+        `INSERT INTO pending_checkout_orders (user_id, package_id, provider, currency, amount_minor, credits, status)
+         VALUES ($1, 'starter', 'lemonsqueezy', 'USD', 500, 50, $2) RETURNING id::text`,
+        [buyer.id, status],
+      );
+      const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter", pending_order_id: rows[0]!.id } });
+      await credited(orderId);
+      expect(await balanceOf(db, buyer.id)).toBe(CREDITS.starter);
+      const after = await db.query(`SELECT status, completed_at FROM pending_checkout_orders WHERE id = $1`, [rows[0]!.id]);
+      expect(after.rows[0]).toMatchObject({ status: "completed", completed_at: expect.any(Date) });
+    },
+  );
+
   it("a well-formed but unknown pending_order_id is harmless: credited, no pending row touched", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter", pending_order_id: randomUUID() } });

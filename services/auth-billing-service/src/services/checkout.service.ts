@@ -8,7 +8,7 @@ import {
   type BillingCurrency,
   type CreditPackageConfig,
 } from "../config/packages.js";
-import { createLemonSqueezyCheckoutUrl } from "../lib/lemonsqueezy.js";
+import { assertLemonCheckoutConfigured, createLemonSqueezyCheckoutUrl } from "../lib/lemonsqueezy.js";
 import { AppError } from "../types/index.js";
 
 /** Lemon Squeezy is redirect-based; retained as a literal for API stability. */
@@ -53,6 +53,21 @@ async function insertPendingOrder(
     throw new AppError(500, "Failed to create pending checkout order.", "CHECKOUT_CREATE_FAILED");
   }
   return id;
+}
+
+async function markPendingOrderFailed(orderId: string): Promise<void> {
+  try {
+    await pool.query(
+      `UPDATE pending_checkout_orders SET status = 'failed' WHERE id = $1 AND status = 'pending'`,
+      [orderId],
+    );
+  } catch (err) {
+    // Never mask the checkout error; expire_stale_checkout_orders() covers this row later.
+    console.error("[billing] Could not mark checkout order failed", {
+      orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
@@ -106,6 +121,9 @@ async function createLemonCheckout(params: {
   amountMinor: number;
   returnPath?: string;
 }): Promise<CheckoutResult> {
+  // Misconfiguration is known up front — refuse before writing an order row.
+  assertLemonCheckoutConfigured(params.pkg.id);
+
   const orderId = await withTransaction(async (client) => {
     return insertPendingOrder(client, {
       userId: params.userId,
@@ -117,15 +135,23 @@ async function createLemonCheckout(params: {
     });
   });
 
-  const checkoutUrl = await createLemonSqueezyCheckoutUrl({
-    userId: params.userId,
-    userEmail: params.userEmail,
-    packageId: params.pkg.id,
-    productName: `${params.pkg.name} — ${params.pkg.credits} Credits`,
-    credits: params.pkg.credits,
-    pendingOrderId: orderId,
-    returnPath: params.returnPath,
-  });
+  let checkoutUrl: string;
+  try {
+    checkoutUrl = await createLemonSqueezyCheckoutUrl({
+      userId: params.userId,
+      userEmail: params.userEmail,
+      packageId: params.pkg.id,
+      productName: `${params.pkg.name} — ${params.pkg.credits} Credits`,
+      credits: params.pkg.credits,
+      pendingOrderId: orderId,
+      returnPath: params.returnPath,
+    });
+  } catch (err) {
+    // No checkout exists, so this row can never be paid: keep it for audit as
+    // 'failed' instead of an orphan 'pending' row (FINDING-15).
+    await markPendingOrderFailed(orderId);
+    throw err;
+  }
 
   return {
     provider: ACTIVE_PAYMENT_PROVIDER,
@@ -223,10 +249,11 @@ async function grantPurchase(
     );
 
     if (params.pendingOrderId) {
+      // Also from 'expired' / 'failed': the money arrived, so the order is complete.
       await client.query(
         `UPDATE pending_checkout_orders
          SET status = 'completed', completed_at = NOW()
-         WHERE id = $1 AND status = 'pending'`,
+         WHERE id = $1 AND status <> 'completed'`,
         [params.pendingOrderId],
       );
     }
