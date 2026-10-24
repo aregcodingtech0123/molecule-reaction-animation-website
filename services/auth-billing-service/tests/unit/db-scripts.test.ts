@@ -28,6 +28,12 @@ describe("db:reset production guard", () => {
     expect(resetDb).toMatch(/process\.exit\(1\)/);
   });
 
+  it("reset-db.mjs also refuses NODE_ENV=production before any DROP DATABASE (independent of the URL guard)", () => {
+    const prodGuardAt = resetDb.indexOf('process.env.NODE_ENV === "production"');
+    expect(prodGuardAt).toBeGreaterThan(-1);
+    expect(resetDb.indexOf("DROP DATABASE")).toBeGreaterThan(prodGuardAt);
+  });
+
   it("refuses Supabase URLs", () => {
     expect(refuses("postgresql://postgres.abc:pw@db.abc.supabase.co:5432/postgres?sslmode=require")).toBe(true);
   });

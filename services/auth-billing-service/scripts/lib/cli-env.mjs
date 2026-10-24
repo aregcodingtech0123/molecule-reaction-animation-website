@@ -12,7 +12,15 @@ export const serviceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.u
 export function loadServiceEnv() {
   // Testability switch: the CLI tests run these scripts against throwaway
   // databases and must never load the developer's real .env.
-  if (process.env.MOLECULESTUDIO_SKIP_DOTENV === "1") return;
+  if (process.env.MOLECULESTUDIO_SKIP_DOTENV === "1") {
+    // Never allowed to silently change behaviour in production.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "MOLECULESTUDIO_SKIP_DOTENV=1 is a test-only switch and is refused when NODE_ENV=production. Unset it.",
+      );
+    }
+    return;
+  }
   dotenv.config({ path: path.join(serviceRoot, ".env") });
 }
 

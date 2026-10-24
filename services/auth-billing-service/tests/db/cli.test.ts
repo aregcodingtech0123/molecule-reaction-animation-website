@@ -95,6 +95,39 @@ describe("db CLIs", () => {
     }
   });
 
+  it("reconcile exits 2 for unsettled AI reservations too (alertable by a scheduler)", async () => {
+    const db = await ScratchDb.create();
+    try {
+      const env = { DATABASE_URL: db.url };
+      run("migrate.mjs", [], env);
+      const u = await createUser(db.pool, { balance: 0 });
+      await db.pool.query(
+        `INSERT INTO ai_credit_holds (user_id, reference_id, operation_type, amount, status, expires_at, settled_at, settle_reason)
+         VALUES ($1, 'turn-x', 'AI_CHAT_QUERY', 1, 'expired', NOW(), NOW(), 'expired_unsettled')`,
+        [u.id],
+      );
+      const res = run("reconcile.mjs", [], env);
+      expect(res.code).toBe(2);
+      expect(res.out).toMatch(/hold_expired_unsettled/);
+    } finally {
+      await db.destroy();
+    }
+  });
+
+  it("reconcile exits non-zero (1) when the database cannot be queried — a broken job never looks green", () => {
+    const res = run("reconcile.mjs", [], { DATABASE_URL: "postgresql://postgres@127.0.0.1:1/unreachable_test" });
+    expect(res.code).toBe(1);
+  });
+
+  it.each(["migrate.mjs", "reconcile.mjs", "reset-db.mjs"])(
+    "%s refuses MOLECULESTUDIO_SKIP_DOTENV=1 when NODE_ENV=production (exit 1, loud message)",
+    (script) => {
+      const res = run(script, [], { DATABASE_URL: "postgresql://postgres@127.0.0.1:1/never_used_test", NODE_ENV: "production" });
+      expect(res.code).toBe(1);
+      expect(res.out).toMatch(/MOLECULESTUDIO_SKIP_DOTENV=1 is a test-only switch and is refused when NODE_ENV=production/);
+    },
+  );
+
   it.each([
     ["Neon", "postgresql://u:p@ep-x-123.eu-central-1.aws.neon.tech/neondb?sslmode=require"],
     ["remote host", "postgresql://u:p@203.0.113.9:5432/molecule_studio_db"],

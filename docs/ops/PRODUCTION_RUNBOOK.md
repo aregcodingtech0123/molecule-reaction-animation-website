@@ -232,7 +232,19 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 9. Scheduled jobs
 
-- **Reconciliation** (daily): `node scripts/reconcile.mjs` — exit code `2` when there are rows.
+- **Reconciliation** (daily): `node scripts/reconcile.mjs` (read-only session). **Alert on any
+  non-zero exit code:**
+
+  | Exit | Meaning | Action |
+  | --- | --- | --- |
+  | `0` | every cached balance equals `SUM(ledger)` and no AI reservation settled abnormally | none |
+  | `2` | at least one issue row (printed as a table with counts per issue) | investigate the rows below |
+  | `1` | the job itself failed (connection, permissions, missing function) | fix the job — never treat as green |
+
+  Example cron (UTC, 06:00): `0 6 * * * cd /srv/auth-billing-service && MIGRATION_DATABASE_URL=… node scripts/reconcile.mjs >> /var/log/reconcile.log 2>&1 || notify-oncall "reconcile exit $?"`.
+  On platforms with scheduled jobs (Render cron, GitHub Actions `schedule`, Neon + a worker) run the
+  same command; the scheduler's "job failed" alert is the signal. Both behaviours are covered by
+  `services/auth-billing-service/tests/db/cli.test.ts`.
   Issues: `balance_mismatch`, `missing_balance_row`, `capture_failed` (a debit reached the service but
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
