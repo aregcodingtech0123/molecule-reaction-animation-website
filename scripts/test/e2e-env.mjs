@@ -18,6 +18,7 @@ export const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;
 
 export const E2E_JWT_SECRET = "e2e-only-signing-key-4b9d2f7a1c3e5a7b9d0f";
 export const E2E_WEBHOOK_SECRET = "e2e_webhook_secret_not_real";
+export const E2E_INTERNAL_KEY = "e2e-only-internal-key-8c1f4a7d2b9e6c3a0f5d";
 export const E2E_VARIANTS = { starter: "910001", pro: "910002", enterprise: "910003" };
 
 export function e2eDatabaseUrl() {
@@ -32,6 +33,7 @@ const preload = pathToFileURL(path.join(repoRoot, "scripts/test/e2e-preload.mjs"
 const shared = {
   NODE_OPTIONS: `--import ${preload}`,
   JWT_SECRET: E2E_JWT_SECRET,
+  INTERNAL_SERVICE_SECRET: E2E_INTERNAL_KEY,
   FRONTEND_URL: WEB_ORIGIN,
   NEXT_TELEMETRY_DISABLED: "1",
   TZ: "UTC",
@@ -77,5 +79,7 @@ export function webEnv() {
     UPSTASH_REDIS_REST_URL: "",
     UPSTASH_REDIS_REST_TOKEN: "",
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: "e2e-client.apps.googleusercontent.com",
+    // Own build/lock directory: runs alongside a developer's `next dev` on the same checkout.
+    NEXT_DIST_DIR: ".next-e2e",
   };
 }
