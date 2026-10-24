@@ -35,6 +35,37 @@ const NATIVE_SCRIPT: Partial<Record<NonSourceLocale, RegExp>> = {
 
 const placeholders = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
 
+/**
+ * Strings with legal, pricing or billing meaning — a native speaker reviews these first.
+ * (No added string uses refund wording; ledger type labels such as "Auto Refund" are not localised at all.)
+ */
+type PriorityArea = "legal" | "pricing" | "billing";
+const PRIORITY: Record<string, { area: PriorityArea; why: string }> = {
+  billing_feature_never_expire: { area: "legal", why: "a promise to the buyer (credits never expire); must not over- or under-state it" },
+  billing_secure_note: { area: "legal", why: "names the merchant of record and when credits are granted" },
+  billing_via_lemon: { area: "legal", why: "states who the seller / merchant of record is" },
+  billing_buy_now: { area: "legal", why: "purchase button; some jurisdictions (e.g. DE \"zahlungspflichtig bestellen\") regulate order-button wording — the binding order happens on Lemon Squeezy's page" },
+  auth_signup_bonus: { area: "legal", why: "promise of free credits (number and condition)" },
+  billing_best_value: { area: "pricing", why: "comparative price claim" },
+  billing_title: { area: "pricing", why: "purchase page heading" },
+  billing_subtitle: { area: "pricing", why: "purchase description and payment provider" },
+  billing_get_started: { area: "pricing", why: "purchase call-to-action" },
+  billing_feature_3d: { area: "pricing", why: "what a paid pack includes" },
+  billing_credits_unit: { area: "pricing", why: "unit shown next to every price / pack size" },
+  pricing_page_title: { area: "pricing", why: "pricing page heading" },
+  pricing_page_subtitle: { area: "pricing", why: "states when sign-in / purchase is required" },
+  billing_current_balance: { area: "billing", why: "account balance label" },
+  billing_redirecting: { area: "billing", why: "shown while sending the buyer to the payment page" },
+  dashboard_balance_label: { area: "billing", why: "account balance label" },
+  dashboard_buy_credits: { area: "billing", why: "purchase entry point" },
+  dashboard_history_title: { area: "billing", why: "heading of the transaction record" },
+  dashboard_col_amount: { area: "billing", why: "amount column of the transaction record" },
+  dashboard_subtitle: { area: "billing", why: "describes the transaction ledger" },
+  profile_dashboard_hint: { area: "billing", why: "points to the billing history" },
+  auth_credits_label: { area: "billing", why: "balance label in the account menu" },
+};
+const priorityCell = (key: string) => (PRIORITY[key] ? `⚑ ${PRIORITY[key]!.area}` : "");
+
 function reviewMarkdown(): string {
   const name = (code: string) => LANGUAGE_OPTIONS.find((o) => o.code === code)?.nativeName ?? code;
   const cell = (s: string) => s.replace(/\|/g, "\\|");
@@ -61,12 +92,35 @@ function reviewMarkdown(): string {
     "",
     "To correct a string, edit `account-ui.json` and regenerate this file; record the reviewer per locale in the PR.",
     "",
+    "## Review first — legal, pricing and billing wording",
+    "",
+    `These ${Object.keys(PRIORITY).length} keys (marked ⚑ in every locale table) carry legal, pricing or billing meaning.`,
+    "Review them first in each locale. **Refund wording:** none of the added strings mentions refunds; the ledger type",
+    "labels shown on the dashboard (\"Auto Refund\", \"Refund\", …, `src/lib/billing/history.ts`) are not localised at all",
+    "and stay English in every locale — translating them is a separate item.",
+    "",
+    "| Key | Area | English | Why it matters |",
+    "| --- | --- | --- | --- |",
+    ...(["legal", "pricing", "billing"] as const).flatMap((area) =>
+      Object.entries(PRIORITY)
+        .filter(([, p]) => p.area === area)
+        .map(([key, p]) => `| \`${key}\` | ${area} | ${cell(en[key]!)} | ${cell(p.why)} |`),
+    ),
+    "",
     "Out of scope (open, not part of FINDING-27): other UI groups (AI Lab, toasts, measurement and atom-focus",
     "labels, studio CTA cards) exist in every locale but still show the English text in most of them.",
   ];
   for (const locale of OTHERS) {
-    lines.push("", `## ${locale} — ${name(locale)}`, "", "| Key | English | Translation |", "| --- | --- | --- |");
-    for (const key of KEYS) lines.push(`| \`${key}\` | ${cell(en[key]!)} | ${cell(ACCOUNT_UI[locale][key]!)} |`);
+    lines.push(
+      "",
+      `## ${locale} — ${name(locale)}`,
+      "",
+      "| Priority | Key | English | Translation |",
+      "| --- | --- | --- | --- |",
+    );
+    for (const key of KEYS) {
+      lines.push(`| ${priorityCell(key)} | \`${key}\` | ${cell(en[key]!)} | ${cell(ACCOUNT_UI[locale][key]!)} |`);
+    }
   }
   return lines.join("\n") + "\n";
 }
@@ -101,6 +155,11 @@ describe("account UI translations (FINDING-27)", () => {
   it.each(Object.keys(NATIVE_SCRIPT) as NonSourceLocale[])("%s strings are written in the locale's script", (locale) => {
     const latinOnly = KEYS.filter((k) => !NATIVE_SCRIPT[locale]!.test(ACCOUNT_UI[locale][k]!));
     expect(latinOnly).toEqual([]);
+  });
+
+  it("every review-first (legal / pricing / billing) key is one of the added keys", () => {
+    expect(Object.keys(PRIORITY).filter((k) => !KEYS.includes(k))).toEqual([]);
+    expect(KEYS.filter((k) => /refund/i.test(en[k]!))).toEqual([]); // the doc's "no refund wording" claim
   });
 
   it("docs/testing/I18N_REVIEW.md lists every added string per locale and is up to date", () => {
