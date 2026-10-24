@@ -80,7 +80,7 @@ Tracked contents:
 | --- | --- | --- | --- |
 | `services/auth-service` | 6,553 | 6,472 | 21 |
 | `services/billing-service` | 6,741 | 6,655 | 22 |
-| `services/ai-engine` | 26 | 0 (but 12 `__pycache__/*.pyc`) | 14 |
+| `services/ai-engine` | 26 | 0 (but 11 `__pycache__/*.pyc`) | 15 |
 
 Options: (a) delete all three; (b) keep the source and untrack `node_modules`, `dist` and `__pycache__`; (c) leave
 as is.
