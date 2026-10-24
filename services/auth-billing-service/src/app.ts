@@ -1,7 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
-import billingRoutes from "./routes/billing.routes.js";
+import billingRoutes, { internalBillingRouter } from "./routes/billing.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import { lemonSqueezyWebhook } from "./controllers/billing.controller.js";
 import { env } from "./config/env.js";
@@ -92,6 +92,7 @@ export function createApp() {
   app.use(express.json({ limit: "32kb" }));
 
   app.use("/api/auth", authRoutes);
+  app.use("/api/billing", internalBillingRouter);
   app.use("/api/billing", billingRoutes);
   app.use("/api/users", usersRoutes);
 

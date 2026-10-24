@@ -1,7 +1,34 @@
 import { GATEWAY_SERVICES, getServiceBaseUrl } from "./config";
-import { GATEWAY_ERROR_CODES, GatewayError, handleGatewayFailure } from "./errors";
+import { GATEWAY_ERROR_CODES, GatewayError, gatewayErrorJson, handleGatewayFailure } from "./errors";
 import { buildDownstreamHeaders, pickDownstreamResponseHeaders } from "./headers";
 import type { ProxyOptions } from "./types";
+
+/**
+ * Upstream routes the browser must never reach through the gateway. The AI
+ * credit metering endpoints are internal-only (the BFF calls them server-side
+ * with the internal service key); /deduct was retired. Matching is done on the
+ * normalised upstream path and is case-insensitive, because Express routing is.
+ */
+const INTERNAL_ONLY_ROUTES: Partial<Record<ProxyOptions["service"], ReadonlySet<string>>> = {
+  billing: new Set(["consume", "capture", "refund", "deduct"]),
+};
+
+/** First path segment below the service base, after URL normalisation (`..`, `.`), lower-cased. */
+function firstSegmentBelowBase(baseUrl: string, targetUrl: string): string | null {
+  const basePath = new URL(baseUrl).pathname.replace(/\/+$/, "");
+  const targetPath = new URL(targetUrl).pathname;
+  if (!targetPath.startsWith(`${basePath}/`) && targetPath !== basePath) return null;
+  const rest = targetPath.slice(basePath.length).replace(/^\/+/, "");
+  return decodeURIComponent(rest.split("/")[0] ?? "").toLowerCase();
+}
+
+function isInternalOnlyRoute(service: ProxyOptions["service"], baseUrl: string, targetUrl: string): boolean {
+  const blocked = INTERNAL_ONLY_ROUTES[service];
+  if (!blocked) return false;
+  const first = firstSegmentBelowBase(baseUrl, targetUrl);
+  // A path that escapes the service prefix is not proxied either (fail closed).
+  return first === null || blocked.has(first.replace(/[\s.]+$/, ""));
+}
 
 function buildDownstreamUrl(baseUrl: string, pathSegments: string[], request: Request): string {
   const path = pathSegments.length > 0 ? `/${pathSegments.map(encodeURIComponent).join("/")}` : "";
@@ -48,6 +75,9 @@ export async function proxyToService(options: ProxyOptions): Promise<Response> {
 
   try {
     const targetUrl = buildDownstreamUrl(baseUrl, pathSegments, request);
+    if (isInternalOnlyRoute(service, baseUrl, targetUrl)) {
+      return gatewayErrorJson(404, "Route not found.");
+    }
     const headers = buildDownstreamHeaders(request, service);
     const body = await readRequestBody(request);
 

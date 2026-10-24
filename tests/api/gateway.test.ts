@@ -91,14 +91,15 @@ describe("contract with the real Express service", () => {
     expect((await res.json()).data.transactions).toHaveLength(1);
   });
 
-  it("upstream error bodies and codes are preserved (402 INSUFFICIENT_CREDITS)", async () => {
+  it("upstream error bodies and codes are preserved (400 INVALID_PACKAGE)", async () => {
+    // Phase 1 used /consume (402); that route is internal-only now (TEST_CHANGES TC-18).
     const u = await createUser(db, { balance: 0 });
-    const res = await callGateway("billing", "consume", {
-      ...json({ operationType: "AI_CHAT_QUERY", referenceId: "x" }),
+    const res = await callGateway("billing", "checkout", {
+      ...json({ packageId: "platinum" }),
       cookie: sessionCookie(tokenFor(u)),
     });
-    expect(res.status).toBe(402);
-    expect(await res.json()).toMatchObject({ code: "INSUFFICIENT_CREDITS", requiredCredits: 1, balance: 0 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ success: false, error: "Invalid credit package.", code: "INVALID_PACKAGE" });
   });
 });
 
@@ -113,11 +114,18 @@ describe("header hygiene", () => {
       process.env.BILLING_SERVICE_URL = fake.origin;
       await callGateway("billing", "anything", {
         cookie: sessionCookie("tok123"),
-        headers: { "x-request-id": "rid-1", "x-idempotency-key": "idem-1", "x-evil": "1", "accept-language": "tr" },
+        headers: {
+          "x-request-id": "rid-1",
+          "x-idempotency-key": "idem-1",
+          "x-evil": "1",
+          "accept-language": "tr",
+          "x-internal-service-key": "attacker-supplied-value",
+        },
       });
       expect(seen.authorization).toBe("Bearer tok123");
       expect(seen.cookie).toBeUndefined();
       expect(seen["x-evil"]).toBeUndefined();
+      expect(seen["x-internal-service-key"]).toBeUndefined();
       expect(seen["x-request-id"]).toBe("rid-1");
       expect(seen["x-idempotency-key"]).toBe("idem-1");
       expect(seen["accept-language"]).toBe("tr");
@@ -236,16 +244,79 @@ describe("routing", () => {
     }
   });
 
-  it("a `..` segment escapes the service prefix (resolved by URL normalisation) — out-of-scope observation", async () => {
-    let seenUrl = "";
-    const fake = await startFakeUpstream((req, _b, res) => {
-      seenUrl = req.url ?? "";
+  it("a `..` segment that escapes the billing service prefix is refused (404) and never reaches the upstream", async () => {
+    // Phase 1 characterised the escape (upstream saw /api/users/profile); billing now fails closed
+    // because an escape could otherwise reach internal-only routes (TEST_CHANGES TC-19).
+    let hits = 0;
+    const fake = await startFakeUpstream((_req, _b, res) => {
+      hits += 1;
       res.writeHead(200).end("{}");
     });
     try {
       process.env.BILLING_SERVICE_URL = `${fake.origin}/api/billing`;
-      await proxyToService({ service: "billing", request: new Request("http://localhost:3000/x"), pathSegments: ["..", "users", "profile"] });
-      expect(seenUrl).toBe("/api/users/profile");
+      const res = await proxyToService({ service: "billing", request: new Request("http://localhost:3000/x"), pathSegments: ["..", "users", "profile"] });
+      expect(res.status).toBe(404);
+      expect(hits).toBe(0);
+    } finally {
+      await fake.close();
+    }
+  });
+});
+
+describe("internal-only billing routes are never proxied (FINDING-03 / FINDING-07)", () => {
+  async function upstreamHits(run: () => Promise<Response>) {
+    const seen: string[] = [];
+    const fake = await startFakeUpstream((req, _b, res) => {
+      seen.push(req.url ?? "");
+      res.writeHead(200, { "content-type": "application/json" }).end("{}");
+    });
+    try {
+      process.env.BILLING_SERVICE_URL = `${fake.origin}/api/billing`;
+      const res = await run();
+      return { res, seen };
+    } finally {
+      await fake.close();
+    }
+  }
+
+  it.each([
+    ["consume"],
+    ["capture"],
+    ["refund"],
+    ["deduct"],
+    ["CONSUME"],
+    ["Refund"],
+    ["consume/"],
+    ["consume?x=1"],
+    ["history/../refund"],
+    ["%2E%2E/billing/refund"],
+  ])("POST /api/billing/%s → 404 from the BFF, upstream never contacted", async (path) => {
+    const { res, seen } = await upstreamHits(() =>
+      callGateway("billing", path, { ...json({ referenceId: "r", operationType: "AI_CHAT_QUERY" }), cookie: sessionCookie("tok") }),
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ success: false, error: "Route not found." });
+    expect(seen).toEqual([]);
+  });
+
+  it("public billing routes are still proxied", async () => {
+    for (const path of ["balance", "history", "operation-costs", "checkout"]) {
+      const { res, seen } = await upstreamHits(() => callGateway("billing", path, { cookie: sessionCookie("tok") }));
+      expect(res.status).toBe(200);
+      expect(seen).toEqual([`/api/billing/${path}`]);
+    }
+  });
+
+  it("other services are unaffected by the billing block-list (auth/users paths named like it pass through)", async () => {
+    const seen: string[] = [];
+    const fake = await startFakeUpstream((req, _b, res) => {
+      seen.push(req.url ?? "");
+      res.writeHead(200).end("{}");
+    });
+    try {
+      process.env.USERS_SERVICE_URL = `${fake.origin}/api/users`;
+      expect((await callGateway("users", "refund")).status).toBe(200);
+      expect(seen).toEqual(["/api/users/refund"]);
     } finally {
       await fake.close();
     }

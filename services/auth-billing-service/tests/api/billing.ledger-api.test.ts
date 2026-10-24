@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 import { closePool } from "../../src/db/index.js";
 import { bearer } from "../support/auth";
+import { TEST_ENV } from "../setup/env";
 import { spyConsole } from "../support/console";
 import { balanceOf, createTestPool, createUser, ledgerOf, waitFor } from "../support/db";
 
@@ -27,12 +28,44 @@ async function fundedUser(balance: number, opts: { verified?: boolean } = {}) {
   return u;
 }
 
-const consume = (u: { id: string; email: string }, body: Record<string, unknown>) =>
-  request(app).post("/api/billing/consume").set("Authorization", bearer(u)).send(body);
-const refund = (u: { id: string; email: string }, body: Record<string, unknown>) =>
-  request(app).post("/api/billing/refund").set("Authorization", bearer(u)).send(body);
-const deduct = (u: { id: string; email: string }, body: Record<string, unknown>) =>
-  request(app).post("/api/billing/deduct").set("Authorization", bearer(u)).send(body);
+type U = { id: string; email: string };
+/** Internal metering calls as the BFF makes them: user JWT + internal service key. `key: null` omits it. */
+function internalPost(path: string, u: U, body: Record<string, unknown>, key: string | null = TEST_ENV.INTERNAL_SERVICE_SECRET) {
+  let req = request(app).post(path).set("Authorization", bearer(u));
+  if (key !== null) req = req.set("X-Internal-Service-Key", key);
+  return req.send(body);
+}
+const consume = (u: U, body: Record<string, unknown>) => internalPost("/api/billing/consume", u, body);
+const capture = (u: U, referenceId: string) => internalPost("/api/billing/capture", u, { referenceId });
+const refund = (u: U, body: Record<string, unknown>) => internalPost("/api/billing/refund", u, body);
+const deduct = (u: U, body: Record<string, unknown>, key: string | null = null) => internalPost("/api/billing/deduct", u, body, key);
+
+async function holdOf(u: U, referenceId: string) {
+  const { rows } = await db.query(
+    `SELECT status, amount, ledger_id::text, settle_reason FROM ai_credit_holds WHERE user_id = $1 AND reference_id = $2`,
+    [u.id, referenceId],
+  );
+  return rows[0] ?? null;
+}
+/** Hold the user's advisory lock until `n` sessions queue behind it, so the requests truly race. */
+async function race<T>(u: U, n: number, fire: () => Promise<T>[]): Promise<T[]> {
+  const locker = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await locker.connect();
+  try {
+    await locker.query(`SELECT pg_advisory_lock(hashtext($1))`, [u.id]);
+    const inflight = fire();
+    await waitFor(async () => {
+      const { rows } = await db.query(
+        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event = 'advisory'`,
+      );
+      return rows[0].n >= n;
+    });
+    await locker.query(`SELECT pg_advisory_unlock(hashtext($1))`, [u.id]);
+    return await Promise.all(inflight);
+  } finally {
+    await locker.end();
+  }
+}
 
 describe("GET /api/billing/balance", () => {
   it("requires auth", async () => {
@@ -145,13 +178,64 @@ describe("GET /api/billing/operation-costs", () => {
   });
 });
 
-describe("POST /api/billing/consume", () => {
+describe("internal-only metering endpoints (FINDING-03)", () => {
+  const routes = ["/api/billing/consume", "/api/billing/capture", "/api/billing/refund"];
+
+  it.each(routes)("%s without the internal key → 404 identical to an unknown route; nothing reserved", async (path) => {
+    const u = await fundedUser(10);
+    const res = await internalPost(path, u, { operationType: "AI_CHAT_QUERY", referenceId: "k1" }, null);
+    const unknown = await request(app).post("/api/billing/definitely-not-a-route").set("Authorization", bearer(u)).send({});
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ success: false, error: "Route not found." });
+    expect(res.body).toEqual(unknown.body);
+    expect(await holdOf(u, "k1")).toBeNull();
+  });
+
+  it.each(routes)("%s with a wrong key → 404, logged at warn level without the key", async (path) => {
+    const logs = spyConsole();
+    const u = await fundedUser(10);
+    const wrong = "wrong-key-0123456789-abcdefghijklmnopqrstuv";
+    const res = await internalPost(path, u, { operationType: "AI_CHAT_QUERY", referenceId: "k2" }, wrong);
+    expect(res.status).toBe(404);
+    const line = logs.lines().find((l) => l.includes("[internal-auth] Rejected internal-only request"));
+    expect(line).toMatch(/^warn: .*"reason":"key_mismatch"/);
+    expect(logs.lines().join("\n")).not.toContain(wrong);
+    expect(logs.lines().join("\n")).not.toContain(TEST_ENV.INTERNAL_SERVICE_SECRET);
+  });
+
+  it("the key check runs before authentication (no JWT, no key → 404, not 401)", async () => {
+    const res = await request(app).post("/api/billing/consume").send({ operationType: "AI_CHAT_QUERY", referenceId: "x" });
+    expect(res.status).toBe(404);
+  });
+
+  it("a valid key does not replace the user: the user JWT is still required (401)", async () => {
+    const res = await request(app)
+      .post("/api/billing/consume")
+      .set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET)
+      .send({ operationType: "AI_CHAT_QUERY", referenceId: "x" });
+    expect(res.status).toBe(401);
+  });
+
+  it("an unconfigured service secret rejects everything (fail closed)", async () => {
+    const saved = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = "";
+    try {
+      const u = await fundedUser(10);
+      expect((await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "x" })).status).toBe(404);
+    } finally {
+      process.env.INTERNAL_SERVICE_SECRET = saved;
+    }
+  });
+});
+
+describe("POST /api/billing/consume (reserve)", () => {
   it("requires a verified email (403 EMAIL_NOT_VERIFIED) and charges nothing", async () => {
     const u = await fundedUser(10, { verified: false });
     const res = await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "t1" });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("EMAIL_NOT_VERIFIED");
     expect(await balanceOf(db, u.id)).toBe(10);
+    expect(await holdOf(u, "t1")).toBeNull();
   });
 
   it.each([[{ operationType: "FREE_STUFF", referenceId: "t" }], [{ referenceId: "t" }], [{ operationType: "toString", referenceId: "t" }]])(
@@ -164,7 +248,7 @@ describe("POST /api/billing/consume", () => {
     },
   );
 
-  it.each([[{}], [{ referenceId: "   " }], [{ referenceId: "x".repeat(256) }]])("bad referenceId %#  → 400 INVALID_REFERENCE", async (extra) => {
+  it.each([[{}], [{ referenceId: "   " }], [{ referenceId: "x".repeat(256) }], [{ referenceId: 42 }]])("bad referenceId %#  → 400 INVALID_REFERENCE", async (extra) => {
     const u = await fundedUser(10);
     const res = await consume(u, { operationType: "AI_CHAT_QUERY", ...extra });
     expect(res.status).toBe(400);
@@ -176,12 +260,26 @@ describe("POST /api/billing/consume", () => {
     ["ATOM_GENERATE", 2],
     ["ARCH_RENDER_STD", 5],
     ["ARCH_RENDER_HD", 10],
-  ])("%s charges %i credit(s) from the server price list", async (operationType, cost) => {
+  ])("%s reserves %i credit(s) from the server price list; capture debits exactly that once", async (operationType, cost) => {
     const u = await fundedUser(20);
     const ref = randomUUID();
     const res = await consume(u, { operationType, referenceId: ref });
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ operationType, cost, balance: 20 - cost, ledgerId: expect.any(String), alreadyProcessed: false });
+    expect(res.body.data).toEqual({
+      operationType,
+      cost,
+      balance: 20 - cost,
+      status: "held",
+      expiresAt: expect.any(String),
+      ledgerId: null,
+      alreadyProcessed: false,
+    });
+    // Reserved, not yet charged.
+    expect(await balanceOf(db, u.id)).toBe(20);
+    expect((await ledgerOf(db, u.id)).filter((r) => r.transaction_type === "CREDIT_CONSUMPTION")).toEqual([]);
+
+    expect((await capture(u, ref)).status).toBe(200);
+    expect(await balanceOf(db, u.id)).toBe(20 - cost);
     expect((await ledgerOf(db, u.id)).at(-1)).toMatchObject({ amount: -cost, transaction_type: "CREDIT_CONSUMPTION", reference_id: ref });
   });
 
@@ -189,18 +287,25 @@ describe("POST /api/billing/consume", () => {
     const u = await fundedUser(20);
     const res = await consume(u, { operationType: "ARCH_RENDER_HD", referenceId: "x", cost: 0, amount: -50, metadata: { cost: 0 } });
     expect(res.body.data.cost).toBe(10);
+    await capture(u, "x");
     expect(await balanceOf(db, u.id)).toBe(10);
   });
 
-  it("replaying a reference returns alreadyProcessed and does not charge twice", async () => {
+  it.each(["held", "captured", "released"])("re-using a reference that is %s → 409 OPERATION_ALREADY_EXISTS; never reserved or charged twice", async (state) => {
     const u = await fundedUser(5);
     await consume(u, { operationType: "ATOM_GENERATE", referenceId: "same" });
-    const res = await consume(u, { operationType: "ATOM_GENERATE", referenceId: "same" });
-    expect(res.body.data).toMatchObject({ alreadyProcessed: true, balance: 3 });
-    expect(await balanceOf(db, u.id)).toBe(3);
+    if (state === "captured") await capture(u, "same");
+    if (state === "released") await refund(u, { referenceId: "same" });
+
+    const again = await consume(u, { operationType: "ATOM_GENERATE", referenceId: "same" });
+    expect(again.status).toBe(409);
+    expect(again.body).toMatchObject({ code: "OPERATION_ALREADY_EXISTS", status: state });
+    const { rows } = await db.query(`SELECT count(*)::int AS n FROM ai_credit_holds WHERE user_id = $1`, [u.id]);
+    expect(rows[0].n).toBe(1);
+    expect(await balanceOf(db, u.id)).toBe(state === "captured" ? 3 : 5);
   });
 
-  it("insufficient balance → 402 with the shape the web client keys off", async () => {
+  it("insufficient available balance → 402 with the shape the web client keys off", async () => {
     const u = await fundedUser(4);
     const res = await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "big" });
     expect(res.status).toBe(402);
@@ -213,155 +318,250 @@ describe("POST /api/billing/consume", () => {
       operationType: "ARCH_RENDER_STD",
     });
     expect(await ledgerOf(db, u.id)).toHaveLength(1);
+    expect(await holdOf(u, "big")).toBeNull();
   });
 
-  it("10 concurrent requests with the same reference charge exactly once and all succeed", async () => {
+  it("open reservations count against the available balance (no overspend while a turn is in flight)", async () => {
+    const u = await fundedUser(6);
+    expect((await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "a" })).body.data.balance).toBe(1);
+    const second = await consume(u, { operationType: "ATOM_GENERATE", referenceId: "b" });
+    expect(second.status).toBe(402);
+    expect(second.body.balance).toBe(1);
+  });
+
+  it("10 concurrent requests with the same reference: exactly one reservation, the rest 409; capture debits once", async () => {
     const u = await fundedUser(10);
-    const results = await Promise.all(Array.from({ length: 10 }, () => consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "dup" })));
-    expect(results.every((r) => r.status === 200)).toBe(true);
-    expect(results.filter((r) => r.body.data.alreadyProcessed === false)).toHaveLength(1);
+    const results = await race(u, 10, () =>
+      Array.from({ length: 10 }, () => consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "dup" }).then((r) => r)),
+    );
+    expect(results.filter((r) => r.status === 200)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 409)).toHaveLength(9);
+    await capture(u, "dup");
     expect(await balanceOf(db, u.id)).toBe(9);
   });
 
-  it("concurrent distinct operations never overdraw (402 for the losers, balance ≥ 0)", async () => {
-    const u = await fundedUser(10);
-    const results = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => consume(u, { operationType: "ARCH_RENDER_STD", referenceId: `r${i}` })),
+  it("N parallel reservations against a balance worth K operations → exactly K succeed; never overdrawn after capture", async () => {
+    const u = await fundedUser(10); // K = 2 × ARCH_RENDER_STD (5)
+    const results = await race(u, 6, () =>
+      Array.from({ length: 6 }, (_, i) => consume(u, { operationType: "ARCH_RENDER_STD", referenceId: `r${i}` }).then((r) => r)),
     );
-    expect(results.filter((r) => r.status === 200)).toHaveLength(2);
+    const ok = results.filter((r) => r.status === 200);
+    expect(ok).toHaveLength(2);
     expect(results.filter((r) => r.status === 402)).toHaveLength(4);
+    // Promise.all keeps order: result i belongs to reference r{i}.
+    for (const [i, r] of results.entries()) if (r.status === 200) expect((await capture(u, `r${i}`)).status).toBe(200);
     expect(await balanceOf(db, u.id)).toBe(0);
+    expect((await ledgerOf(db, u.id)).filter((r) => r.transaction_type === "CREDIT_CONSUMPTION")).toHaveLength(2);
   });
 });
 
-describe("POST /api/billing/refund", () => {
-  it("nothing charged for the reference → 200 refunded:false nothing_charged", async () => {
+describe("POST /api/billing/capture", () => {
+  it("charges a held reservation once and returns the balance after the debit", async () => {
+    const u = await fundedUser(10);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "c1" });
+    const res = await capture(u, "c1");
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ captured: true, amount: 5, balance: 5, ledgerId: expect.any(String), alreadyProcessed: false });
+    expect(await holdOf(u, "c1")).toMatchObject({ status: "captured", ledger_id: res.body.data.ledgerId });
+  });
+
+  it("parallel duplicate captures → exactly one debit; every call succeeds", async () => {
+    const u = await fundedUser(10);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "c2" });
+    const results = await race(u, 8, () => Array.from({ length: 8 }, () => capture(u, "c2").then((r) => r)));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(results.filter((r) => r.body.data.alreadyProcessed === false)).toHaveLength(1);
+    expect((await ledgerOf(db, u.id)).filter((r) => r.reference_id === "c2")).toHaveLength(1);
+    expect(await balanceOf(db, u.id)).toBe(5);
+  });
+
+  it("an expired reservation cannot be captured: 409 HOLD_EXPIRED, settled as expired, never written to the ledger", async () => {
+    const u = await fundedUser(10);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "late" });
+    await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'late'`, [u.id]);
+    const res = await capture(u, "late");
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("HOLD_EXPIRED");
+    expect(await holdOf(u, "late")).toMatchObject({ status: "expired", ledger_id: null });
+    expect((await ledgerOf(db, u.id)).filter((r) => r.reference_id === "late")).toEqual([]);
+    expect(await balanceOf(db, u.id)).toBe(10);
+  });
+
+  it.each(["released", "expired"])("a %s reservation → 409 NOT_CAPTURABLE, no debit", async (state) => {
+    const u = await fundedUser(10);
+    await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "nc" });
+    if (state === "released") await refund(u, { referenceId: "nc" });
+    else {
+      await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
+      await db.query(`SELECT release_expired_ai_holds()`);
+    }
+    const res = await capture(u, "nc");
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("NOT_CAPTURABLE");
+    expect(await balanceOf(db, u.id)).toBe(10);
+  });
+
+  it("unknown reference, or another user's reference → 404 HOLD_NOT_FOUND", async () => {
+    const owner = await fundedUser(10);
+    const other = await fundedUser(10);
+    await consume(owner, { operationType: "AI_CHAT_QUERY", referenceId: "mine" });
+    expect((await capture(owner, "nope")).body.code).toBe("HOLD_NOT_FOUND");
+    expect((await capture(other, "mine")).body.code).toBe("HOLD_NOT_FOUND");
+    expect(await holdOf(owner, "mine")).toMatchObject({ status: "held" });
+  });
+
+  it("debits the amount recorded at reservation time, even if the price list changed since", async () => {
+    const u = await fundedUser(10);
+    // A reservation made under an older price (3) for an operation that now costs 1.
+    await db.query(
+      `INSERT INTO ai_credit_holds (user_id, reference_id, operation_type, amount, expires_at)
+       VALUES ($1, 'old-price', 'AI_CHAT_QUERY', 3, NOW() + interval '10 minutes')`,
+      [u.id],
+    );
+    const res = await capture(u, "old-price");
+    expect(res.body.data.amount).toBe(3);
+    expect(await balanceOf(db, u.id)).toBe(7);
+  });
+
+  it("a debit that cannot be posted is recorded durably as capture_failed, never charged, and reported by ledger_reconciliation()", async () => {
+    const u = await fundedUser(5);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "cf" });
+    // Drain the balance behind the reservation's back (only possible at SQL level).
+    await db.query(`SELECT post_credit_transaction($1, -5, 'ADMIN_ADJUSTMENT', 'drain')`, [u.id]);
+
+    const res = await capture(u, "cf");
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("CAPTURE_FAILED");
+    expect(await holdOf(u, "cf")).toMatchObject({ status: "capture_failed", ledger_id: null, settle_reason: "insufficient_credits_at_capture" });
+    expect((await ledgerOf(db, u.id)).filter((r) => r.reference_id === "cf")).toEqual([]);
+
+    const { rows } = await db.query(
+      `SELECT issue, reference_id, difference::int FROM ledger_reconciliation() WHERE user_id = $1`,
+      [u.id],
+    );
+    expect(rows).toEqual([{ issue: "capture_failed", reference_id: "cf", difference: 5 }]);
+    const count = await db.query(`SELECT count(*)::int AS n FROM ai_credit_holds WHERE status = 'capture_failed' AND user_id = $1`, [u.id]);
+    expect(count.rows[0].n).toBe(1);
+  });
+});
+
+describe("POST /api/billing/refund (release)", () => {
+  it("nothing reserved for the reference → 200 refunded:false nothing_charged", async () => {
     const u = await fundedUser(3);
     const res = await refund(u, { referenceId: "never-charged" });
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ refunded: false, amount: 0, balance: 3, ledgerId: null, reason: "nothing_charged" });
   });
 
-  it("refunds exactly the charged amount once; repeat → already_refunded", async () => {
+  it("releases a held reservation once (no ledger write ever); repeat → already_refunded", async () => {
     const u = await fundedUser(10);
     await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "job" });
     const first = await refund(u, { referenceId: "job", reason: "ai_generation_error" });
     const second = await refund(u, { referenceId: "job" });
-    expect(first.body.data).toMatchObject({ refunded: true, amount: 5, balance: 10 });
+    expect(first.body.data).toEqual({ refunded: true, amount: 5, balance: 10, ledgerId: null });
     expect(second.body.data).toMatchObject({ refunded: false, amount: 5, reason: "already_refunded" });
     expect(await balanceOf(db, u.id)).toBe(10);
+    expect(await ledgerOf(db, u.id)).toHaveLength(1); // the signup bonus only
+    expect(await holdOf(u, "job")).toMatchObject({ status: "released", settle_reason: "ai_generation_error" });
   });
 
-  it("refunds the amount actually charged, not the current price", async () => {
-    const u = await fundedUser(10);
-    // Simulate a historical charge at an older price.
-    await db.query(`SELECT post_credit_transaction($1, -3, 'CREDIT_CONSUMPTION', 'old-price')`, [u.id]);
-    const res = await refund(u, { referenceId: "old-price" });
-    expect(res.body.data).toMatchObject({ refunded: true, amount: 3 });
-  });
-
-  it("cannot refund another user's reference (isolation)", async () => {
+  it("cannot release another user's reservation (isolation)", async () => {
     const victim = await fundedUser(10);
     const attacker = await fundedUser(0);
     await consume(victim, { operationType: "AI_CHAT_QUERY", referenceId: "victim-turn" });
     const res = await refund(attacker, { referenceId: "victim-turn" });
     expect(res.body.data.reason).toBe("nothing_charged");
-    expect(await balanceOf(db, attacker.id)).toBe(0);
+    expect(await holdOf(victim, "victim-turn")).toMatchObject({ status: "held" });
   });
 
-  it("concurrent refunds of the same reference credit back once", async () => {
+  it("concurrent releases of the same reservation release it once", async () => {
     const u = await fundedUser(10);
     await consume(u, { operationType: "ARCH_RENDER_HD", referenceId: "hd" });
-    await Promise.all(Array.from({ length: 8 }, () => refund(u, { referenceId: "hd" })));
+    const results = await race(u, 8, () => Array.from({ length: 8 }, () => refund(u, { referenceId: "hd" }).then((r) => r)));
+    expect(results.filter((r) => r.body.data.refunded === true)).toHaveLength(1);
     expect(await balanceOf(db, u.id)).toBe(10);
   });
 
-  // FINDING-03 (Critical): /refund is reachable with an end-user token (and through the BFF at
-  // /api/billing/refund). /history discloses every charge's reference_id, so a user can refund
-  // every SUCCESSFUL AI operation and use the AI for free. See tests/api/chat.route.test.ts (root)
-  // for the end-to-end exploit through /api/chat.
-  it.fails("an end-user token cannot refund its own successful operation (FINDING-03)", async () => {
+  it("a captured (successful) operation is never refundable, even with the internal key (FINDING-03)", async () => {
     const u = await fundedUser(1);
-    await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: randomUUID() });
+    await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "done" });
+    await capture(u, "done");
+    const res = await refund(u, { referenceId: "done" });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ refunded: false, amount: 1, reason: "not_refundable" });
+    expect(await balanceOf(db, u.id)).toBe(0);
+  });
+
+  // FINDING-03 (Critical) — fixed. Old expectation 403; the agreed design answers 404 for a missing
+  // internal key (TEST_CHANGES TC-14).
+  it("an end-user token cannot refund its own successful operation (FINDING-03)", async () => {
+    const u = await fundedUser(1);
+    const ref = randomUUID();
+    await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: ref });
+    await capture(u, ref);
     const history = await request(app).get("/api/billing/history").set("Authorization", bearer(u));
     const charged = history.body.data.transactions.find((t: { transaction_type: string }) => t.transaction_type === "CREDIT_CONSUMPTION");
 
-    const res = await refund(u, { referenceId: charged.reference_id });
-    expect(res.status).toBe(403);
+    const res = await internalPost("/api/billing/refund", u, { referenceId: charged.reference_id }, null);
+    expect(res.status).toBe(404);
     expect(await balanceOf(db, u.id)).toBe(0);
   });
 });
 
-describe("POST /api/billing/deduct (legacy)", () => {
+describe("reservation expiry", () => {
+  it("expired reservations no longer count against the available balance", async () => {
+    const u = await fundedUser(5);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "stale" });
+    expect((await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "blocked" })).status).toBe(402);
+    await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'stale'`, [u.id]);
+    expect((await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "fresh" })).status).toBe(200);
+  });
+
+  it("release_expired_ai_holds() settles them as expired (never charged) and they are reported as hold_expired_unsettled", async () => {
+    const u = await fundedUser(5);
+    await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "abandoned" });
+    await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
+    await db.query(`SELECT release_expired_ai_holds()`);
+    expect(await holdOf(u, "abandoned")).toMatchObject({ status: "expired", ledger_id: null, settle_reason: "expired_unsettled" });
+    expect(await balanceOf(db, u.id)).toBe(5);
+    const { rows } = await db.query(`SELECT issue FROM ledger_reconciliation() WHERE user_id = $1`, [u.id]);
+    expect(rows).toEqual([{ issue: "hold_expired_unsettled" }]);
+  });
+
+  it("the service-side sweeper wrapper returns the number settled", async () => {
+    const { releaseExpiredHolds } = await import("../../src/services/aiCredits.service.js");
+    const u = await fundedUser(5);
+    await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "sweep-me" });
+    await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
+    expect(await releaseExpiredHolds()).toBeGreaterThanOrEqual(1);
+    expect(await holdOf(u, "sweep-me")).toMatchObject({ status: "expired" });
+  });
+});
+
+describe("POST /api/billing/deduct (retired — FINDING-07)", () => {
   it.each([
-    [{ amount: 0, type: "AI_GENERATION_DEDUCTION", referenceId: "r" }, "INVALID_AMOUNT"],
-    [{ amount: -5, type: "AI_GENERATION_DEDUCTION", referenceId: "r" }, "INVALID_AMOUNT"],
-    [{ amount: 1.5, type: "AI_GENERATION_DEDUCTION", referenceId: "r" }, "INVALID_AMOUNT"],
-    [{ amount: "abc", type: "AI_GENERATION_DEDUCTION", referenceId: "r" }, "INVALID_AMOUNT"],
-    [{ amount: 1, type: "CREDIT_PURCHASE", referenceId: "r" }, "INVALID_TRANSACTION_TYPE"],
-    [{ amount: 1, type: "SIGNUP_BONUS", referenceId: "r" }, "INVALID_TRANSACTION_TYPE"],
-    [{ amount: 1, type: "AI_GENERATION_DEDUCTION" }, "INVALID_REFERENCE"],
-  ])("rejects %j → 400 %s", async (body, code) => {
+    [{ amount: 1, type: "AI_GENERATION_DEDUCTION", referenceId: "r" }],
+    [{ amount: 1, type: "ADMIN_ADJUSTMENT", referenceId: "self-admin" }],
+    [{ amount: 1, type: "REFUND", referenceId: "r" }],
+    [{ amount: 0, type: "AI_GENERATION_DEDUCTION", referenceId: "r" }],
+  ])("%j → 404 with or without the internal key; the ledger is untouched", async (body) => {
     const u = await fundedUser(10);
-    const res = await deduct(u, body);
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe(code);
+    expect((await deduct(u, body)).status).toBe(404);
+    expect((await deduct(u, body, TEST_ENV.INTERNAL_SERVICE_SECRET)).status).toBe(404);
+    expect(await ledgerOf(db, u.id)).toHaveLength(1);
     expect(await balanceOf(db, u.id)).toBe(10);
   });
 
-  it("deducts once per reference (sequential replay is idempotent)", async () => {
-    const u = await fundedUser(10);
-    const a = await deduct(u, { amount: 2, type: "AI_GENERATION_DEDUCTION", referenceId: "leg" });
-    const b = await deduct(u, { amount: 2, type: "AI_GENERATION_DEDUCTION", referenceId: "leg" });
-    expect(a.body.data).toMatchObject({ newBalance: 8, alreadyProcessed: false });
-    expect(b.body.data).toMatchObject({ newBalance: 8, alreadyProcessed: true });
-  });
-
-  it("insufficient → 402 INSUFFICIENT_CREDITS", async () => {
-    const u = await fundedUser(1);
-    const res = await deduct(u, { amount: 2, type: "AI_GENERATION_DEDUCTION", referenceId: "x" });
-    expect(res.status).toBe(402);
-    expect(res.body.code).toBe("INSUFFICIENT_CREDITS");
-  });
-
-  it("lets an end user write ADMIN_ADJUSTMENT / REFUND-typed rows into their own ledger (audit noise, FINDING-07)", async () => {
+  it("an end user can no longer write ADMIN_ADJUSTMENT / REFUND-typed rows into their own ledger (FINDING-07)", async () => {
     const u = await fundedUser(5);
     await deduct(u, { amount: 1, type: "ADMIN_ADJUSTMENT", referenceId: "self-admin" });
-    expect((await ledgerOf(db, u.id)).at(-1)).toMatchObject({ transaction_type: "ADMIN_ADJUSTMENT", amount: -1 });
+    expect((await ledgerOf(db, u.id)).map((r) => r.transaction_type)).toEqual(["SIGNUP_BONUS"]);
   });
 
-  // FINDING-07 (Medium): idempotency is check-then-insert with no unique index for these types,
-  // so concurrent requests with the same referenceId all pass the check and all deduct.
-  it.fails("concurrent requests with the same referenceId deduct once (FINDING-07)", async () => {
+  it("concurrent requests with the same referenceId deduct at most once — now: never (FINDING-07)", async () => {
     const u = await fundedUser(10);
-    const charged = await raceDeduct(u, 5);
-    expect(charged).toBe(1);
+    const results = await Promise.all(Array.from({ length: 5 }, () => deduct(u, { amount: 1, type: "AI_GENERATION_DEDUCTION", referenceId: "race" })));
+    expect(results.every((r) => r.status === 404)).toBe(true);
+    expect((await ledgerOf(db, u.id)).filter((r) => r.reference_id === "race")).toHaveLength(0);
   });
-
-  it("characterises the race: N concurrent same-reference requests deduct N times", async () => {
-    const u = await fundedUser(10);
-    expect(await raceDeduct(u, 4)).toBe(4);
-  });
-
-  /** Hold the user's advisory lock until all N requests are queued inside post_credit_transaction. */
-  async function raceDeduct(u: { id: string; email: string }, n: number) {
-    const locker = new pg.Client({ connectionString: process.env.DATABASE_URL });
-    await locker.connect();
-    try {
-      await locker.query(`SELECT pg_advisory_lock(hashtext($1))`, [u.id]);
-      const inflight = Array.from({ length: n }, () => deduct(u, { amount: 1, type: "AI_GENERATION_DEDUCTION", referenceId: "race" }).then((r) => r));
-      await waitFor(async () => {
-        const { rows } = await db.query(
-          `SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event = 'advisory'`,
-        );
-        return rows[0].n >= n;
-      });
-      await locker.query(`SELECT pg_advisory_unlock(hashtext($1))`, [u.id]);
-      await Promise.all(inflight);
-    } finally {
-      await locker.end();
-    }
-    const rows = await ledgerOf(db, u.id);
-    return rows.filter((r) => r.reference_id === "race").length;
-  }
 });

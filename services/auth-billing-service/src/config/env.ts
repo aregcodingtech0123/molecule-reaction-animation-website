@@ -53,6 +53,25 @@ export const env = {
     return readEnv("LEMONSQUEEZY_VARIANT_ENTERPRISE");
   },
 
+  // ── Internal service-to-service credential (BFF → this service) ───────────
+  /** Shared secret the Next.js BFF sends as X-Internal-Service-Key on metering calls. */
+  get internalServiceSecret() {
+    return readEnv("INTERNAL_SERVICE_SECRET");
+  },
+
+  // ── AI credit reservations ────────────────────────────────────────────────
+  /** How long a reservation may stay 'held' before it expires (never charged). */
+  get aiHoldTtlSeconds() {
+    const v = Number(readEnv("AI_HOLD_TTL_SECONDS"));
+    return Number.isInteger(v) && v > 0 ? v : 600;
+  },
+  /** How often the service settles expired reservations. 0 disables the timer. */
+  get aiHoldSweepIntervalMs() {
+    const raw = readEnv("AI_HOLD_SWEEP_INTERVAL_MS");
+    const v = Number(raw);
+    return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 300_000;
+  },
+
   // ── Email (Resend) ────────────────────────────────────────────────────────
   get resendApiKey() {
     return readEnv("RESEND_API_KEY");

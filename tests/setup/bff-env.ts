@@ -15,4 +15,8 @@ for (const key of [
   delete process.env[key];
 }
 process.env.GEMINI_API_KEY = "test-gemini-key-not-real";
+// INTERNAL_SERVICE_SECRET comes from the service env setup (same value on both sides).
+// Short, fixed backoff keeps capture/release retry tests fast and deterministic.
+process.env.BILLING_RETRY_DELAYS_MS = "5,5,5";
+delete process.env.GEMINI_TIMEOUT_MS;
 process.env.FRONTEND_URL = "http://localhost:3000";

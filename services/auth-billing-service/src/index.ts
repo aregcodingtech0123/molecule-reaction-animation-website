@@ -3,15 +3,33 @@ import { assertEnv, env } from "./config/env.js";
 import { createApp } from "./app.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
 import { weakSecretReason } from "./config/secretStrength.js";
+import { releaseExpiredHolds } from "./services/aiCredits.service.js";
 
 const PORT = env.port;
 
 function enforceProductionSecurityGuards(): void {
-  const reason = weakSecretReason("JWT_SECRET", process.env.JWT_SECRET);
-  if (reason) {
-    console.error(`FATAL: ${reason} Exiting.`);
-    process.exit(1);
+  for (const name of ["JWT_SECRET", "INTERNAL_SERVICE_SECRET"] as const) {
+    const reason = weakSecretReason(name, process.env[name]);
+    if (reason) {
+      console.error(`FATAL: ${reason} Exiting.`);
+      process.exit(1);
+    }
   }
+}
+
+/** Periodically settle AI reservations that were never captured or released (never charged). */
+function startExpiredHoldSweeper(): void {
+  const intervalMs = env.aiHoldSweepIntervalMs;
+  if (intervalMs <= 0) return;
+  const timer = setInterval(() => {
+    if (!isDatabaseReady()) return;
+    void releaseExpiredHolds()
+      .then((n) => {
+        if (n > 0) console.warn(`[credits] Settled ${n} expired AI reservation(s) as not charged (see db:reconcile).`);
+      })
+      .catch((err) => console.error("[credits] Expired-hold sweep failed:", err instanceof Error ? err.message : err));
+  }, intervalMs);
+  timer.unref();
 }
 
 function resolveListenHost(): string {
@@ -72,6 +90,7 @@ async function bootstrap(): Promise<void> {
       console.log(
         "[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/lemonsqueezy",
       );
+      startExpiredHoldSweeper();
       resolve();
     });
 

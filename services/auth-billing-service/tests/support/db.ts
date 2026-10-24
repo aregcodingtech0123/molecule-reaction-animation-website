@@ -49,8 +49,10 @@ export async function ledgerOf(db: pg.Pool, userId: string) {
     reference_id: string | null;
     provider: string | null;
   }>(
+    // Order by the bigint column: a bare "id" would sort the ::text alias ("100" < "99").
     `SELECT id::text, amount, transaction_type::text, reference_id, provider
-     FROM credit_ledger_transactions WHERE user_id = $1 ORDER BY id`,
+     FROM credit_ledger_transactions WHERE user_id = $1
+     ORDER BY credit_ledger_transactions.id`,
     [userId],
   );
   return rows;

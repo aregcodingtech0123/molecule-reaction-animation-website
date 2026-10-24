@@ -53,6 +53,7 @@ describe("migrations 001→007 on an empty database", () => {
       "006_ai_credit_metering.sql",
       "007_ai_credit_metering_idempotency.sql",
       "008_ledger_hardening.sql",
+      "009_ai_credit_holds.sql",
     ]);
   });
 
@@ -65,6 +66,7 @@ describe("migrations 001→007 on an empty database", () => {
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
+      "ai_credit_holds",
       "credit_ledger_transactions",
       "oauth_accounts",
       "password_reset_tokens",

@@ -1,7 +1,12 @@
 /**
- * Credit price list, mirrored from the billing service for display and for
- * sizing refunds in logs. The server re-derives the real cost from its own
- * table on every charge, so a drift here can never overcharge a user.
+ * Server-side (BFF) client for the billing service's internal metering API.
+ * Never imported by client components; the internal key never leaves the server.
+ *
+ * Flow for one AI operation (see src/app/api/chat/route.ts):
+ *   reserve (/consume) → run the operation → capture (/capture) on success
+ *                                            release (/refund)  on failure
+ * Capture and release are retried with backoff. If every attempt fails, the
+ * reservation simply expires on the billing side and is never charged.
  */
 export {
   AI_OPERATION_COSTS,
@@ -10,174 +15,182 @@ export {
 
 import type { AiOperationType } from "@/lib/billing/ai-operation-costs";
 
+export const INTERNAL_SERVICE_HEADER = "X-Internal-Service-Key";
+const DEFAULT_RETRY_DELAYS_MS = [250, 1000, 3000];
+
 function billingServiceBaseUrl(): string | null {
   const raw = process.env.BILLING_SERVICE_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/+$/, "");
 }
 
-export async function fetchUserBalance(userId: string, bearerToken: string): Promise<number | null> {
+function retryDelays(): number[] {
+  const raw = process.env.BILLING_RETRY_DELAYS_MS?.trim();
+  if (!raw) return DEFAULT_RETRY_DELAYS_MS;
+  const parsed = raw.split(",").map((v) => Number(v.trim()));
+  return parsed.every((n) => Number.isFinite(n) && n >= 0) ? parsed : DEFAULT_RETRY_DELAYS_MS;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type InternalCall =
+  | { ok: true; status: number; body: Record<string, unknown> }
+  | { ok: false; status: number; body: Record<string, unknown>; unreachable?: boolean };
+
+/**
+ * One call to an internal metering endpoint. Network failures are returned as
+ * `{ ok:false, status:503, unreachable:true }` instead of throwing (FINDING-25).
+ */
+async function callInternal(path: string, bearerToken: string, payload: unknown): Promise<InternalCall> {
+  const base = billingServiceBaseUrl();
+  const secret = process.env.INTERNAL_SERVICE_SECRET?.trim();
+  if (!base || !secret) {
+    console.error("[billing] BILLING_NOT_CONFIGURED: BILLING_SERVICE_URL or INTERNAL_SERVICE_SECRET missing", { path });
+    return { ok: false, status: 503, body: {} };
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        "Content-Type": "application/json",
+        [INTERNAL_SERVICE_HEADER]: secret,
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[billing] Billing service unreachable", { path, error: err instanceof Error ? err.message : String(err) });
+    return { ok: false, status: 503, body: {}, unreachable: true };
+  }
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.status === 404) {
+    // The billing service answers 404 to a wrong/missing internal key on purpose.
+    console.error(
+      "[billing] INTERNAL_AUTH_REJECTED: billing service returned 404 for an internal metering route — " +
+        "most likely INTERNAL_SERVICE_SECRET differs between the Next.js app and auth-billing-service.",
+      { path },
+    );
+  }
+  return res.ok ? { ok: true, status: res.status, body } : { ok: false, status: res.status, body };
+}
+
+const isRetryable = (r: InternalCall) => !r.ok && (r.status >= 500 || r.status === 429);
+
+async function callWithRetry(path: string, bearerToken: string, payload: unknown): Promise<{ result: InternalCall; attempts: number }> {
+  const delays = retryDelays();
+  let result = await callInternal(path, bearerToken, payload);
+  let attempts = 1;
+  for (const delay of delays) {
+    if (!isRetryable(result)) break;
+    await sleep(delay);
+    result = await callInternal(path, bearerToken, payload);
+    attempts += 1;
+  }
+  return { result, attempts };
+}
+
+export async function fetchUserBalance(_userId: string, bearerToken: string): Promise<number | null> {
   const base = billingServiceBaseUrl();
   if (!base) return null;
-
-  const res = await fetch(`${base}/balance`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${bearerToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) return null;
-
-  const data = (await res.json()) as { success?: boolean; data?: { balance?: number } };
-  return typeof data.data?.balance === "number" ? data.data.balance : null;
+  try {
+    const res = await fetch(`${base}/balance`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${bearerToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { data?: { balance?: number } };
+    return typeof data.data?.balance === "number" ? data.data.balance : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface ConsumeCreditsResult {
   ok: boolean;
+  /** HTTP-like status: 402 insufficient, 403 unverified, 409 reference already used, 503 unavailable. */
   status: number;
-  /** Balance after the charge. */
+  /** Credits still available after the reservation. */
   balance?: number;
   cost?: number;
   /** Present on a 402 — how many credits the operation needed. */
   requiredCredits?: number;
-  /** True when this referenceId had already been charged. */
-  alreadyProcessed?: boolean;
 }
 
 /**
- * Charge the caller for one metered AI operation.
- *
- * The cost is NOT sent — the billing service looks it up from its own price
- * list, keyed by `operationType`.
+ * Reserve the price of one AI operation (nothing is debited yet). The cost is
+ * looked up by the billing service from `operationType` — never sent.
+ * `referenceId` must be generated server-side, once per operation.
  */
 export async function consumeCreditsForOperation(params: {
   bearerToken: string;
   operationType: AiOperationType;
   referenceId: string;
-  metadata?: Record<string, unknown>;
 }): Promise<ConsumeCreditsResult> {
-  const base = billingServiceBaseUrl();
-  if (!base) return { ok: false, status: 503 };
-
-  const res = await fetch(`${base}/consume`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${params.bearerToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      operationType: params.operationType,
-      referenceId: params.referenceId,
-      metadata: params.metadata ?? {},
-    }),
-    cache: "no-store",
+  const r = await callInternal("/consume", params.bearerToken, {
+    operationType: params.operationType,
+    referenceId: params.referenceId,
   });
-
-  const payload = (await res.json().catch(() => ({}))) as {
-    data?: { balance?: number; cost?: number; alreadyProcessed?: boolean };
-    requiredCredits?: number;
-  };
-
-  if (!res.ok) {
+  if (!r.ok) {
     return {
       ok: false,
-      status: res.status,
-      requiredCredits: payload.requiredCredits,
+      status: r.status,
+      requiredCredits: typeof r.body.requiredCredits === "number" ? r.body.requiredCredits : undefined,
     };
   }
-
-  return {
-    ok: true,
-    status: res.status,
-    balance: payload.data?.balance,
-    cost: payload.data?.cost,
-    alreadyProcessed: payload.data?.alreadyProcessed,
-  };
+  const data = (r.body.data ?? {}) as { balance?: number; cost?: number };
+  return { ok: true, status: r.status, balance: data.balance, cost: data.cost };
 }
 
 /**
- * Hand credits back for an operation that failed after being charged.
- *
- * Best-effort and safe to call from a catch block: the billing service treats
- * "nothing was charged" and "already refunded" as normal 200 outcomes, and a
- * transport failure here is swallowed so it can never mask the original error.
+ * Charge a reserved operation after it succeeded. Retries on 5xx/network errors.
+ * A failure is logged as CAPTURE_FAILED (searchable); the reservation then
+ * expires uncharged and appears in `npm run db:reconcile`.
+ */
+export async function captureOperationCredits(params: {
+  bearerToken: string;
+  referenceId: string;
+}): Promise<{ captured: boolean; balance?: number; status: number }> {
+  const { result, attempts } = await callWithRetry("/capture", params.bearerToken, { referenceId: params.referenceId });
+  if (result.ok) {
+    const data = (result.body.data ?? {}) as { balance?: number };
+    return { captured: true, balance: data.balance, status: result.status };
+  }
+  console.error("[billing] CAPTURE_FAILED", {
+    referenceId: params.referenceId,
+    status: result.status,
+    code: result.body.code ?? null,
+    attempts,
+  });
+  return { captured: false, status: result.status };
+}
+
+/**
+ * Release a reserved operation after it failed. Retries on 5xx/network errors.
+ * If every attempt fails the reservation expires on the billing side and is
+ * never charged (FINDING-22); logged as RELEASE_FAILED.
  */
 export async function refundOperationCredits(params: {
   bearerToken: string;
   referenceId: string;
   reason: string;
 }): Promise<{ refunded: boolean; balance?: number }> {
-  const base = billingServiceBaseUrl();
-  if (!base) return { refunded: false };
-
-  try {
-    const res = await fetch(`${base}/refund`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${params.bearerToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ referenceId: params.referenceId, reason: params.reason }),
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      console.error("[billing] Refund request failed", {
-        referenceId: params.referenceId,
-        status: res.status,
-      });
-      return { refunded: false };
-    }
-
-    const payload = (await res.json().catch(() => ({}))) as {
-      data?: { refunded?: boolean; balance?: number };
-    };
-    return {
-      refunded: Boolean(payload.data?.refunded),
-      balance: payload.data?.balance,
-    };
-  } catch (err) {
-    console.error("[billing] Refund request threw", {
+  const { result, attempts } = await callWithRetry("/refund", params.bearerToken, {
+    referenceId: params.referenceId,
+    reason: params.reason,
+  });
+  if (!result.ok) {
+    console.error("[billing] RELEASE_FAILED (reservation will expire uncharged)", {
       referenceId: params.referenceId,
-      err,
+      status: result.status,
+      attempts,
     });
     return { refunded: false };
   }
-}
-
-export async function deductUserCredits(params: {
-  bearerToken: string;
-  amount: number;
-  type: string;
-  referenceId: string;
-}): Promise<{ ok: boolean; newBalance?: number; status: number }> {
-  const base = billingServiceBaseUrl();
-  if (!base) {
-    return { ok: false, status: 503 };
-  }
-
-  const res = await fetch(`${base}/deduct`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${params.bearerToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amount: params.amount,
-      type: params.type,
-      referenceId: params.referenceId,
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    return { ok: false, status: res.status };
-  }
-
-  const data = (await res.json()) as { data?: { newBalance?: number } };
-  return {
-    ok: true,
-    status: res.status,
-    newBalance: data.data?.newBalance,
-  };
+  const data = (result.body.data ?? {}) as { refunded?: boolean; balance?: number };
+  return { refunded: Boolean(data.refunded), balance: data.balance };
 }

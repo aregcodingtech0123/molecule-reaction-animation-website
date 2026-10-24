@@ -11,12 +11,24 @@ import { fetchEmailVerificationStatus } from "@/lib/auth/verification";
 import { isJwtConfigured, verifyJwtToken } from "@/lib/auth/verify-jwt";
 import {
   AI_OPERATION_COSTS,
+  captureOperationCredits,
   consumeCreditsForOperation,
   refundOperationCredits,
 } from "@/lib/billing/server-billing";
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 
 const MAX_MESSAGES = 24;
+const DEFAULT_GEMINI_TIMEOUT_MS = 30_000;
+
+function geminiTimeoutMs(): number {
+  const v = Number(process.env.GEMINI_TIMEOUT_MS);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_GEMINI_TIMEOUT_MS;
+}
+
+function isAbortError(err: unknown): boolean {
+  const name = err && typeof err === "object" && "name" in err ? String((err as { name: unknown }).name) : "";
+  return name === "TimeoutError" || name === "AbortError";
+}
 const MAX_CONTENT_LENGTH = 8_000;
 
 /** In-memory fallback when Upstash is not configured — single-instance only. */
@@ -122,20 +134,31 @@ export async function POST(request: Request) {
     return Response.json({ error: "The last message must be from the user." }, { status: 400 });
   }
 
+  // Server-generated, single-use reference for this turn's reservation. The
+  // client never sees or chooses it.
   const chatTurnId = randomUUID();
 
-  /** Give the credits back for a failure that is ours, not the user's. */
+  /** Release the reservation for a failure that is ours, not the user's (never charged). */
   const refund = (reason: string) =>
     refundOperationCredits({ bearerToken: bearer, referenceId: chatTurnId, reason });
+  /** Charge the reservation: the model produced a response. */
+  const capture = () => captureOperationCredits({ bearerToken: bearer, referenceId: chatTurnId });
 
   const charge = await consumeCreditsForOperation({
     bearerToken: bearer,
     operationType: "AI_CHAT_QUERY",
     referenceId: chatTurnId,
-    metadata: { messageCount: messages.length },
   });
 
   if (!charge.ok) {
+    if (charge.status === 409) {
+      // The reference is already reserved/charged: never run the model twice for it.
+      console.error("[api/chat] Duplicate operation reference — not calling the model", {
+        userId: session.sub,
+        referenceId: chatTurnId,
+      });
+      return Response.json({ error: "DUPLICATE_OPERATION" }, { status: 409 });
+    }
     if (charge.status === 403) {
       return Response.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
@@ -174,46 +197,30 @@ export async function POST(request: Request) {
 
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
 
+  let response;
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
+    response = await ai.models.generateContent({
       model,
       contents,
       config: {
         systemInstruction: LAB_ASSISTANT_SYSTEM_INSTRUCTION,
         temperature: 0.7,
+        // FINDING-21: a hung model call must not hold a reserved turn open forever.
+        abortSignal: AbortSignal.timeout(geminiTimeoutMs()),
       },
     });
-
-    const text = response.text?.trim();
-    if (!text) {
-      console.error("[api/chat] Gemini returned empty response after charge", {
-        userId: session.sub,
-        referenceId: chatTurnId,
-      });
-      await refund("empty_ai_response");
-      return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
-    }
-
-    const validation = validateAiOutput(text);
-    if (!validation.safe) {
-      // Deliberately NOT refunded. The model ran and we paid for it; the
-      // response was withheld because of what the exchange contained, which is
-      // not a server fault. Refunding here would also make probing the content
-      // filter free.
-      console.warn("[api/chat] Output policy violation:", validation.reason, {
-        userId: session.sub,
-        referenceId: chatTurnId,
-      });
-      return Response.json(
-        { error: "Response blocked by content policy." },
-        { status: 422 },
-      );
-    }
-
-    return Response.json({ message: text, balance: charge.balance ?? null });
   } catch (err) {
-    console.error("[api/chat] Gemini failed after credit charge — refunding", {
+    if (isAbortError(err)) {
+      console.error("[api/chat] Gemini timed out — releasing the reservation", {
+        userId: session.sub,
+        referenceId: chatTurnId,
+        timeoutMs: geminiTimeoutMs(),
+      });
+      await refund("gemini_timeout");
+      return Response.json({ error: "AI_TIMEOUT" }, { status: 504 });
+    }
+    console.error("[api/chat] Gemini failed — releasing the reservation", {
       userId: session.sub,
       referenceId: chatTurnId,
       err,
@@ -221,4 +228,36 @@ export async function POST(request: Request) {
     await refund("ai_generation_error");
     return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
   }
+
+  const text = response.text?.trim();
+  if (!text) {
+    console.error("[api/chat] Gemini returned an empty response — releasing the reservation", {
+      userId: session.sub,
+      referenceId: chatTurnId,
+    });
+    await refund("empty_ai_response");
+    return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
+  }
+
+  const validation = validateAiOutput(text);
+  if (!validation.safe) {
+    // Deliberately charged (captured), as before. The model ran and we paid
+    // for it; the response was withheld because of what the exchange
+    // contained, which is not a server fault. Releasing here would also make
+    // probing the content filter free.
+    console.warn("[api/chat] Output policy violation:", validation.reason, {
+      userId: session.sub,
+      referenceId: chatTurnId,
+    });
+    await capture();
+    return Response.json(
+      { error: "Response blocked by content policy." },
+      { status: 422 },
+    );
+  }
+
+  // The answer is delivered either way; if capture fails after its retries the
+  // turn goes uncharged and is reported by db:reconcile (CAPTURE_FAILED log).
+  const captured = await capture();
+  return Response.json({ message: text, balance: captured.captured ? (captured.balance ?? null) : null });
 }

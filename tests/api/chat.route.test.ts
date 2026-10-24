@@ -5,11 +5,17 @@
 import type pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { craftToken, tokenFor } from "../../services/auth-billing-service/tests/support/auth";
-import { balanceOf, createTestPool, createUser, ledgerOf } from "../../services/auth-billing-service/tests/support/db";
+import { balanceOf, createTestPool, createUser, ledgerOf, waitFor } from "../../services/auth-billing-service/tests/support/db";
 import { callGateway, sessionCookie } from "../support/bff";
 import { startAuthBillingService, startFakeUpstream, type RunningService } from "../support/express-server";
 
 const gemini = vi.hoisted(() => ({ generateContent: vi.fn(), ctor: vi.fn() }));
+/** Armed only by the duplicate-reference test; otherwise randomUUID is the real one. */
+const uuidOverride = vi.hoisted(() => ({ queue: [] as string[] }));
+vi.mock("node:crypto", async (orig) => {
+  const real = await orig<typeof import("node:crypto")>();
+  return { ...real, default: real, randomUUID: () => uuidOverride.queue.shift() ?? real.randomUUID() };
+});
 vi.mock("@google/genai", () => ({
   GoogleGenAI: vi.fn(function (this: unknown, opts: unknown) {
     gemini.ctor(opts);
@@ -46,6 +52,42 @@ async function funded(balance: number, verified = true) {
   const u = await createUser(db, { balance: 0, verified });
   if (balance > 0) await db.query(`SELECT post_credit_transaction($1, $2, 'SIGNUP_BONUS', 'signup')`, [u.id, balance]);
   return u;
+}
+
+async function holdsOf(userId: string) {
+  const { rows } = await db.query(
+    `SELECT reference_id, status, ledger_id::text, settle_reason FROM ai_credit_holds WHERE user_id = $1 ORDER BY created_at`,
+    [userId],
+  );
+  return rows;
+}
+
+const errorLines = () =>
+  vi.mocked(console.error).mock.calls.map((args) => args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" "));
+
+/**
+ * A billing stand-in in front of the real service: forwards everything (including the internal key,
+ * as the BFF sends it) unless `fail(path)` returns a status to answer with instead. Records hits.
+ */
+async function flakyBilling(fail: (path: string) => number | null) {
+  const hits: string[] = [];
+  const upstream = await startFakeUpstream(async (req, body, res) => {
+    const path = req.url ?? "";
+    hits.push(path);
+    const status = fail(path);
+    if (status !== null) return res.writeHead(status, { "content-type": "application/json" }).end("{}");
+    const forwarded = await fetch(`${service.origin}/api/billing${path}`, {
+      method: req.method,
+      headers: {
+        authorization: String(req.headers.authorization),
+        "content-type": "application/json",
+        "x-internal-service-key": String(req.headers["x-internal-service-key"] ?? ""),
+      },
+      body: req.method === "GET" ? undefined : body,
+    });
+    res.writeHead(forwarded.status, { "content-type": "application/json" }).end(await forwarded.text());
+  });
+  return Object.assign(upstream, { hits });
 }
 
 function chat(token: string | null, body: unknown = { messages: [{ role: "user", content: "What is water?" }] }, via: "cookie" | "bearer" = "cookie") {
@@ -127,7 +169,7 @@ describe("gating (nothing is charged and Gemini is never called)", () => {
 
   // FINDING-25 (Low): consumeCreditsForOperation's fetch rejection is not caught, so the route
   // throws (generic Next 500) instead of reaching its own 503 BILLING_UNAVAILABLE branch.
-  it.fails("billing unreachable → 503 BILLING_UNAVAILABLE (FINDING-25)", async () => {
+  it("billing unreachable → 503 BILLING_UNAVAILABLE (FINDING-25)", async () => {
     const u = await funded(5);
     process.env.BILLING_SERVICE_URL = "http://127.0.0.1:1/api/billing";
     const res = await chat(tokenFor(u));
@@ -193,37 +235,43 @@ describe("successful turn", () => {
   });
 });
 
-describe("failure after charge → refund (atomicity of charge + work)", () => {
-  async function assertRefunded(userId: string, start: number) {
+describe("failure after reservation → never charged (atomicity of charge + work)", () => {
+  /**
+   * Not charged: balance unchanged, no consumption (or refund) ledger rows at all,
+   * and exactly one reservation for the turn, settled without a ledger row.
+   */
+  async function assertNotCharged(userId: string, start: number, holdStatus: string | string[] = "released") {
     expect(await balanceOf(db, userId)).toBe(start);
     const rows = await ledgerOf(db, userId);
-    const charge = rows.find((r) => r.transaction_type === "CREDIT_CONSUMPTION")!;
-    const refund = rows.find((r) => r.transaction_type === "CREDIT_REFUND")!;
-    expect(charge.amount).toBe(-1);
-    expect(refund).toMatchObject({ amount: 1, reference_id: charge.reference_id });
+    expect(rows.filter((r) => r.transaction_type === "CREDIT_CONSUMPTION" || r.transaction_type === "CREDIT_REFUND")).toEqual([]);
+    const holds = await holdsOf(userId);
+    expect(holds).toHaveLength(1);
+    expect([holdStatus].flat()).toContain(holds[0].status);
+    expect(holds[0].ledger_id).toBeNull();
+    return holds[0];
   }
 
-  it("Gemini throws → 502 AI_SERVICE_UNAVAILABLE and the credit is refunded", async () => {
+  it("Gemini throws → 502 AI_SERVICE_UNAVAILABLE and the turn is not charged", async () => {
     gemini.generateContent.mockRejectedValue(new Error("503 UNAVAILABLE"));
     const u = await funded(4);
     const res = await chat(tokenFor(u));
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "AI_SERVICE_UNAVAILABLE" });
-    await assertRefunded(u.id, 4);
+    expect((await assertNotCharged(u.id, 4)).settle_reason).toBe("ai_generation_error");
   });
 
-  it("Gemini returns an empty response → 502 and refunded", async () => {
+  it("Gemini returns an empty response → 502 and not charged", async () => {
     gemini.generateContent.mockResolvedValue({ text: "   " });
     const u = await funded(1);
     expect((await chat(tokenFor(u))).status).toBe(502);
-    await assertRefunded(u.id, 1);
+    await assertNotCharged(u.id, 1);
   });
 
-  it("GEMINI_API_KEY missing → 503 and refunded (charge happens before the key check)", async () => {
+  it("GEMINI_API_KEY missing → 503 and not charged (the reservation happens before the key check)", async () => {
     process.env.GEMINI_API_KEY = "";
     const u = await funded(1);
     expect((await chat(tokenFor(u))).status).toBe(503);
-    await assertRefunded(u.id, 1);
+    await assertNotCharged(u.id, 1);
     expect(gemini.generateContent).not.toHaveBeenCalled();
   });
 
@@ -235,37 +283,165 @@ describe("failure after charge → refund (atomicity of charge + work)", () => {
     expect(await balanceOf(db, u.id)).toBe(1);
   });
 
-  // FINDING-22 (Medium): the refund is a single best-effort HTTP call with no retry/outbox. If
-  // billing hiccups at that moment, the user pays for a failed generation and nothing records a
-  // debt to repay (only a console.error).
-  it.fails("a transient refund failure does not leave the user charged for a failed generation (FINDING-22)", async () => {
-    const flaky = await startFakeUpstream(async (req, body, res) => {
-      if (req.url?.endsWith("/refund")) return res.writeHead(503).end();
-      const upstream = await fetch(`${service.origin}/api/billing${req.url}`, {
-        method: req.method,
-        headers: { authorization: String(req.headers.authorization), "content-type": "application/json" },
-        body: req.method === "GET" ? undefined : body,
-      });
-      res.writeHead(upstream.status, { "content-type": "application/json" }).end(await upstream.text());
-    });
+  // FINDING-22 (Medium) — fixed: the failure path never depends on a successful billing call.
+  // Same scenario as Phase 1 (every /refund answers 503); the stand-in now forwards the internal
+  // key exactly as the BFF sends it (TEST_CHANGES TC-17).
+  it("a transient refund failure does not leave the user charged for a failed generation (FINDING-22)", async () => {
+    const flaky = await flakyBilling((path) => (path.endsWith("/refund") ? 503 : null));
     try {
       process.env.BILLING_SERVICE_URL = flaky.origin;
       gemini.generateContent.mockRejectedValue(new Error("boom"));
       const u = await funded(1);
       expect((await chat(tokenFor(u))).status).toBe(502);
       expect(await balanceOf(db, u.id)).toBe(1);
+
+      // Release retried and failed every time: the reservation stays held, then expires uncharged
+      // and is reported by ledger_reconciliation().
+      expect(flaky.hits.filter((h) => h.endsWith("/refund"))).toHaveLength(4);
+      await assertNotCharged(u.id, 1, "held");
+      await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
+      await db.query(`SELECT release_expired_ai_holds()`);
+      await assertNotCharged(u.id, 1, "expired");
+      const { rows } = await db.query(`SELECT issue FROM ledger_reconciliation() WHERE user_id = $1`, [u.id]);
+      expect(rows).toEqual([{ issue: "hold_expired_unsettled" }]);
     } finally {
       await flaky.close();
     }
   });
 
-  // FINDING-21 (Low): generateContent is called without an abort signal / timeout. A hung Gemini
-  // request holds the (already charged) turn open indefinitely; there is no server-side deadline.
-  it.fails("the Gemini call carries a timeout / abort signal (FINDING-21)", async () => {
+  it("a release that fails once is retried and succeeds (no RELEASE_FAILED)", async () => {
+    let failed = false;
+    const flaky = await flakyBilling((path) => {
+      if (path.endsWith("/refund") && !failed) {
+        failed = true;
+        return 503;
+      }
+      return null;
+    });
+    try {
+      process.env.BILLING_SERVICE_URL = flaky.origin;
+      gemini.generateContent.mockRejectedValue(new Error("boom"));
+      const u = await funded(2);
+      expect((await chat(tokenFor(u))).status).toBe(502);
+      await assertNotCharged(u.id, 2, "released");
+      expect(flaky.hits.filter((h) => h.endsWith("/refund"))).toHaveLength(2);
+      expect(errorLines().some((l) => l.includes("RELEASE_FAILED"))).toBe(false);
+    } finally {
+      await flaky.close();
+    }
+  });
+
+  // FINDING-21 (Low) — fixed.
+  it("the Gemini call carries a timeout / abort signal (FINDING-21)", async () => {
     const u = await funded(1);
     await chat(tokenFor(u));
     const arg = gemini.generateContent.mock.calls[0]![0];
     expect(arg.config.abortSignal ?? arg.config.httpOptions?.timeout).toBeDefined();
+  });
+
+  it("a Gemini call that exceeds GEMINI_TIMEOUT_MS is aborted → 504 AI_TIMEOUT and not charged", async () => {
+    process.env.GEMINI_TIMEOUT_MS = "50";
+    try {
+      gemini.generateContent.mockImplementation(
+        ({ config }: { config: { abortSignal: AbortSignal } }) =>
+          new Promise((_resolve, reject) => {
+            config.abortSignal.addEventListener("abort", () => reject(config.abortSignal.reason));
+          }),
+      );
+      const u = await funded(3);
+      const res = await chat(tokenFor(u));
+      expect(res.status).toBe(504);
+      expect(await res.json()).toEqual({ error: "AI_TIMEOUT" });
+      expect((await assertNotCharged(u.id, 3)).settle_reason).toBe("gemini_timeout");
+    } finally {
+      delete process.env.GEMINI_TIMEOUT_MS;
+    }
+  });
+});
+
+describe("reservation protocol", () => {
+  it("two concurrent requests with the same reference → one 409, Gemini called exactly once, charged once", async () => {
+    const u = await funded(5);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    gemini.generateContent.mockImplementation(() => gate.then(() => ({ text: "Only once." })));
+
+    const fixedRef = "6a1f7c2e-1111-4b4b-9c9c-000000000001";
+    // Mint tokens first: signing a JWT also calls randomUUID (jti), which must not consume the override.
+    const [t1, t2] = [tokenFor(u), tokenFor(u)];
+    uuidOverride.queue.push(fixedRef, fixedRef);
+    const settled: Response[] = [];
+    const inflight = [chat(t1), chat(t2)].map((p) => p.then((r) => (settled.push(r), r)));
+
+    // The loser returns 409 while the winner is still inside Gemini.
+    await waitFor(async () => settled.length === 1 && gemini.generateContent.mock.calls.length === 1);
+    expect(settled[0]!.status).toBe(409);
+    expect(await settled[0]!.json()).toEqual({ error: "DUPLICATE_OPERATION" });
+    release();
+    const results = await Promise.all(inflight);
+
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(gemini.generateContent).toHaveBeenCalledTimes(1);
+    expect(await balanceOf(db, u.id)).toBe(4);
+    expect((await ledgerOf(db, u.id)).filter((r) => r.reference_id === fixedRef)).toEqual([
+      expect.objectContaining({ amount: -1, transaction_type: "CREDIT_CONSUMPTION" }),
+    ]);
+  });
+
+  it("a successful turn captures its reservation: one ledger debit linked to the hold", async () => {
+    const u = await funded(2);
+    expect((await chat(tokenFor(u))).status).toBe(200);
+    const holds = await holdsOf(u.id);
+    expect(holds).toHaveLength(1);
+    expect(holds[0]).toMatchObject({ status: "captured" });
+    const debit = (await ledgerOf(db, u.id)).find((r) => r.transaction_type === "CREDIT_CONSUMPTION")!;
+    expect(holds[0].ledger_id).toBe(debit.id);
+  });
+
+  it("capture failing after a good answer: the user still gets the answer, is not charged, CAPTURE_FAILED is logged", async () => {
+    const flaky = await flakyBilling((path) => (path.endsWith("/capture") ? 503 : null));
+    try {
+      process.env.BILLING_SERVICE_URL = flaky.origin;
+      const u = await funded(1);
+      const res = await chat(tokenFor(u));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ message: "Water is H₂O.", balance: null });
+      expect(await balanceOf(db, u.id)).toBe(1);
+      expect(flaky.hits.filter((h) => h.endsWith("/capture"))).toHaveLength(4);
+      expect(errorLines().some((l) => l.includes("[billing] CAPTURE_FAILED") && l.includes('"attempts":4'))).toBe(true);
+    } finally {
+      await flaky.close();
+    }
+  });
+
+  it("billing answers 404 on the internal route (secret mismatch) → 503, searchable INTERNAL_AUTH_REJECTED log, Gemini not called", async () => {
+    const flaky = await flakyBilling((path) => (path.endsWith("/consume") ? 404 : null));
+    try {
+      process.env.BILLING_SERVICE_URL = flaky.origin;
+      const u = await funded(3);
+      const res = await chat(tokenFor(u));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: "BILLING_UNAVAILABLE" });
+      expect(errorLines().some((l) => l.includes("INTERNAL_AUTH_REJECTED") && l.includes("INTERNAL_SERVICE_SECRET"))).toBe(true);
+      expect(gemini.generateContent).not.toHaveBeenCalled();
+    } finally {
+      await flaky.close();
+    }
+  });
+
+  it("INTERNAL_SERVICE_SECRET missing on the BFF → 503 BILLING_UNAVAILABLE, nothing reserved, Gemini not called", async () => {
+    const saved = process.env.INTERNAL_SERVICE_SECRET;
+    delete process.env.INTERNAL_SERVICE_SECRET;
+    try {
+      const u = await funded(3);
+      const res = await chat(tokenFor(u));
+      expect(res.status).toBe(503);
+      expect(await holdsOf(u.id)).toEqual([]);
+      expect(gemini.generateContent).not.toHaveBeenCalled();
+      expect(errorLines().some((l) => l.includes("BILLING_NOT_CONFIGURED"))).toBe(true);
+    } finally {
+      process.env.INTERNAL_SERVICE_SECRET = saved;
+    }
   });
 });
 
@@ -298,13 +474,13 @@ describe("FINDING-03 end-to-end: refunding a successful turn through the BFF", (
     return { u, refund };
   }
 
-  it("characterisation: today the browser can get the credit back after a successful answer", async () => {
+  it("the browser cannot get the credit back after a successful answer: the BFF answers 404 for /refund", async () => {
     const { u, refund } = await successfulTurnThenSelfRefund();
-    expect(refund.status).toBe(200);
-    expect(await balanceOf(db, u.id)).toBe(1);
+    expect(refund.status).toBe(404);
+    expect(await balanceOf(db, u.id)).toBe(0);
   });
 
-  it.fails("a successful AI answer stays paid for — the client cannot refund it (FINDING-03)", async () => {
+  it("a successful AI answer stays paid for — the client cannot refund it (FINDING-03)", async () => {
     const { u } = await successfulTurnThenSelfRefund();
     expect(await balanceOf(db, u.id)).toBe(0);
   });
