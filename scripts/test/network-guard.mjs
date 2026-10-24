@@ -32,12 +32,17 @@ export class BlockedNetworkError extends Error {
   }
 }
 
-export function installNetworkGuard() {
+/**
+ * @param {{ allowHosts?: string[] }} [options] extra non-secret hosts passed through
+ *   (E2E only: Google Fonts for next/font, so pages render as in production).
+ */
+export function installNetworkGuard(options = {}) {
   if (realFetch) return;
   realFetch = globalThis.fetch;
+  const allowed = new Set(options.allowHosts ?? []);
   globalThis.fetch = async function guardedFetch(input, init = {}) {
     const url = toUrl(input);
-    if (LOOPBACK.has(url.hostname)) {
+    if (LOOPBACK.has(url.hostname) || allowed.has(url.hostname)) {
       return realFetch(input, init);
     }
 

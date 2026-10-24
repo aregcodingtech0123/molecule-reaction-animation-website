@@ -101,6 +101,7 @@ scripts/test/                  db-guard.mjs · prepare-test-db.mjs · network-gu
 docker-compose.test.yml        throwaway Postgres on :55432 (tmpfs)
 .env.test.example              committed placeholders → copy to .env.test (gitignored)
 vitest.config.mts              root projects: unit (jsdom) · api (node, BFF)
+playwright.config.mts          ESM (.mts) because it shares the scripts/test/*.mjs helpers
 tests/
   setup/                       env.ts · network.ts · dom.ts · global-db.ts
   support/                     shared helpers (express harness, jwt, lemon signer)
