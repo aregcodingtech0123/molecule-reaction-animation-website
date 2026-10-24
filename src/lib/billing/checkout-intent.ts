@@ -10,14 +10,23 @@ export type CheckoutPackageId = (typeof CHECKOUT_PACKAGE_IDS)[number];
 
 /**
  * Optional map from Lemon variant id → package id for deep links like
- * `/login?variant_id=2154661`. Values come from local .env (not committed);
- * unknown ids are ignored so guests still land on login safely.
+ * `/login?variant_id=<id>`. Build-time env only (FINDING-13) — each variable
+ * is referenced literally so Next.js inlines it. Unset → variant links are
+ * ignored and guests still land on login safely.
  */
-const VARIANT_ID_TO_PACKAGE: Record<string, CheckoutPackageId> = {
-  "2154652": "starter",
-  "2154661": "pro",
-  "2154665": "enterprise",
-};
+function variantIdToPackage(): Map<string, CheckoutPackageId> {
+  const pairs: Array<[string | undefined, CheckoutPackageId]> = [
+    [process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER, "starter"],
+    [process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_PRO, "pro"],
+    [process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_ENTERPRISE, "enterprise"],
+  ];
+  const map = new Map<string, CheckoutPackageId>();
+  for (const [variantId, packageId] of pairs) {
+    const id = variantId?.trim();
+    if (id) map.set(id, packageId);
+  }
+  return map;
+}
 
 export function isCheckoutPackageId(value: string | null | undefined): value is CheckoutPackageId {
   return Boolean(value && (CHECKOUT_PACKAGE_IDS as readonly string[]).includes(value));
@@ -59,7 +68,7 @@ export function captureCheckoutIntentFromSearchParams(
   }
 
   const variantId = params.get(QUERY_VARIANT)?.trim() ?? "";
-  const mapped = VARIANT_ID_TO_PACKAGE[variantId];
+  const mapped = variantId ? variantIdToPackage().get(variantId) : undefined;
   if (mapped) {
     saveCheckoutIntent(mapped);
     return mapped;
@@ -74,7 +83,7 @@ export function loginUrlForPackage(packageId: string, mode: "login" | "signup" =
   const pkg = getCreditPackage(packageId);
   const qs = new URLSearchParams({ [QUERY_PACKAGE]: packageId });
   // Also attach variant_id when known (helpful for analytics / deep links).
-  const variantEntry = Object.entries(VARIANT_ID_TO_PACKAGE).find(([, id]) => id === packageId);
+  const variantEntry = [...variantIdToPackage()].find(([, id]) => id === packageId);
   if (variantEntry) qs.set(QUERY_VARIANT, variantEntry[0]);
   void pkg;
   return `${path}?${qs.toString()}`;

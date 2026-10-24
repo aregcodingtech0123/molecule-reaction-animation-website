@@ -100,8 +100,8 @@ describe("Lemon Squeezy helpers", () => {
     expect(packageIdForLemonVariant(1)).toBeNull();
   });
 
-  it("packageIdForLemonVariant also honours hard-coded production variant ids (FINDING-13)", () => {
-    expect([2154652, 2154661, 2154665].map(packageIdForLemonVariant)).toEqual(["starter", "pro", "enterprise"]);
+  it("packageIdForLemonVariant no longer honours hard-coded production variant ids (FINDING-13)", () => {
+    expect([2154652, 2154661, 2154665].map(packageIdForLemonVariant)).toEqual([null, null, null]);
   });
 
   it("readCustomDataString coerces scalars and treats blank as missing", () => {

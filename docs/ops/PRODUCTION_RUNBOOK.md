@@ -194,6 +194,8 @@ openssl rand -base64 48
 | `MIGRATION_DATABASE_URL` | — | optional | only for migration/reconcile jobs (direct URL) |
 | `FRONTEND_URL` | **must be exact** | (unchanged) | the public origin, scheme + host, no trailing slash (e.g. `https://moleculestudio.app`). Next.js now refuses **every** browser POST/PUT/PATCH/DELETE whose `Origin` differs (403 `CSRF_REJECTED`) — a wrong value blocks all sign-ins. `www.` and apex are different origins |
 | `CLIENT_IP_HEADER` | **strongly recommended** | — | the header **your platform** sets with the end-user IP (see below). Unset → all users share one rate-limit bucket; Next logs a startup warning |
+| `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` | — | **required** (existing vars, now enforced) | numeric and distinct. Express **refuses to start** in production otherwise (FINDING-13): the hard-coded fallback ids (`2154652` / `2154661` / `2154665`) were removed. Confirm the three values against the Lemon dashboard **before** deploying |
+| `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` | optional, **build-time** | — | same ids; only for `?variant_id=` deep links. Unset → those links are ignored |
 | `TRUST_PROXY_HOPS` | — | optional (`0`) | proxies in front of Express whose `X-Forwarded-For` is trusted for **direct** traffic. Keep `0` unless exactly one load balancer that appends the client IP sits in front |
 
 **Choosing `CLIENT_IP_HEADER` (Next.js):** it must be a header the platform **overwrites**, so a client

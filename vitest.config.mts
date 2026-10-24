@@ -17,6 +17,7 @@ export default defineConfig({
   },
   test: {
     restoreMocks: true,
+    unstubEnvs: true,
     testTimeout: 20_000,
     hookTimeout: 60_000,
     coverage: {

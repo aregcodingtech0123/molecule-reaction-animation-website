@@ -113,6 +113,42 @@ export function assertEnv(): void {
   }
 }
 
+const LEMON_VARIANT_ENV = [
+  "LEMONSQUEEZY_VARIANT_STARTER",
+  "LEMONSQUEEZY_VARIANT_PRO",
+  "LEMONSQUEEZY_VARIANT_ENTERPRISE",
+] as const;
+
+/**
+ * Why the Lemon variant → pack mapping is unusable, or null when it is fine.
+ * The mapping comes from the environment only (FINDING-13): a missing,
+ * non-numeric or shared variant id would credit the wrong pack or none.
+ */
+export function lemonVariantConfigProblem(source: NodeJS.ProcessEnv = process.env): string | null {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Map<string, string>();
+  for (const name of LEMON_VARIANT_ENV) {
+    const value = source[name]?.trim() ?? "";
+    if (!value) {
+      missing.push(name);
+    } else if (!/^\d+$/.test(value)) {
+      invalid.push(name);
+    } else if (seen.has(value)) {
+      return `${name} and ${seen.get(value)} use the same variant id ${value}; each pack needs its own.`;
+    } else {
+      seen.set(value, name);
+    }
+  }
+  if (missing.length) {
+    return `${missing.join(", ")} not set — purchases of those packs cannot be mapped to credits.`;
+  }
+  if (invalid.length) {
+    return `${invalid.join(", ")} must be a numeric Lemon Squeezy variant id.`;
+  }
+  return null;
+}
+
 export function lemonVariantForPackage(packageId: string): string {
   if (packageId === "starter") return env.lemonSqueezyVariantStarter;
   if (packageId === "pro") return env.lemonSqueezyVariantPro;

@@ -1,5 +1,5 @@
 import "./config/loadEnv.js";
-import { assertEnv, env } from "./config/env.js";
+import { assertEnv, env, lemonVariantConfigProblem } from "./config/env.js";
 import { createApp } from "./app.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
 import { weakSecretReason } from "./config/secretStrength.js";
@@ -14,6 +14,16 @@ function enforceProductionSecurityGuards(): void {
       console.error(`FATAL: ${reason} Exiting.`);
       process.exit(1);
     }
+  }
+
+  // Variant ids come from the environment only (FINDING-13); production fails closed.
+  const variantProblem = lemonVariantConfigProblem();
+  if (variantProblem && env.isProduction) {
+    console.error(`FATAL: ${variantProblem} Exiting.`);
+    process.exit(1);
+  }
+  if (variantProblem) {
+    console.warn(`[auth-billing-service] ${variantProblem}`);
   }
 }
 

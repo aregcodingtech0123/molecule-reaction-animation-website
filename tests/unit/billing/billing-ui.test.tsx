@@ -70,6 +70,8 @@ describe("PricingCards", () => {
 
 describe("useCreditCheckout", () => {
   it("guest: remembers the intent and routes to sign-in with the pack in the URL (no API call)", async () => {
+    // Variant ids come from build-time env only (FINDING-13, TEST_CHANGES TC-36).
+    vi.stubEnv("NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_PRO", "2154661");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useCreditCheckout({ guestAuthMode: "signup" }), { wrapper });

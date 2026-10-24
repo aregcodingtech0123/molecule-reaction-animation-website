@@ -158,9 +158,16 @@ describe("package resolution", () => {
     expect(await balanceOf(db, buyer.id)).toBe(0);
   });
 
-  it("variant ids hard-coded in source map to packs even when the env uses different ids (FINDING-13)", async () => {
+  it("variant ids formerly hard-coded in source no longer map to packs when the env uses different ids (FINDING-13)", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id }, variantId: 2154665, total: PRICES.enterprise });
+    await logs.waitForLine(new RegExp(`Unable to resolve package.*${orderId}`));
+    expect(await balanceOf(db, buyer.id)).toBe(0);
+  });
+
+  it("the env-configured variant alone (no custom_data.package_id) credits the matching pack (FINDING-13)", async () => {
+    const buyer = await createUser(db);
+    const orderId = await deliver({ customData: { user_id: buyer.id }, variantId: VARIANTS.enterprise, total: PRICES.enterprise });
     await credited(orderId);
     expect(await balanceOf(db, buyer.id)).toBe(CREDITS.enterprise);
   });
