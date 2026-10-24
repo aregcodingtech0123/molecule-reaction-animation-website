@@ -2,26 +2,14 @@ import "./config/loadEnv.js";
 import { assertEnv, env } from "./config/env.js";
 import { createApp } from "./app.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
+import { weakSecretReason } from "./config/secretStrength.js";
 
 const PORT = env.port;
 
-const WEAK_SECRETS = [
-  "replace-with-at-least-32-characters-secret-key",
-  "changeme",
-  "secret",
-  "your-secret-here",
-  "jwt-secret",
-];
-
 function enforceProductionSecurityGuards(): void {
-  const jwtSecret = process.env.JWT_SECRET ?? "";
-  if (WEAK_SECRETS.some((weak) => jwtSecret.includes(weak))) {
-    console.error("FATAL: JWT_SECRET matches a known weak/placeholder value. Exiting.");
-    process.exit(1);
-  }
-
-  if (jwtSecret.length < 32) {
-    console.error("FATAL: JWT_SECRET must be at least 32 characters. Exiting.");
+  const reason = weakSecretReason("JWT_SECRET", process.env.JWT_SECRET);
+  if (reason) {
+    console.error(`FATAL: ${reason} Exiting.`);
     process.exit(1);
   }
 }

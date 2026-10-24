@@ -247,6 +247,29 @@ Package resolution prefers the Lemon **variant id** map, then falls back to `cus
 | `npm run build` | root | Production build |
 | `npm run dev` | `services/auth-billing-service` | Start Express on port 4000 |
 
+## Testing
+
+Plan, findings and remediation status: [`docs/testing/TEST_PLAN.md`](docs/testing/TEST_PLAN.md) ·
+[`docs/testing/FINDINGS.md`](docs/testing/FINDINGS.md) · [`docs/testing/TEST_CHANGES.md`](docs/testing/TEST_CHANGES.md).
+
+Tests only ever touch a **local** Postgres whose database name contains `test`
+(`scripts/test/db-guard.mjs`) and never call Lemon Squeezy, Google, Gemini or Resend
+(`scripts/test/network-guard.mjs`).
+
+```bash
+cp .env.test.example .env.test   # once (only TEST_DATABASE_URL / E2E ports are read from it)
+npm run test:db:up               # throwaway Postgres on 127.0.0.1:55432 (Docker, tmpfs)
+npm test                         # frontend unit + BFF suites, then all service suites
+npm run test:unit                # frontend (jsdom)
+npm run test:api                 # BFF gateway + /api/chat against the real Express service
+npm run test:db                  # service: migrations, ledger, concurrency
+npm run test:e2e                 # Playwright (first time: npx playwright install chromium)
+npm run test:coverage            # coverage for root and service
+```
+
+> `src/middleware.ts` uses the file convention Next.js 16 deprecated in favour of `proxy.ts`;
+> it still works and is intentionally left as-is for now.
+
 ## Themes
 
 Toggle **Night Lab** (dark) and **White Lab** (light) from the navbar. Theme tokens live in `src/lib/theme/config.ts`; components use `useTheme()` or Tailwind `dark:` variants (the `dark` class is synced to `night-lab`).
