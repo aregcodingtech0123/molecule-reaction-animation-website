@@ -254,7 +254,7 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008/009 (only if they cause a problem)
+### 10.1 Migrations 008–010 (only if they cause a problem)
 
 ```sql
 BEGIN;
@@ -267,7 +267,10 @@ DROP TRIGGER IF EXISTS trg_user_balances_no_truncate ON user_balances;
 DROP TRIGGER IF EXISTS trg_credit_ledger_no_truncate ON credit_ledger_transactions;
 DROP FUNCTION IF EXISTS guard_user_balance_write();
 DROP FUNCTION IF EXISTS ledger_reconciliation();
-DELETE FROM schema_migrations WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql');
+-- 010: the token_version column is harmless for older code and is kept (re-applying 010 is
+-- idempotent). Its tracking row must go too, otherwise a later roll-forward sees a gap.
+DELETE FROM schema_migrations
+WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql');
 COMMIT;
 ```
 

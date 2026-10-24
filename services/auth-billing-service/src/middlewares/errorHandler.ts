@@ -58,12 +58,10 @@ export function errorHandler(
       return;
     }
     if (pgErr.code === "23505") {
-      res.status(200).json({
-        success: true,
-        data: {
-          message: "If this email address is new, your account has been created.",
-        },
-      });
+      // Registration handles its own duplicate e-mail case; anything reaching here is a genuine
+      // conflict and must never look like a success (FINDING-20).
+      console.warn("[auth-billing-service] Unhandled unique violation", { constraint: pgErr.constraint ?? null });
+      res.status(409).json({ success: false, error: "Conflict.", code: "CONFLICT" });
       return;
     }
   }

@@ -6,6 +6,8 @@ import type { JwtPayload } from "../types/index.js";
 export interface SignTokenInput {
   sub: string;
   email: string;
+  /** users.token_version at issue time (FINDING-18 / FINDING-34). */
+  tv: number;
 }
 
 export function signToken(payload: SignTokenInput): string {
@@ -15,6 +17,7 @@ export function signToken(payload: SignTokenInput): string {
     {
       sub: payload.sub,
       email: payload.email,
+      tv: payload.tv,
     },
     env.jwtSecret,
     {
@@ -43,12 +46,14 @@ export function verifyToken(token: string): JwtPayload {
         ? decoded.jwtid
         : null;
   const exp = typeof decoded.exp === "number" ? decoded.exp : null;
+  // Tokens issued before session versioning carry no `tv` and are rejected (one-time logout).
+  const tv = Number.isInteger(decoded.tv) && (decoded.tv as number) >= 0 ? (decoded.tv as number) : null;
 
-  if (!sub || !email || !jti || !exp) {
+  if (!sub || !email || !jti || !exp || tv === null) {
     throw new jwt.JsonWebTokenError("Invalid token payload.");
   }
 
-  return { sub, email, jti, exp };
+  return { sub, email, jti, exp, tv };
 }
 
 export function extractBearerToken(header: string | undefined): string | null {

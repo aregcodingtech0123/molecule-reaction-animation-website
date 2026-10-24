@@ -3,8 +3,9 @@ import jwt from "jsonwebtoken";
 import { signToken } from "../../src/utils/jwt.js";
 import { TEST_ENV } from "../setup/env";
 
-export function tokenFor(user: { id: string; email: string }): string {
-  return signToken({ sub: user.id, email: user.email });
+/** Token for a user at token_version `tv` (0 = a freshly created user). */
+export function tokenFor(user: { id: string; email: string }, tv = 0): string {
+  return signToken({ sub: user.id, email: user.email, tv });
 }
 
 export function bearer(user: { id: string; email: string }): string {
@@ -16,7 +17,9 @@ export function craftToken(
   claims: Record<string, unknown> = {},
   opts: { secret?: string; algorithm?: jwt.Algorithm; issuer?: string; audience?: string; expiresIn?: number; jwtid?: string | null } = {},
 ): string {
-  const payload: Record<string, unknown> = { sub: randomUUID(), email: "crafted@example.test", ...claims };
+  // tv: 0 = a valid session generation for a fresh user; pass { tv: undefined } to omit the claim.
+  const payload: Record<string, unknown> = { sub: randomUUID(), email: "crafted@example.test", tv: 0, ...claims };
+  if (payload.tv === undefined) delete payload.tv;
   const signOpts: jwt.SignOptions = {
     algorithm: opts.algorithm ?? "HS256",
     issuer: opts.issuer ?? "moleculestudio-auth-billing",
@@ -36,6 +39,7 @@ export function unsignedToken(claims: Record<string, unknown>): string {
     iss: "moleculestudio-auth-billing",
     aud: "moleculestudio-api",
     jti: randomUUID(),
+    tv: 0,
     iat: now,
     exp: now + 3600,
     ...claims,

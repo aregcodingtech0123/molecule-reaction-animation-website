@@ -71,7 +71,7 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect(rows[1]).toMatchObject({ consumptions: "6", refunds: "4", late_refunds: "0", refund_pct: "67" });
     }));
 
-  it("§10.1 rollback of 008/009 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
+  it("§10.1 rollback of 008–010 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
     withRunnerDb(async (db) => {
       await db.pool.query(rollback0809!);
       const status = await db.pool.query(`SELECT filename FROM schema_migrations ORDER BY 1`);
@@ -85,6 +85,6 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       await db.pool.query(`UPDATE user_balances SET balance = balance WHERE user_id = $1`, [u.id]);
 
       const forward = await migrate({ connectionString: db.url });
-      expect(forward.applied).toEqual(["008_ledger_hardening.sql", "009_ai_credit_holds.sql"]);
+      expect(forward.applied).toEqual(["008_ledger_hardening.sql", "009_ai_credit_holds.sql", "010_session_token_version.sql"]);
     }));
 });

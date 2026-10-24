@@ -59,6 +59,19 @@ export const env = {
     return readEnv("INTERNAL_SERVICE_SECRET");
   },
 
+  // ── Client IP resolution (FINDING-04) ─────────────────────────────────────
+  /**
+   * Number of reverse proxies in front of this service whose X-Forwarded-For entries are
+   * trusted for DIRECT traffic. 0 (default) = ignore X-Forwarded-For entirely, because this
+   * service is publicly reachable for webhooks and any client could otherwise spoof its IP.
+   * Set it to the number of proxies your platform adds (e.g. 1 behind a single load balancer
+   * that appends the client address). BFF traffic uses X-Client-IP + the internal key instead.
+   */
+  get trustProxyHops() {
+    const v = Number(readEnv("TRUST_PROXY_HOPS"));
+    return Number.isInteger(v) && v >= 0 ? v : 0;
+  },
+
   // ── AI credit reservations ────────────────────────────────────────────────
   /** How long a reservation may stay 'held' before it expires (never charged). */
   get aiHoldTtlSeconds() {

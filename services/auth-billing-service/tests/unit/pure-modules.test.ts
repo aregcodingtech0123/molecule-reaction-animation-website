@@ -177,9 +177,10 @@ describe("validation", () => {
 
 describe("tokens", () => {
   it("signToken/verifyToken round-trip and a unique jti per token", () => {
-    const a = verifyToken(signToken({ sub: "u1", email: "e@x.io" }));
-    const b = verifyToken(signToken({ sub: "u1", email: "e@x.io" }));
-    expect(a).toMatchObject({ sub: "u1", email: "e@x.io" });
+    const a = verifyToken(signToken({ sub: "u1", email: "e@x.io", tv: 0 }));
+    const b = verifyToken(signToken({ sub: "u1", email: "e@x.io", tv: 3 }));
+    expect(a).toMatchObject({ sub: "u1", email: "e@x.io", tv: 0 });
+    expect(b.tv).toBe(3);
     expect(a.jti).not.toBe(b.jti);
   });
 
@@ -244,7 +245,7 @@ describe("errorHandler mapping", () => {
 
   // FINDING-20 (Low): ANY unhandled unique violation (not just registration) is turned into a
   // 200 { success:true, "account created" } response — a misleading success on unrelated routes.
-  it.fails("an unrelated unique violation is not reported as a successful account creation (FINDING-20)", async () => {
+  it("an unrelated unique violation is not reported as a successful account creation (FINDING-20)", async () => {
     const res = await request(appThrowing(Object.assign(new Error("duplicate key"), { code: "23505" }))).get("/boom");
     expect(res.body.success).not.toBe(true);
   });

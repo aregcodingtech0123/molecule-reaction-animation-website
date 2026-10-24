@@ -16,6 +16,9 @@ export const TEST_ENV = {
   JWT_SECRET: "test-only-jwt-secret-7f3c9a1e5b2d4c6e8a0b",
   INTERNAL_SERVICE_SECRET: "test-only-internal-key-3d8f1b6a9c2e4f7a0b5d",
   AI_HOLD_TTL_SECONDS: "600",
+  // Emulates one trusted proxy hop so suites can vary the client IP via X-Forwarded-For.
+  // The default (0 = ignore X-Forwarded-For) is asserted separately in client-ip.test.ts.
+  TRUST_PROXY_HOPS: "1",
   JWT_EXPIRES_IN: "1h",
   BCRYPT_ROUNDS: "4",
   FRONTEND_URL: "http://localhost:3000",

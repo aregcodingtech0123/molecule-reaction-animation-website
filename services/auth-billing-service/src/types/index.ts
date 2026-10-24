@@ -6,6 +6,8 @@ export interface JwtPayload {
   jti: string;
   /** Unix expiry (seconds) — mirrored into `revoked_tokens.expires_at` on logout. */
   exp: number;
+  /** Session generation; must equal users.token_version. */
+  tv: number;
 }
 
 declare global {
@@ -14,6 +16,11 @@ declare global {
       user?: JwtPayload;
       /** Authenticated user's UUID — mirrors `req.user.sub`. */
       userId?: string;
+      /**
+       * Client IP used for rate limiting and signup_ip: the BFF-supplied X-Client-IP when the
+       * request carries the internal service key, otherwise req.ip (TRUST_PROXY_HOPS-aware).
+       */
+      clientIp?: string | null;
     }
   }
 }

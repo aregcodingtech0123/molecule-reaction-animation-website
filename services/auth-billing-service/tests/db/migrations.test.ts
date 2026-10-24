@@ -54,6 +54,7 @@ describe("migrations 001→007 on an empty database", () => {
       "007_ai_credit_metering_idempotency.sql",
       "008_ledger_hardening.sql",
       "009_ai_credit_holds.sql",
+      "010_session_token_version.sql",
     ]);
   });
 

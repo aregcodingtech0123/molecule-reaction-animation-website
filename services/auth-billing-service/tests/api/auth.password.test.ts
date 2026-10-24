@@ -32,10 +32,23 @@ function register(body: Record<string, unknown>, ip = freshIp()) {
 function login(email: string, password: string, ip = freshIp()) {
   return request(app).post("/api/auth/login").set("X-Forwarded-For", ip).send({ email, password });
 }
+const GENERIC_REGISTER = {
+  success: true,
+  data: { message: "If this email address is new, your account has been created. Check your inbox to verify your email." },
+};
+
+/**
+ * Register (which, since FINDING-09, never signs in and answers identically for new and existing
+ * emails), then sign in. `res` is the LOGIN response, so `res.body.data.user` is the public profile.
+ */
 async function registered(email = uniqueEmail()) {
-  const res = await register({ email, password: PASSWORD, ...profile });
-  expect(res.status).toBe(201);
-  return { email: email.trim().toLowerCase(), res };
+  const reg = await register({ email, password: PASSWORD, ...profile });
+  expect(reg.status).toBe(200);
+  expect(reg.body).toEqual(GENERIC_REGISTER);
+  const normalised = email.trim().toLowerCase();
+  const res = await login(normalised, PASSWORD);
+  expect(res.status).toBe(200);
+  return { email: normalised, res };
 }
 
 /** The dev mailer logs the email body when RESEND_API_KEY is unset — the raw token is in the link. */
@@ -48,9 +61,14 @@ describe("POST /api/auth/register", () => {
   it("creates an unverified user with a bcrypt hash (never plaintext), zero balance, and a session token", async () => {
     const email = uniqueEmail("Reg");
     const ip = freshIp();
-    const res = await register({ email: `  ${email.toUpperCase()} `, password: PASSWORD, ...profile }, ip);
+    const reg = await register({ email: `  ${email.toUpperCase()} `, password: PASSWORD, ...profile }, ip);
 
-    expect(res.status).toBe(201);
+    // FINDING-09: no session and no user in the registration response.
+    expect(reg.status).toBe(200);
+    expect(reg.body).toEqual(GENERIC_REGISTER);
+    expect(JSON.stringify(reg.body)).not.toMatch(/token|"user"/);
+
+    const res = await login(email.toLowerCase(), PASSWORD);
     expect(res.body.data.user).toEqual({
       id: expect.any(String),
       email: email.toLowerCase(),
@@ -75,7 +93,9 @@ describe("POST /api/auth/register", () => {
   });
 
   it("cannot self-assign admin or verified flags", async () => {
-    const res = await register({ email: uniqueEmail(), password: PASSWORD, ...profile, isAdmin: true, is_admin: true, isVerified: true });
+    const email = uniqueEmail();
+    await register({ email, password: PASSWORD, ...profile, isAdmin: true, is_admin: true, isVerified: true });
+    const res = await login(email, PASSWORD);
     expect(res.body.data.user).toMatchObject({ isAdmin: false, isVerified: false });
   });
 
@@ -119,7 +139,7 @@ describe("POST /api/auth/register", () => {
 
   // FINDING-09 (Medium): new accounts get 201 + token + user, existing ones 200 + message — the
   // "ambiguous" message does not hide account existence.
-  it.fails("existing and new emails are indistinguishable to the caller (FINDING-09)", async () => {
+  it("existing and new emails are indistinguishable to the caller (FINDING-09)", async () => {
     const { email } = await registered();
     const existing = await register({ email, password: PASSWORD, ...profile });
     const fresh = await register({ email: uniqueEmail(), password: PASSWORD, ...profile });
@@ -130,7 +150,7 @@ describe("POST /api/auth/register", () => {
   it("is rate limited to 3 registrations per hour per client IP", async () => {
     const ip = freshIp();
     for (let i = 0; i < 3; i++) {
-      expect((await register({ email: uniqueEmail(), password: PASSWORD, ...profile }, ip)).status).toBe(201);
+      expect((await register({ email: uniqueEmail(), password: PASSWORD, ...profile }, ip)).status).toBe(200);
     }
     const blocked = await register({ email: uniqueEmail(), password: PASSWORD, ...profile }, ip);
     expect(blocked.status).toBe(429);
@@ -153,7 +173,9 @@ describe("date of birth round-trip (FINDING-06)", () => {
     const saved = process.env.TZ;
     process.env.TZ = tz;
     try {
-      const res = await register({ email: uniqueEmail(), password: PASSWORD, ...profile });
+      const email = uniqueEmail();
+      await register({ email, password: PASSWORD, ...profile });
+      const res = await login(email, PASSWORD);
       return res.body.data.user.dateOfBirth as string;
     } finally {
       process.env.TZ = saved;
@@ -356,7 +378,7 @@ describe("password reset", () => {
 
   // FINDING-18 (Medium): a password reset does not revoke JWTs issued before it — a stolen
   // session keeps working for up to JWT_EXPIRES_IN (7d by default) after the owner resets.
-  it.fails("sessions issued before a password reset stop working (FINDING-18)", async () => {
+  it("sessions issued before a password reset stop working (FINDING-18)", async () => {
     const { email } = await registered();
     const before = (await login(email, PASSWORD)).body.data.token;
     await requestReset(email);

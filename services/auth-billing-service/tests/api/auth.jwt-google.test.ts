@@ -225,7 +225,7 @@ describe("POST /api/auth/google", () => {
 
   // FINDING-19 (Low): getGoogleClient()'s 503 is thrown inside verifyGoogleIdToken's try/catch,
   // which rewrites every error to 401 GOOGLE_TOKEN_INVALID — misconfiguration looks like a bad token.
-  it.fails("Google sign-in disabled (no GOOGLE_CLIENT_ID) → 503 GOOGLE_AUTH_DISABLED (FINDING-19)", async () => {
+  it("Google sign-in disabled (no GOOGLE_CLIENT_ID) → 503 GOOGLE_AUTH_DISABLED (FINDING-19)", async () => {
     const saved = process.env.GOOGLE_CLIENT_ID;
     process.env.GOOGLE_CLIENT_ID = "";
     try {

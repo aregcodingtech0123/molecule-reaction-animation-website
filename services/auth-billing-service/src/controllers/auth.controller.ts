@@ -4,12 +4,9 @@ import { AppError } from "../types/index.js";
 import { extractBearerToken, verifyToken } from "../utils/jwt.js";
 import jwt from "jsonwebtoken";
 
+/** Trusted client IP (see middlewares/resolveClientIp.ts) — never a raw X-Forwarded-For value. */
 function clientIp(req: Request): string | null {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0]?.trim() ?? null;
-  }
-  return req.ip ?? null;
+  return req.clientIp ?? req.ip ?? null;
 }
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -22,15 +19,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
       clientIp(req),
     );
 
-    if (result.kind === "ambiguous") {
-      res.status(200).json({
-        success: true,
-        data: { message: result.message },
-      });
-      return;
-    }
-
-    res.status(201).json({ success: true, data: result.data });
+    // Identical for new and existing emails (FINDING-09).
+    res.status(200).json({ success: true, data: { message: result.message } });
   } catch (err) {
     next(err);
   }
