@@ -10,6 +10,8 @@ loadTestEnvFile();
 
 export const TEST_ENV = {
   NODE_ENV: "test",
+  // Deterministic date handling regardless of the developer machine (see FINDING-06).
+  TZ: "UTC",
   PORT: "0",
   JWT_SECRET: "test-only-jwt-secret-7f3c9a1e5b2d4c6e8a0b",
   JWT_EXPIRES_IN: "1h",
