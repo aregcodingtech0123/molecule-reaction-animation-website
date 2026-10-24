@@ -49,8 +49,33 @@ describe("ledger immutability", () => {
   });
 
   it("a user with ledger history cannot be deleted (ON DELETE RESTRICT protects the audit trail)", async () => {
-    const { user } = await userWithLedger();
-    await expectPgError(db.query(`DELETE FROM users WHERE id = $1`, [user.id]), "23001");
+    const { user, ledgerId } = await userWithLedger();
+    const err = await expectPgError(db.query(`DELETE FROM users WHERE id = $1`, [user.id]));
+    // Same RESTRICT constraint, version-dependent SQLSTATE: PostgreSQL 18 reports 23001
+    // restrict_violation, PostgreSQL 16 (CI) the generic 23503 foreign_key_violation (TC-40).
+    expect(["23001", "23503"], err.message).toContain(err.code);
+    expect(err.constraint).toBe("credit_ledger_transactions_user_id_fkey");
+    // Nothing of the audit trail is gone.
+    const left = await db.query(
+      `SELECT (SELECT count(*) FROM users WHERE id = $1)::int AS users,
+              (SELECT count(*) FROM user_balances WHERE user_id = $1)::int AS balances`,
+      [user.id],
+    );
+    expect(left.rows[0]).toEqual({ users: 1, balances: 1 });
+    expect((await ledgerOf(db, user.id)).map((r) => String(r.id))).toEqual([ledgerId]);
+  });
+
+  it("the ledger and AI-hold foreign keys to users are declared ON DELETE RESTRICT", async () => {
+    const { rows } = await db.query(
+      `SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+       WHERE contype = 'f' AND confrelid = 'users'::regclass
+         AND conrelid IN ('credit_ledger_transactions'::regclass, 'ai_credit_holds'::regclass)
+       ORDER BY conname`,
+    );
+    expect(rows).toEqual([
+      { conname: "ai_credit_holds_user_id_fkey", def: "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT" },
+      { conname: "credit_ledger_transactions_user_id_fkey", def: "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT" },
+    ]);
   });
 
   it("ledger ids are generated ALWAYS (cannot be forged on insert)", async () => {
