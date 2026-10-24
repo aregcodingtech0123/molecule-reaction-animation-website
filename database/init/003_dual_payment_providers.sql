@@ -79,6 +79,9 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
 
+  -- Lets the user_balances write guard (008) accept this update; cleared below.
+  PERFORM set_config('moleculestudio.ledger_write', 'on', true);
+
   IF p_amount < 0 THEN
     UPDATE user_balances
     SET balance = balance + p_amount
@@ -99,6 +102,8 @@ BEGIN
       ON CONFLICT (user_id) DO UPDATE SET balance = user_balances.balance + EXCLUDED.balance;
     END IF;
   END IF;
+
+  PERFORM set_config('moleculestudio.ledger_write', 'off', true);
 
   INSERT INTO credit_ledger_transactions (
     user_id, amount, transaction_type, reference_id, provider

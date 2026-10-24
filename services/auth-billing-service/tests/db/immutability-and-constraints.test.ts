@@ -66,7 +66,7 @@ describe("ledger immutability", () => {
 
   // FINDING-05 (Medium): row-level triggers do not fire on TRUNCATE, so the "immutable" ledger
   // can be wiped in one statement by the table owner (the app's own DB role).
-  it.fails("TRUNCATE of the ledger is blocked (FINDING-05)", async () => {
+  it("TRUNCATE of the ledger is blocked (FINDING-05)", async () => {
     const scratch = await ScratchDb.create({ migrate: true });
     try {
       const u = await createUser(scratch.pool, { balance: 0 });
@@ -77,16 +77,43 @@ describe("ledger immutability", () => {
     }
   });
 
-  it("user_balances is NOT protected: a direct UPDATE can desynchronise the cache from the ledger", async () => {
-    // Characterisation (FINDING-05): the ledger is append-only but its cached projection is not.
+  it("user_balances is protected: a direct UPDATE is rejected and cannot desynchronise the cache from the ledger (FINDING-05)", async () => {
     const { user } = await userWithLedger();
-    await db.query(`UPDATE user_balances SET balance = 1000 WHERE user_id = $1`, [user.id]);
+    const err = await expectPgError(db.query(`UPDATE user_balances SET balance = 1000 WHERE user_id = $1`, [user.id]), "55000");
+    expect(err.message).toMatch(/only change through post_credit_transaction/);
     const { rows } = await db.query(
       `SELECT b.balance, (SELECT SUM(amount) FROM credit_ledger_transactions WHERE user_id = $1)::int AS ledger
        FROM user_balances b WHERE b.user_id = $1`,
       [user.id],
     );
-    expect(rows[0]).toEqual({ balance: 1000, ledger: 10 });
+    expect(rows[0]).toEqual({ balance: 10, ledger: 10 });
+  });
+
+  it("TRUNCATE of user_balances is blocked (FINDING-05)", async () => {
+    const scratch = await ScratchDb.create({ migrate: true });
+    try {
+      await expectPgError(scratch.pool.query(`TRUNCATE user_balances`), "55000");
+    } finally {
+      await scratch.destroy();
+    }
+  });
+
+  it("an UPDATE that leaves the balance unchanged is not blocked (no false positives on no-op writes)", async () => {
+    const { user } = await userWithLedger();
+    await db.query(`UPDATE user_balances SET balance = balance WHERE user_id = $1`, [user.id]);
+  });
+
+  it("post_credit_transaction leaves the write flag off afterwards, so a later direct UPDATE in the same transaction is still blocked", async () => {
+    const { user } = await userWithLedger();
+    const c = await db.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query(`SELECT post_credit_transaction($1, 5, 'ADMIN_ADJUSTMENT', 'adj')`, [user.id]);
+      await expectPgError(c.query(`UPDATE user_balances SET balance = 999 WHERE user_id = $1`, [user.id]), "55000");
+      await c.query("ROLLBACK");
+    } finally {
+      c.release();
+    }
   });
 });
 

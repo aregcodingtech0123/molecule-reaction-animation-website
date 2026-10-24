@@ -7,18 +7,18 @@
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "dev:server": "tsx watch --clear-screen=false src/index.ts",
     "db:setup": "node scripts/setup-db.mjs",
-    "db:migrate": "node scripts/setup-db.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
     "db:reset": "node scripts/reset-db.mjs",
-    "db:migrate-profiles": "node scripts/migrate-user-profiles.mjs",
-    "db:migrate-email": "node scripts/migrate-email-verification.mjs",
-    "db:migrate-oauth": "node scripts/migrate-oauth-revocation.mjs",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:api": "vitest run --project api",
     "test:db": "vitest run --project db",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "db:migrate:status": "node scripts/migrate.mjs --status",
+    "db:migrate:baseline": "node scripts/migrate.mjs --baseline",
+    "db:reconcile": "node scripts/reconcile.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

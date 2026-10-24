@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applyMigrations } from "../../../../scripts/test/prepare-test-db.mjs";
+import { migrate } from "../../scripts/lib/migrator.mjs";
 import { ScratchDb, allMigrations, migrationsByPrefix } from "../support/scratch-db";
 import { createUser } from "../support/db";
 import { expectPgError } from "../support/pg-error";
@@ -41,7 +42,7 @@ describe("migrations 001→007 on an empty database", () => {
     await db?.destroy();
   });
 
-  it("finds exactly the seven expected migration files in lexical order", () => {
+  it("finds exactly the expected migration files in lexical order", () => {
     const names = allMigrations().map((f: string) => path.basename(f));
     expect(names).toEqual([
       "001_moleculestudio_core.sql",
@@ -51,6 +52,7 @@ describe("migrations 001→007 on an empty database", () => {
       "005_oauth_and_token_revocation.sql",
       "006_ai_credit_metering.sql",
       "007_ai_credit_metering_idempotency.sql",
+      "008_ledger_hardening.sql",
     ]);
   });
 
@@ -111,18 +113,19 @@ describe("migrations 001→007 on an empty database", () => {
   // `COMMENT ON FUNCTION post_credit_transaction IS …` (no arg list) fails with 42725
   // "function name is not unique". db:setup aborts at 001, so the sequence is NOT re-runnable
   // even though every file header says "safe to re-run".
-  it.fails("is idempotent: re-running 001→007 succeeds and leaves the schema unchanged (FINDING-02)", async () => {
+  it("is idempotent: re-running 001→007 succeeds and leaves the schema unchanged (FINDING-02)", async () => {
     const before = await schemaFingerprint(db);
     await applyMigrations(db.url);
     const after = await schemaFingerprint(db);
     expect(after).toEqual(before);
   });
 
-  it("a failed re-run of 001 is atomic: no partial schema change survives (impact bound of FINDING-02)", async () => {
+  it("re-running 001 alone on a fully migrated database is a no-op (FINDING-02 fixed)", async () => {
     const before = await schemaFingerprint(db);
-    const err = await expectPgError(applyMigrations(db.url, migrationsByPrefix("001")), "42725");
-    expect(err.message).toMatch(/post_credit_transaction.*not unique/);
+    await expect(applyMigrations(db.url, migrationsByPrefix("001"))).resolves.toBeUndefined();
     expect(await schemaFingerprint(db)).toEqual(before);
+    const { rows } = await db.pool.query(`SELECT count(*)::int AS n FROM pg_proc WHERE proname = 'post_credit_transaction'`);
+    expect(rows[0].n).toBe(1);
   });
 
   it("re-running 002→007 is idempotent and leaves the schema unchanged", async () => {
@@ -186,19 +189,14 @@ describe("migration edge cases", () => {
     }
   });
 
-  it("root cause of FINDING-02: with both overloads present a 4-arg call is ambiguous too", async () => {
-    // Recreate the transient state 001 produces mid-transaction (before its COMMENT fails):
-    // 001's CREATE FUNCTION alone, on top of a fully migrated database.
+  it("root cause of FINDING-02: with both overloads present a 4-arg call is ambiguous — and the fixed 001 never creates the 2nd overload", async () => {
     const scratch = await ScratchDb.create({ migrate: true });
     try {
-      const sql001 = fs.readFileSync(migrationsByPrefix("001")[0], "utf8");
-      const createFn = sql001.match(/CREATE OR REPLACE FUNCTION post_credit_transaction[\s\S]*?\$\$;/)![0];
-      await scratch.pool.query(createFn);
-      const { rows } = await scratch.pool.query(
-        `SELECT count(*)::int AS n FROM pg_proc WHERE proname = 'post_credit_transaction'`,
-      );
-      expect(rows[0].n).toBe(2);
-
+      // Inline fixture of the legacy 4-arg signature (the fixed 001 no longer re-creates it).
+      await scratch.pool.query(`
+        CREATE FUNCTION post_credit_transaction(p_user_id UUID, p_amount INTEGER,
+          p_transaction_type credit_transaction_type, p_reference_id VARCHAR DEFAULT NULL)
+        RETURNS BIGINT LANGUAGE sql AS $fx$ SELECT 0::bigint $fx$`);
       const user = await createUser(scratch.pool, { balance: 0 });
       await expectPgError(
         scratch.pool.query(`SELECT post_credit_transaction($1::uuid, 10, 'SIGNUP_BONUS'::credit_transaction_type, 'signup'::varchar)`, [user.id]),
@@ -208,37 +206,49 @@ describe("migration edge cases", () => {
       await scratch.destroy();
     }
   });
+
+  it("001 creates the legacy overload only on an empty database and comments it by full signature", () => {
+    const sql001 = fs.readFileSync(migrationsByPrefix("001")[0], "utf8");
+    expect(sql001).toMatch(/IF NOT EXISTS \([\s\S]*proname = 'post_credit_transaction'[\s\S]*\) THEN[\s\S]*CREATE FUNCTION post_credit_transaction\(/);
+    expect(sql001).not.toMatch(/COMMENT ON FUNCTION post_credit_transaction IS/);
+    expect(sql001).toMatch(/COMMENT ON FUNCTION post_credit_transaction\(UUID, INTEGER, credit_transaction_type, VARCHAR\) IS/);
+  });
 });
 
-describe("db:setup script coverage of migrations (FINDING-01)", () => {
-  const setupScript = fs.readFileSync(
-    new URL("../../scripts/setup-db.mjs", import.meta.url),
-    "utf8",
-  );
-  const listed = [...setupScript.matchAll(/database\/init\/(\d{3}_[\w-]+\.sql)/g)].map((m) => m[1]);
+describe("db:setup applies every migration through the tracked runner (FINDING-01)", () => {
+  const setupScript = fs.readFileSync(new URL("../../scripts/setup-db.mjs", import.meta.url), "utf8");
+  const names = () => allMigrations().map((f: string) => path.basename(f));
 
-  it("lists migrations in ascending order without duplicates", () => {
-    expect(listed).toEqual([...new Set(listed)].sort());
+  it("setup-db.mjs no longer hard-codes a migration list; it delegates to the runner", () => {
+    expect([...setupScript.matchAll(/database\/init\/\d{3}_/g)]).toHaveLength(0);
+    expect(setupScript).toMatch(/import \{ migrate \} from "\.\/lib\/migrator\.mjs"/);
   });
 
-  // FINDING-01 (Critical): setup-db.mjs hard-codes 001→005, so 006/007 are never applied by
-  // `npm run db:setup` / `db:reset`. Fails until the script applies every file in database/init.
-  it.fails("applies every migration file in database/init (FINDING-01)", () => {
-    expect(listed).toEqual(allMigrations().map((f: string) => path.basename(f)));
-  });
-
-  it("a database built only from the files db:setup applies cannot record AI usage (impact of FINDING-01)", async () => {
-    const scratch = await ScratchDb.create({ migrate: listed.map((n) => migrationsByPrefix(n.slice(0, 3))[0]) });
+  it("applies every migration file in database/init, in order, and records each (FINDING-01)", async () => {
+    const scratch = await ScratchDb.create();
     try {
-      const user = await createUser(scratch.pool, { balance: 10 });
-      const err = await expectPgError(
-        scratch.pool.query(
-          `SELECT post_credit_transaction($1, -1, 'CREDIT_CONSUMPTION'::credit_transaction_type, 'turn-1')`,
-          [user.id],
-        ),
-        "22P02",
+      const result = await migrate({ connectionString: scratch.url });
+      expect(result.mode).toBe("fresh");
+      expect(result.applied).toEqual(names());
+      const { rows } = await scratch.pool.query(`SELECT filename, baselined FROM schema_migrations ORDER BY filename`);
+      expect(rows).toEqual(names().map((filename) => ({ filename, baselined: false })));
+    } finally {
+      await scratch.destroy();
+    }
+  });
+
+  it("a database built by the runner records AI usage (impact of FINDING-01 is gone)", async () => {
+    const scratch = await ScratchDb.create();
+    try {
+      await migrate({ connectionString: scratch.url });
+      const user = await createUser(scratch.pool, { balance: 0 });
+      await scratch.pool.query(`SELECT post_credit_transaction($1, 10, 'SIGNUP_BONUS', 'signup')`, [user.id]);
+      await scratch.pool.query(
+        `SELECT post_credit_transaction($1, -1, 'CREDIT_CONSUMPTION'::credit_transaction_type, 'turn-1')`,
+        [user.id],
       );
-      expect(err.message).toMatch(/CREDIT_CONSUMPTION/);
+      const { rows } = await scratch.pool.query(`SELECT balance FROM user_balances WHERE user_id = $1`, [user.id]);
+      expect(rows[0].balance).toBe(9);
     } finally {
       await scratch.destroy();
     }

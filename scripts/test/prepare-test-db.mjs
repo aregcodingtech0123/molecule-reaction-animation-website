@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { assertTestDatabaseUrl, resolveTestDatabaseUrl } from "./db-guard.mjs";
+import { migrate } from "../../services/auth-billing-service/scripts/lib/migrator.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const MIGRATIONS_DIR = path.join(repoRoot, "database", "init");
@@ -84,7 +85,10 @@ export async function dropDatabase(url) {
   });
 }
 
-/** Apply migration files (default: all) — each file is sent as one multi-statement query, exactly like setup-db.mjs. */
+/**
+ * Apply migration files RAW (no tracking) — each file sent as one multi-statement query.
+ * Only for tests that must reproduce pre-runner databases or re-run individual files.
+ */
 export async function applyMigrations(url, files = listMigrationFiles()) {
   assertTestDatabaseUrl(url);
   await withClient(url, async (c) => {
@@ -94,11 +98,15 @@ export async function applyMigrations(url, files = listMigrationFiles()) {
   });
 }
 
+/**
+ * Fresh guarded DB built by the SAME tracked runner `npm run db:setup` uses,
+ * so every suite runs against the production migration path.
+ */
 export async function prepareTestDatabase(url = resolveTestDatabaseUrl()) {
   assertTestDatabaseUrl(url);
   await waitForPostgres(url);
   await recreateDatabase(url);
-  await applyMigrations(url);
+  await migrate({ connectionString: url });
   return url;
 }
 

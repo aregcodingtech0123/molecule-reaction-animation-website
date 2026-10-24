@@ -4,6 +4,8 @@
  * E2E launcher. There is deliberately no override flag.
  */
 
+import { assertLocalDatabaseUrl } from "../../services/auth-billing-service/scripts/lib/db-safety.mjs";
+
 export const DEFAULT_TEST_DATABASE_URL =
   "postgresql://postgres@127.0.0.1:55432/moleculestudio_test";
 
@@ -44,6 +46,8 @@ export function assertTestDatabaseUrl(url) {
   if (/sslmode=require/i.test(parsed.search)) {
     throw new Error(`[db-guard] sslmode=require suggests a hosted database. Refusing.`);
   }
+  // Same host rule as `db:reset` (shared), plus the test-only name rule below.
+  assertLocalDatabaseUrl(url);
   if (!/test/i.test(database)) {
     throw new Error(
       `[db-guard] Database name "${database}" does not contain "test". Refusing to run destructive test setup.`,
