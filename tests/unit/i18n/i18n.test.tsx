@@ -72,7 +72,7 @@ describe("assembled UI dictionary (JSON ui + extensions + atom-model nav)", () =
 
   // FINDING-27 (Medium): 83 UI keys (auth modal, credits chip, pricing/billing, toasts …) exist only
   // in the English extension bundle; every other locale falls back to the inline English default.
-  it.fails.each(OTHERS)("%s resolves every key the English UI uses (FINDING-27)", (locale) => {
+  it.each(OTHERS)("%s resolves every key the English UI uses (FINDING-27)", (locale) => {
     expect(Object.keys(getDictionary(locale)).sort()).toEqual(sourceKeys);
   });
 
@@ -80,8 +80,8 @@ describe("assembled UI dictionary (JSON ui + extensions + atom-model nav)", () =
     expect(Object.entries(getDictionary(locale)).filter(([, v]) => !String(v).trim())).toEqual([]);
   });
 
-  it("characterisation: the gap is the same 83 keys in every non-English locale", () => {
-    for (const l of OTHERS) expect(sourceKeys.filter((k) => !(k in getDictionary(l)))).toHaveLength(83);
+  it("no key is missing in any non-English locale (was 83 per locale, FINDING-27)", () => {
+    for (const l of OTHERS) expect(sourceKeys.filter((k) => !(k in getDictionary(l)))).toEqual([]);
   });
 
   it.each(OTHERS)("%s locale-specific extensions do not introduce keys unknown to English", (locale) => {
