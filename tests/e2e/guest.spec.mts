@@ -31,6 +31,34 @@ test.describe("guest journeys", () => {
     });
   }
 
+  // FINDING-26: the stored White Lab theme must be on <html> before any app JavaScript runs.
+  test("White Lab is applied by the inline head script before hydration (FINDING-26)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("moleculestudio-theme", "white-lab"));
+    // No Next.js chunks → no React, no ThemeProvider: only the inline script can set the theme.
+    await page.route(/\/_next\/static\/.*\.js(\?.*)?$/, (route) => route.abort());
+    await page.goto("/pricing", { waitUntil: "domcontentloaded" });
+    const html = await page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme,
+      dark: document.documentElement.classList.contains("dark"),
+      hydrated: Boolean((window as unknown as { next?: unknown }).next),
+    }));
+    expect(html).toEqual({ theme: "white-lab", dark: false, hydrated: false });
+  });
+
+  test("a White Lab page load logs no hydration warnings (FINDING-26)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("moleculestudio-theme", "white-lab"));
+    const messages: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" || m.type() === "warning") messages.push(m.text());
+    });
+    const errors = trackPageErrors(page);
+    await page.goto("/pricing");
+    await page.waitForLoadState("networkidle").catch(() => undefined);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "white-lab");
+    expect(messages.filter((m) => /hydrat|did not match|server rendered|script tag/i.test(m))).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
   test("periodic table: selecting an element opens its detail panel", async ({ page }) => {
     await page.goto("/periodic-table");
     await page.getByRole("button", { name: "Oxygen, atomic number 8" }).click();

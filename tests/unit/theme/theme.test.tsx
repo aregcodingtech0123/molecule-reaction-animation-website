@@ -107,7 +107,7 @@ describe("pre-hydration theme (flash of wrong theme)", () => {
 
   // FINDING-26 (Low): there is no inline script that applies the persisted theme before
   // hydration, so White Lab users see a Night Lab flash on every full page load.
-  it.fails("applies the persisted theme before first paint (inline script reading the theme key) (FINDING-26)", () => {
+  it("applies the persisted theme before first paint (inline script reading the theme key) (FINDING-26)", () => {
     expect(layout).toMatch(new RegExp(`<script[\\s\\S]*${THEME_STORAGE_KEY}`));
   });
 });

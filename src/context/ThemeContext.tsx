@@ -4,7 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -43,7 +43,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   /** Match SSR / layout.tsx defaults on first render to avoid hydration mismatch. */
   const [theme, setThemeState] = useState<AppTheme>(DEFAULT_THEME);
 
-  useEffect(() => {
+  // Layout effect: adopt the stored theme (already on <html> via the inline head
+  // script) before the browser paints the hydrated tree (FINDING-26).
+  useLayoutEffect(() => {
     const storedRaw = window.localStorage.getItem(THEME_STORAGE_KEY);
     const resolved = resolveAppTheme(storedRaw);
     if (storedRaw !== resolved) {
