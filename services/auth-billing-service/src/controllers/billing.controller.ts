@@ -54,11 +54,12 @@ export async function getHistory(req: Request, res: Response, next: NextFunction
     }
 
     const limit = parseHistoryLimit(req.query.limit);
-    const transactions = await billingService.getLedgerHistoryForUser(userId, limit);
+    const cursor = req.query.cursor === undefined ? null : billingService.decodeHistoryCursor(req.query.cursor);
+    const page = await billingService.getLedgerHistoryForUser(userId, limit, cursor);
 
     res.json({
       success: true,
-      data: { transactions },
+      data: { transactions: page.transactions, nextCursor: page.nextCursor },
     });
   } catch (err) {
     next(err);

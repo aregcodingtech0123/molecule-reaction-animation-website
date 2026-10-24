@@ -172,11 +172,93 @@ describe("GET /api/billing/history", () => {
     expect(res.body.data.transactions).toHaveLength(4);
   });
 
-  it("offers no offset/cursor: rows beyond 200 are unreachable (pagination gap, FINDING-17)", async () => {
+  /** Follow nextCursor until the end; returns every page. */
+  async function walk(u: { id: string; email: string }, limit: number) {
+    const pages: Array<{ transactions: Array<{ id: string; created_at: string }>; nextCursor: string | null }> = [];
+    let cursor: string | null = null;
+    do {
+      const qs = new URLSearchParams({ limit: String(limit), ...(cursor ? { cursor } : {}) });
+      const res = await request(app).get(`/api/billing/history?${qs}`).set("Authorization", bearer(u));
+      expect(res.status).toBe(200);
+      pages.push(res.body.data);
+      cursor = res.body.data.nextCursor;
+      expect(pages.length).toBeLessThan(50);
+    } while (cursor);
+    return pages;
+  }
+
+  it("cursor pagination reaches every row beyond 200, each exactly once, newest first (FINDING-17)", async () => {
+    const u = await userWithRows(204); // 205 rows with the signup bonus
+    const pages = await walk(u, 200);
+    expect(pages.map((p) => p.transactions.length)).toEqual([200, 5]);
+    expect(pages.map((p) => p.nextCursor === null)).toEqual([false, true]);
+    const ids = pages.flatMap((p) => p.transactions.map((t) => t.id));
+    const ledgerIds = (await ledgerOf(db, u.id)).map((r) => String(r.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect([...ids].sort()).toEqual([...ledgerIds].sort());
+    const times = pages.flatMap((p) => p.transactions.map((t) => Date.parse(t.created_at)));
+    expect(times).toEqual([...times].sort((x, y) => y - x));
+  }, 60_000);
+
+  it("rows sharing one created_at (same transaction) are neither skipped nor repeated across pages (FINDING-17)", async () => {
+    const u = await fundedUser(0);
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      for (let i = 0; i < 7; i++) {
+        await client.query(`SELECT post_credit_transaction($1, 1, 'ADMIN_ADJUSTMENT', $2)`, [u.id, `same-ts-${i}`]);
+      }
+      await client.query("COMMIT");
+    } finally {
+      client.release();
+    }
+    const pages = await walk(u, 2);
+    const ids = pages.flatMap((p) => p.transactions.map((t) => t.id));
+    const ledgerIds = (await ledgerOf(db, u.id)).map((r) => String(r.id));
+    expect(ledgerIds.length).toBeGreaterThanOrEqual(7);
+    expect(ids).toHaveLength(ledgerIds.length);
+    expect([...ids].sort()).toEqual([...ledgerIds].sort());
+    // Ties are broken by id, descending.
+    const sameTs = pages.flatMap((p) => p.transactions).filter((t) => t.created_at === pages[0]!.transactions[0]!.created_at);
+    expect(sameTs.map((t) => Number(t.id))).toEqual([...sameTs.map((t) => Number(t.id))].sort((a, b) => b - a));
+  });
+
+  it("the first page is backward compatible: same rows and shape as before, plus nextCursor (FINDING-17)", async () => {
+    const u = await userWithRows(2);
+    const res = await request(app).get(`/api/billing/history`).set("Authorization", bearer(u));
+    expect(Object.keys(res.body.data).sort()).toEqual(["nextCursor", "transactions"]);
+    expect(res.body.data.transactions).toHaveLength(3);
+    expect(res.body.data.nextCursor).toBeNull();
+    // offset is still not a supported parameter: the newest row comes first.
+    const withOffset = await request(app).get(`/api/billing/history?limit=1&offset=1`).set("Authorization", bearer(u));
+    expect(withOffset.body.data.transactions[0].reference_id).toBe("turn-1");
+    expect(withOffset.body.data.nextCursor).toEqual(expect.any(String));
+  });
+
+  it.each([
+    ["garbage", "x"],
+    ["not base64 JSON", Buffer.from("hello").toString("base64url")],
+    ["non-numeric id", Buffer.from(JSON.stringify({ t: "2026-01-01T00:00:00.000000", i: "abc" })).toString("base64url")],
+    ["SQL in the timestamp", Buffer.from(JSON.stringify({ t: "2026-01-01'; DROP TABLE users; --", i: "1" })).toString("base64url")],
+    ["repeated parameter", ["a", "b"]],
+  ])("cursor that is %s → 400 INVALID_CURSOR (FINDING-17)", async (_label, cursor) => {
     const u = await userWithRows(1);
-    const res = await request(app).get(`/api/billing/history?limit=1&offset=1&cursor=x`).set("Authorization", bearer(u));
-    // Offset is ignored — the newest row is returned again.
-    expect(res.body.data.transactions[0].reference_id).toBe("turn-0");
+    const qs = Array.isArray(cursor) ? cursor.map((c) => `cursor=${c}`).join("&") : `cursor=${encodeURIComponent(cursor)}`;
+    const res = await request(app).get(`/api/billing/history?${qs}`).set("Authorization", bearer(u));
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ success: false, code: "INVALID_CURSOR" });
+  });
+
+  it("a cursor from another user's page only pages through the caller's own rows (FINDING-17)", async () => {
+    const a = await userWithRows(3);
+    const b = await userWithRows(3);
+    const first = await request(app).get(`/api/billing/history?limit=1`).set("Authorization", bearer(b));
+    const res = await request(app)
+      .get(`/api/billing/history?cursor=${first.body.data.nextCursor}`)
+      .set("Authorization", bearer(a));
+    const own = new Set((await ledgerOf(db, a.id)).map((r) => String(r.id)));
+    expect(res.status).toBe(200);
+    expect(res.body.data.transactions.every((t: { id: string }) => own.has(t.id))).toBe(true);
   });
 });
 

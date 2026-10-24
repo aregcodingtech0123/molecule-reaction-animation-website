@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -20,13 +20,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
-  fetchLedgerHistory,
+  appendPage,
+  fetchLedgerHistoryPage,
   formatLedgerAmount,
   formatLedgerDate,
   formatTransactionDescription,
   formatTransactionType,
   ledgerBadgeVariant,
+  mergeFirstPage,
   type LedgerBadgeVariant,
+  type LedgerPage,
   type LedgerTransaction,
 } from "@/lib/billing/history";
 import { PricingCards } from "@/components/billing/PricingCards";
@@ -42,9 +45,26 @@ export default function DashboardPage() {
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
 
-  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [ledger, setLedger] = useState<LedgerPage>({ transactions: [], nextCursor: null });
+  const transactions = ledger.transactions;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+
+  const loadMore = useCallback(async () => {
+    if (!ledger.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const older = await fetchLedgerHistoryPage(ledger.nextCursor);
+      setLedger((shown) => appendPage(shown, older));
+    } catch (err) {
+      setLoadMoreError(err instanceof Error ? err.message : "Unable to load transaction history.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [ledger.nextCursor, loadingMore]);
   const { purchase, loadingId, error: checkoutError } = useCreditCheckout();
 
   useEffect(() => {
@@ -65,8 +85,8 @@ export default function DashboardPage() {
       setError(null);
       try {
         await fetchBalance();
-        const rows = await fetchLedgerHistory();
-        if (!cancelled) setTransactions(rows);
+        const page = await fetchLedgerHistoryPage();
+        if (!cancelled) setLedger(page);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -83,9 +103,9 @@ export default function DashboardPage() {
     void load();
 
     const onCreditsRefreshed = () => {
-      void fetchLedgerHistory()
-        .then((rows) => {
-          if (!cancelled) setTransactions(rows);
+      void fetchLedgerHistoryPage()
+        .then((page) => {
+          if (!cancelled) setLedger((shown) => mergeFirstPage(shown, page));
         })
         .catch(() => {
           /* keep existing ledger rows */
@@ -351,7 +371,32 @@ export default function DashboardPage() {
           ) : transactions.length === 0 ? (
             <EmptyState isWhiteLab={isWhiteLab} ui={ui} t={t} />
           ) : (
-            <TransactionTable transactions={transactions} isWhiteLab={isWhiteLab} ui={ui} t={t} />
+            <>
+              <TransactionTable transactions={transactions} isWhiteLab={isWhiteLab} ui={ui} t={t} />
+              {loadMoreError ? (
+                <p className="px-6 pt-4 text-center text-sm text-red-500" role="alert">
+                  {loadMoreError}
+                </p>
+              ) : null}
+              {ledger.nextCursor ? (
+                <div className="flex justify-center px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={() => void loadMore()}
+                    disabled={loadingMore}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60",
+                      isWhiteLab
+                        ? "border-slate-300 text-slate-700 hover:bg-slate-100"
+                        : "border-slate-700 text-slate-200 hover:bg-white/[0.06]",
+                    )}
+                  >
+                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                    {t.dashboard_load_more ?? "Load more"}
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </motion.section>
       </div>

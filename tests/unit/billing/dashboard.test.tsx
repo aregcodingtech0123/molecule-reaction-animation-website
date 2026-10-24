@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { json, LinkMock, makeAuth, navigationMock, renderWithProviders, routeFetch, router, signedIn } from "../../support/mocks";
 
@@ -62,6 +63,93 @@ describe("dashboard ledger table", () => {
     renderWithProviders(<DashboardPage />);
     await screen.findByText("No transactions yet");
     expect(ctx.fetchBalance).toHaveBeenCalled();
+  });
+
+  it("no nextCursor (or an older service without the field) → no 'Load more' button", async () => {
+    auth.current = signedIn();
+    vi.stubGlobal("fetch", routeFetch({ "GET /api/billing/history": () => json({ success: true, data: { transactions: rows } }) }));
+    renderWithProviders(<DashboardPage />);
+    await screen.findByRole("table");
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  });
+
+  it("'Load more' fetches the next page with the cursor and appends it (FINDING-17)", async () => {
+    auth.current = signedIn();
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/history": (_init, url) => {
+          urls.push(url);
+          return new URL(url, "http://x").searchParams.get("cursor") === "c-1"
+            ? json({ success: true, data: { transactions: rows.slice(2), nextCursor: null } })
+            : json({ success: true, data: { transactions: rows.slice(0, 2), nextCursor: "c-1" } });
+        },
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+    const table = await screen.findByRole("table");
+    expect(within(table).getAllByRole("row").slice(1)).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(within(table).getAllByRole("row").slice(1)).toHaveLength(4));
+    expect(urls.at(-1)).toMatch(/\/api\/billing\/history\?cursor=c-1$/);
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  });
+
+  it("a failed 'Load more' keeps the loaded rows and lets the user retry (FINDING-17)", async () => {
+    auth.current = signedIn();
+    let fail = true;
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/history": (_init, url) => {
+          if (!new URL(url, "http://x").searchParams.get("cursor")) {
+            return json({ success: true, data: { transactions: rows.slice(0, 2), nextCursor: "c-1" } });
+          }
+          return fail
+            ? json({ success: false, error: "Internal server error." }, 500)
+            : json({ success: true, data: { transactions: rows.slice(2), nextCursor: null } });
+        },
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+    const table = await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("button", { name: "Load more" }));
+    expect(await screen.findByText("Internal server error.")).toBeInTheDocument();
+    expect(within(table).getAllByRole("row").slice(1)).toHaveLength(2);
+
+    fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(within(table).getAllByRole("row").slice(1)).toHaveLength(4));
+  });
+
+  it("a credits refresh after 'Load more' adds new rows on top without duplicating or dropping older pages (FINDING-17)", async () => {
+    auth.current = signedIn();
+    const newest = { id: "5", amount: -1, transaction_type: "CREDIT_CONSUMPTION", reference_id: "turn-2", created_at: "2026-10-20T10:04:00Z" };
+    let firstPage = { transactions: rows.slice(0, 2), nextCursor: "c-1" as string | null };
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/history": (_init, url) =>
+          new URL(url, "http://x").searchParams.get("cursor") === "c-1"
+            ? json({ success: true, data: { transactions: rows.slice(2), nextCursor: null } })
+            : json({ success: true, data: firstPage }),
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+    const table = await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(within(table).getAllByRole("row").slice(1)).toHaveLength(4));
+
+    firstPage = { transactions: [newest, rows[0]!], nextCursor: "c-0" };
+    await act(async () => {
+      window.dispatchEvent(new Event("moleculestudio:credits-refreshed"));
+    });
+    await waitFor(() => expect(within(table).getAllByRole("row").slice(1)).toHaveLength(5));
+    expect(within(table).getAllByRole("row").slice(1).map((r) => r.textContent)[0]).toMatch(/AI Usage.*-1/);
+    // All older pages were already loaded — no button reappears from the refreshed first page.
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   it("guest → client-side redirect to /login (defence in depth behind the middleware)", () => {
