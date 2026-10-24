@@ -27,7 +27,7 @@ self-hosted HDR files ship in `public/hdri/` with the Next.js build.
 > of an old Express would send every user into a login loop.
 
 Order: **1 backup → 2 read-only checks → 3 FINDING-03 abuse report → 4 migrations → 5 env vars →
-6 deploy both services together → 7 verify → 8 Lemon webhook check → 9 schedule jobs.**
+6 deploy both services together → 7 verify (7.0 a real browser sign-in first) → 8 Lemon webhook check → 9 schedule jobs.**
 Rollback steps follow each step and are collected in §10.
 
 ---
@@ -240,6 +240,43 @@ randomly generated key passes. Test locally: `node -e "import('./dist/config/sec
 **Rollback 6:** redeploy the previous Express **and** Next together (§10.3).
 
 ## 7. Verify
+
+### 7.0 FIRST: a real sign-in on the public origin (do this before anything else)
+
+The new cross-site guard compares the browser's `Origin` header with Next.js `FRONTEND_URL` on **every**
+POST/PUT/PATCH/DELETE. `curl` sends no `Origin`, so the curl checks below pass even when `FRONTEND_URL` is wrong — only
+a real browser proves it is right.
+
+1. In a normal (not private) browser window, open the public site **exactly as users reach it** (e.g.
+   `https://moleculestudio.app`) and sign in with a staff account.
+2. **Success looks like:** the dialog closes, the navbar shows the account and credit balance, `/dashboard` loads its
+   history; in DevTools → Network, `POST /api/auth/login` is `200` with a `Set-Cookie: session_token=…; HttpOnly;
+   Secure; SameSite=Strict` response header. Then sign out (`POST /api/auth/clear-cookie` → `200`).
+3. If the site is reachable under more than one host (www and apex, a platform `*.vercel.app` URL), repeat on each one
+   users can land on — only the host equal to `FRONTEND_URL` can sign in. Redirect the others to it at the platform /
+   DNS level.
+
+**Failure looks like:** the sign-in dialog stays open with the message **"Cross-site request refused."**; Network shows
+`POST /api/auth/login` → `403` with body `{"success":false,"error":"Cross-site request refused.","code":"CSRF_REJECTED"}`
+and **no** `Set-Cookie`. Sign-up, sign-out, checkout ("Buy Now") and profile saves fail the same way (403). Nothing
+reaches Express, so its logs stay quiet — the 403 comes from Next.js.
+
+**`FRONTEND_URL` pitfalls** (set on **both** services; Express uses it for email links, the Lemon `redirect_url` and
+CORS):
+
+| Pitfall | Example (wrong → right) | Effect |
+| --- | --- | --- |
+| Not the exact public origin | `https://moleculestudio.vercel.app` while users use `https://moleculestudio.app` | every browser POST → 403 |
+| `http` instead of `https` | `http://moleculestudio.app` → `https://moleculestudio.app` | 403; email links and the post-checkout redirect use the wrong scheme |
+| www vs non-www | `https://moleculestudio.app` while users are on `https://www.moleculestudio.app` | 403 on the host that is not listed (they are different origins) |
+| A trailing slash | `https://moleculestudio.app/` | harmless: both services strip trailing slashes — but write it without one |
+| A path, port or upper case | `https://moleculestudio.app/en`, `https://moleculestudio.app:443`, `https://MoleculeStudio.app` | 403: browsers send the origin lower-case, without a default port and without a path |
+| Left unset in production | — | defaults to `http://localhost:3000` → every browser POST → 403 |
+
+**Fix:** correct `FRONTEND_URL` on Next.js (and Express), restart / redeploy, repeat 7.0. No database change is involved,
+so there is nothing to roll back.
+
+### 7.1 Service checks
 
 ```bash
 curl -s https://<express-host>/health                                   # {"status":"ok",…}
