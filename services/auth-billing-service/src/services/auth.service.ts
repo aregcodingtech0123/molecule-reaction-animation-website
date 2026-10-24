@@ -316,34 +316,33 @@ async function linkOAuthAccount(
   provider: string,
   providerAccountId: string,
 ): Promise<void> {
-  try {
-    await client.query(
-      `INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
-       VALUES ($1, $2, $3)`,
-      [userId, provider, providerAccountId],
-    );
-  } catch (err: unknown) {
-    const pgCode =
-      err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
-    if (pgCode !== "23505") throw err;
+  // ON CONFLICT instead of catching 23505: a caught error would leave the caller's transaction
+  // aborted, so the owner lookup below failed with 25P02 and a concurrent first sign-in got a
+  // 500 (FINDING-35). A concurrent uncommitted link of the same subject is waited for, so the
+  // owner read below sees it.
+  await client.query(
+    `INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (provider, provider_account_id) DO NOTHING`,
+    [userId, provider, providerAccountId],
+  );
 
-    const existing = await client.query<{ user_id: string }>(
-      `SELECT user_id::text
-       FROM oauth_accounts
-       WHERE provider = $1 AND provider_account_id = $2
-       LIMIT 1`,
-      [provider, providerAccountId],
+  const existing = await client.query<{ user_id: string }>(
+    `SELECT user_id::text
+     FROM oauth_accounts
+     WHERE provider = $1 AND provider_account_id = $2
+     LIMIT 1`,
+    [provider, providerAccountId],
+  );
+  const ownerId = existing.rows[0]?.user_id;
+  if (ownerId !== userId) {
+    throw new AppError(
+      409,
+      "This Google account is already linked to another user.",
+      "OAUTH_ALREADY_LINKED",
     );
-    const ownerId = existing.rows[0]?.user_id;
-    if (ownerId && ownerId !== userId) {
-      throw new AppError(
-        409,
-        "This Google account is already linked to another user.",
-        "OAUTH_ALREADY_LINKED",
-      );
-    }
-    // Idempotent: already linked to this user.
   }
+  // Linked to this user — newly, or already (idempotent).
 }
 
 async function findUserByOAuth(
