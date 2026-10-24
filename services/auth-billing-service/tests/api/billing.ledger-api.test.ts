@@ -152,10 +152,24 @@ describe("GET /api/billing/history", () => {
 
   // FINDING-08 (Low): Number("abc") is NaN, Math.min/max propagate NaN, and Postgres rejects
   // `LIMIT 'NaN'` → 500 INTERNAL_ERROR for any non-numeric limit.
-  it.fails.each([["abc"], ["2.7"], ["NaN"]])("non-integer limit=%j falls back to the default instead of 500 (FINDING-08)", async (limit) => {
+  it.each([["abc"], ["2.7"], ["NaN"]])("non-integer limit=%j falls back to the default instead of 500 (FINDING-08)", async (limit) => {
     const u = await userWithRows(1);
     const res = await request(app).get(`/api/billing/history?limit=${limit}`).set("Authorization", bearer(u));
     expect(res.status).toBe(200);
+  });
+
+  it.each([["abc"], ["2.7"], ["NaN"], ["0x10"], ["3abc"]])("limit=%j is not a valid integer → the default page size, not a truncation (FINDING-08)", async (limit) => {
+    const u = await userWithRows(3); // 4 rows; a truncating parser would return 2, 0 or 3
+    const res = await request(app).get(`/api/billing/history?limit=${limit}`).set("Authorization", bearer(u));
+    expect(res.status).toBe(200);
+    expect(res.body.data.transactions).toHaveLength(4);
+  });
+
+  it("repeated limit parameters (?limit=1&limit=2) → default, not 500 (FINDING-08)", async () => {
+    const u = await userWithRows(3);
+    const res = await request(app).get(`/api/billing/history?limit=1&limit=2`).set("Authorization", bearer(u));
+    expect(res.status).toBe(200);
+    expect(res.body.data.transactions).toHaveLength(4);
   });
 
   it("offers no offset/cursor: rows beyond 200 are unreachable (pagination gap, FINDING-17)", async () => {

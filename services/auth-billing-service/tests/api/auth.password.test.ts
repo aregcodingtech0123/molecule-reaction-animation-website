@@ -158,13 +158,36 @@ describe("POST /api/auth/register", () => {
   });
 
   // FINDING-12: body-parser errors are not mapped — malformed JSON is a client error, not a 500.
-  it.fails("malformed JSON → 400 (FINDING-12)", async () => {
+  it("malformed JSON → 400 (FINDING-12)", async () => {
     const res = await request(app)
       .post("/api/auth/register")
       .set("X-Forwarded-For", freshIp())
       .set("Content-Type", "application/json")
       .send('{"email": ');
     expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, error: "Malformed JSON body.", code: "INVALID_JSON" });
+  });
+
+  it("JSON body over the 32kb limit → 413 PAYLOAD_TOO_LARGE, nothing created (FINDING-12)", async () => {
+    const email = uniqueEmail();
+    const res = await request(app)
+      .post("/api/auth/register")
+      .set("X-Forwarded-For", freshIp())
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ email, password: PASSWORD, pad: "a".repeat(40 * 1024) }));
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({ success: false, error: "Request body too large.", code: "PAYLOAD_TOO_LARGE" });
+    expect((await db.query(`SELECT 1 FROM users WHERE email = $1`, [email])).rowCount).toBe(0);
+  });
+
+  it("unsupported body charset → 415, not 500 (FINDING-12)", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("X-Forwarded-For", freshIp())
+      .set("Content-Type", "application/json; charset=koi8-r")
+      .send("{}");
+    expect(res.status).toBe(415);
+    expect(res.body).toMatchObject({ success: false, code: "UNSUPPORTED_MEDIA_TYPE" });
   });
 });
 

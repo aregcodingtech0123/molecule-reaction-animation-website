@@ -45,8 +45,11 @@ describe("credit packages & AI operation prices", () => {
     }
   });
 
-  it.fails("resolveCreditPackage rejects inherited object keys (FINDING-16)", () => {
+  it("resolveCreditPackage rejects inherited object keys (FINDING-16)", () => {
     expect(() => resolveCreditPackage("__proto__")).toThrow("INVALID_PACKAGE");
+    for (const key of ["constructor", "toString", "hasOwnProperty", "valueOf", "__defineGetter__"]) {
+      expect(() => resolveCreditPackage(key)).toThrow("INVALID_PACKAGE");
+    }
   });
 
   it("isAiOperationType only accepts own keys (prototype keys rejected)", () => {

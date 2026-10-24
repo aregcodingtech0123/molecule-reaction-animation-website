@@ -150,11 +150,41 @@ export interface FulfillPurchaseParams {
   currency: string;
 }
 
+const PAYMENT_REFERENCE_UNIQUE = "uq_credit_ledger_provider_reference";
+
+function isDuplicatePaymentReference(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const { code, constraint } = err as { code?: string; constraint?: string };
+  return code === "23505" && constraint === PAYMENT_REFERENCE_UNIQUE;
+}
+
 /**
  * Idempotent credit grant after a verified provider webhook.
  * Uses CREDIT_PURCHASE + unique (provider, reference_id).
+ *
+ * Two concurrent deliveries of the same order can both pass the "already
+ * processed?" check; the unique index then rejects the second insert. That
+ * loser is reported as `already_processed`, exactly like a sequential replay —
+ * not thrown, which used to be logged as a FAILED fulfilment (FINDING-11).
  */
 export async function fulfillVerifiedPurchase(
+  params: FulfillPurchaseParams,
+): Promise<{ processed: boolean; ledgerId: string | null; reason?: string }> {
+  try {
+    return await grantPurchase(params);
+  } catch (err) {
+    if (!isDuplicatePaymentReference(err)) throw err;
+    const existing = await pool.query<{ id: string }>(
+      `SELECT id::text FROM credit_ledger_transactions
+       WHERE provider = $1 AND reference_id = $2
+       LIMIT 1`,
+      [params.provider, params.paymentReference],
+    );
+    return { processed: false, ledgerId: existing.rows[0]?.id ?? null, reason: "already_processed" };
+  }
+}
+
+async function grantPurchase(
   params: FulfillPurchaseParams,
 ): Promise<{ processed: boolean; ledgerId: string | null; reason?: string }> {
   if (params.actualAmountMinor !== params.expectedAmountMinor) {

@@ -76,13 +76,14 @@ describe("POST /api/billing/checkout — auth and validation", () => {
 
   // FINDING-16 (Low): resolveCreditPackage indexes a plain object, so inherited keys such as
   // "__proto__" / "constructor" / "toString" are treated as packages and crash later (500).
-  it.fails.each([["__proto__"], ["constructor"], ["toString"]])(
+  it.each([["__proto__"], ["constructor"], ["toString"], ["hasOwnProperty"], ["valueOf"]])(
     "inherited object key packageId=%j → 400 INVALID_PACKAGE (FINDING-16)",
     async (packageId) => {
       stubLemonOk();
       const user = await createUser(db);
       const res = await request(app).post("/api/billing/checkout").set("Authorization", bearer(user)).send({ packageId });
       expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({ success: false, code: "INVALID_PACKAGE" });
     },
   );
 

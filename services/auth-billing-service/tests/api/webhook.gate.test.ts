@@ -80,16 +80,24 @@ describe("stage 1 — signature gate (no database I/O on rejection)", () => {
     expect(pgSpy.total()).toBe(0);
   });
 
-  it("valid signature over invalid JSON → 400, zero DB calls (message wrongly says 'Invalid signature', see FINDING-14)", async () => {
+  it("valid signature over invalid JSON → 400 'Invalid webhook body' (not 'Invalid signature'), zero DB calls (FINDING-14)", async () => {
     const pgSpy = spyOnPostgres();
     const body = "{not json";
     const res = await post(body, sign(body));
     expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid webhook body" });
     expect(pgSpy.total()).toBe(0);
   });
 
+  it("valid signature over a JSON scalar → 400 'Invalid webhook body' (FINDING-14)", async () => {
+    const body = "42";
+    const res = await post(body, sign(body));
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid webhook body" });
+  });
+
   // FINDING-12 (Low): errorHandler ignores body-parser's `status`, so PayloadTooLargeError → 500.
-  it.fails("body over 256kb → 413 before verification (FINDING-12)", async () => {
+  it("body over 256kb → 413 before verification (FINDING-12)", async () => {
     const big = JSON.stringify({ meta: { event_name: "x" }, pad: "a".repeat(300 * 1024) });
     const res = await post(big, sign(big));
     expect(res.status).toBe(413);

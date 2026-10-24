@@ -6,12 +6,37 @@ export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({ success: false, error: "Route not found." });
 }
 
+/**
+ * body-parser rejects requests before any route runs and tags the error with
+ * `type` and a 4xx `status`. They are client errors, not 500s (FINDING-12).
+ */
+const BODY_PARSER_ERRORS: Record<string, { status: number; error: string; code: string }> = {
+  "entity.parse.failed": { status: 400, error: "Malformed JSON body.", code: "INVALID_JSON" },
+  "entity.too.large": { status: 413, error: "Request body too large.", code: "PAYLOAD_TOO_LARGE" },
+  "encoding.unsupported": { status: 415, error: "Unsupported content encoding.", code: "UNSUPPORTED_MEDIA_TYPE" },
+  "charset.unsupported": { status: 415, error: "Unsupported charset.", code: "UNSUPPORTED_MEDIA_TYPE" },
+  "request.aborted": { status: 400, error: "Request aborted.", code: "BAD_REQUEST" },
+  "request.size.invalid": { status: 400, error: "Request size did not match Content-Length.", code: "BAD_REQUEST" },
+};
+
+function bodyParserError(err: unknown) {
+  if (!err || typeof err !== "object" || !("type" in err)) return null;
+  const type = (err as { type?: unknown }).type;
+  return typeof type === "string" && Object.hasOwn(BODY_PARSER_ERRORS, type) ? BODY_PARSER_ERRORS[type]! : null;
+}
+
 export function errorHandler(
   err: unknown,
   req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
+  const parserError = bodyParserError(err);
+  if (parserError) {
+    res.status(parserError.status).json({ success: false, error: parserError.error, code: parserError.code });
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       success: false,

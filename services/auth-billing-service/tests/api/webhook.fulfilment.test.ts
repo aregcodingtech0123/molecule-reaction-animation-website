@@ -212,11 +212,20 @@ describe("pending checkout orders", () => {
     expect(after.rows[0].completed_at).toBeInstanceOf(Date);
   });
 
-  it("a malformed pending_order_id makes the whole fulfilment fail (logged FAILED) — the purchase is lost until replayed (FINDING-10)", async () => {
+  it("a malformed pending_order_id is ignored with a warning: the purchase is still credited (FINDING-10)", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter", pending_order_id: "not-a-uuid" } });
-    await logs.waitForLine(new RegExp(`\\[Webhook\\] FAILED.*${orderId}`));
-    expect(await balanceOf(db, buyer.id)).toBe(0);
+    await credited(orderId);
+    expect(await balanceOf(db, buyer.id)).toBe(CREDITS.starter);
+    expect(logs.lines().some((l) => l.includes("pending_order_id is not a UUID") && l.includes(orderId))).toBe(true);
+    expect(logs.lines().some((l) => l.includes("[Webhook] FAILED"))).toBe(false);
+  });
+
+  it("a well-formed but unknown pending_order_id is harmless: credited, no pending row touched", async () => {
+    const buyer = await createUser(db);
+    const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter", pending_order_id: randomUUID() } });
+    await credited(orderId);
+    expect(await balanceOf(db, buyer.id)).toBe(CREDITS.starter);
   });
 });
 
@@ -254,9 +263,17 @@ describe("idempotency", () => {
   // FINDING-11 (Low): the losing concurrent delivery throws 23505 out of fulfillVerifiedPurchase,
   // which the controller logs as "[Webhook] FAILED … replay this event manually" although the
   // order WAS credited — a false alarm that sends an operator to replay a completed order.
-  it.fails("the losing concurrent delivery reports already_processed instead of throwing (FINDING-11)", async () => {
-    const { outcomes } = await raceDuplicateDeliveries();
+  it("the losing concurrent delivery reports already_processed instead of throwing (FINDING-11)", async () => {
+    const { user, outcomes } = await raceDuplicateDeliveries();
     expect(outcomes.every((o) => o.status === "fulfilled")).toBe(true);
+    const values = outcomes.map((o) => (o.status === "fulfilled" ? o.value : null));
+    expect(values.filter((v) => v?.processed)).toHaveLength(1);
+    const loser = values.find((v) => !v?.processed);
+    expect(loser).toMatchObject({ processed: false, reason: "already_processed" });
+    // The loser points at the winner's ledger row, exactly like a sequential replay.
+    const ledger = await ledgerOf(db, user.id);
+    expect(ledger).toHaveLength(1);
+    expect(loser!.ledgerId).toBe(String(ledger[0]!.id));
   });
 });
 

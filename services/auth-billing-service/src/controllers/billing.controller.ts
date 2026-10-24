@@ -30,6 +30,22 @@ export async function getBalance(req: Request, res: Response, next: NextFunction
   }
 }
 
+const DEFAULT_HISTORY_LIMIT = 100;
+
+/**
+ * `?limit=` → a number the service clamps to 1..200. Anything that is not an
+ * integer (or ±Infinity) — "abc", "2.7", "NaN", a repeated parameter — falls
+ * back to the default page size instead of reaching SQL as NaN (FINDING-08).
+ */
+function parseHistoryLimit(raw: unknown): number {
+  if (raw === undefined) return DEFAULT_HISTORY_LIMIT;
+  if (typeof raw !== "string") return DEFAULT_HISTORY_LIMIT;
+  const n = Number(raw);
+  if (Number.isNaN(n)) return DEFAULT_HISTORY_LIMIT;
+  if (Number.isFinite(n) && !Number.isInteger(n)) return DEFAULT_HISTORY_LIMIT;
+  return n;
+}
+
 export async function getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user?.sub;
@@ -37,7 +53,7 @@ export async function getHistory(req: Request, res: Response, next: NextFunction
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
 
-    const limit = Number(req.query.limit ?? 100);
+    const limit = parseHistoryLimit(req.query.limit);
     const transactions = await billingService.getLedgerHistoryForUser(userId, limit);
 
     res.json({
@@ -183,7 +199,9 @@ export function lemonSqueezyWebhook(req: Request, res: Response): void {
     const status = err instanceof AppError ? err.statusCode : 401;
     // Log server-side only; never leak the stack trace to the caller.
     console.warn("[Webhook] Rejected:", err instanceof Error ? err.message : String(err));
-    res.status(status).json({ error: status === 503 ? "Webhook not configured" : "Invalid signature" });
+    // 400 only happens after the signature was verified (FINDING-14).
+    const error = status === 503 ? "Webhook not configured" : status === 400 ? "Invalid webhook body" : "Invalid signature";
+    res.status(status).json({ error });
     return;
   }
 
