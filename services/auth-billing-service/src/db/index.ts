@@ -13,6 +13,11 @@ import {
 
 const { Pool } = pg;
 
+// DATE (OID 1082) has no time zone: keep Postgres' 'YYYY-MM-DD' text. The default
+// parser builds a local-midnight Date, which toISOString() shifts to the previous
+// day on servers east of UTC — and every profile save then stored that (FINDING-06).
+pg.types.setTypeParser(pg.types.builtins.DATE, (value: string) => value);
+
 let poolInstance: pg.Pool | null = null;
 let databaseReady = false;
 let databaseError: string | null = null;

@@ -45,3 +45,17 @@ export function validateDateOfBirth(value: string): string | null {
   if (date < maxAgeDate) return "Date of birth is out of allowed range.";
   return null;
 }
+
+/**
+ * A stored date of birth ("YYYY-MM-DD") for display. It is a calendar date, not
+ * an instant: format it in UTC so no browser time zone shifts it (FINDING-06).
+ */
+export function formatDateOfBirthForDisplay(isoDate: string, locale?: string): string {
+  if (!isoDate) return "—";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  const [, y, m, d] = match.map(Number);
+  return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y!, m! - 1, d!)),
+  );
+}

@@ -213,9 +213,39 @@ describe("date of birth round-trip (FINDING-06)", () => {
   // FINDING-06 (Medium): pg parses DATE as local midnight and toPublicUserProfile() uses
   // toISOString(), so any server TZ east of UTC returns the previous day. The profile form
   // re-submits that value, shifting the stored DOB back one more day on every save.
-  it.fails("is correct when the server runs east of UTC (FINDING-06)", async () => {
+  it("is correct when the server runs east of UTC (FINDING-06)", async () => {
     expect(await roundTrip("Asia/Tokyo")).toBe("1990-12-10");
+    expect(await roundTrip("Europe/Istanbul")).toBe("1990-12-10");
+    expect(await roundTrip("Pacific/Kiritimati")).toBe("1990-12-10"); // UTC+14
+    expect(await roundTrip("Pacific/Pago_Pago")).toBe("1990-12-10"); // UTC−11
   });
+
+  it.each([["Asia/Tokyo"], ["Europe/Istanbul"], ["America/New_York"], ["UTC"]])(
+    "repeated profile saves never drift the stored date (server TZ %s, FINDING-06)",
+    async (tz) => {
+      const saved = process.env.TZ;
+      process.env.TZ = tz;
+      try {
+        const { res } = await registered();
+        const user = { id: res.body.data.user.id, email: res.body.data.user.email };
+        // What the profile form does: read the profile, submit its date unchanged.
+        for (let i = 0; i < 3; i++) {
+          const current = await request(app).get("/api/users/profile").set("Authorization", bearer(user));
+          expect(current.body.data.dateOfBirth).toBe("1990-12-10");
+          const put = await request(app)
+            .put("/api/users/profile")
+            .set("Authorization", bearer(user))
+            .send({ dateOfBirth: current.body.data.dateOfBirth });
+          expect(put.status).toBe(200);
+          expect(put.body.data.dateOfBirth).toBe("1990-12-10");
+        }
+        const stored = await db.query(`SELECT date_of_birth::text AS dob FROM users WHERE id = $1`, [user.id]);
+        expect(stored.rows[0].dob).toBe("1990-12-10");
+      } finally {
+        process.env.TZ = saved;
+      }
+    },
+  );
 });
 
 describe("POST /api/auth/login", () => {
