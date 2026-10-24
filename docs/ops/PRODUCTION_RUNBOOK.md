@@ -1,17 +1,28 @@
-# Production runbook — Phase 1.5 remediation (Batches 0–2)
+# Production runbook — Phase 1.5 remediation (Batches 0–3)
 
 **Who runs this:** the project owner, by hand. Nothing in this repository connects to a hosted
 database automatically. Every command below runs from `services/auth-billing-service` unless noted.
 
 **What it deploys:** tracked migrations (adopting the existing production database), ledger
-hardening (`008`), AI credit reservations (`009`), the internal service key, and the new
-reserve → capture/release AI charging.
+hardening (`008`), AI credit reservations (`009`), session versioning (`010`), the internal service
+key, the new reserve → capture/release AI charging, the BFF-owned session cookie, client-IP handling
+for rate limits, and the Google account-takeover fix.
 
 > ⚠️ **Old and new code are mutually incompatible on the AI metering path.** An old BFF calling a
 > new Express gets `404` (no internal key) → every AI Lab turn fails with `503 BILLING_UNAVAILABLE`.
 > A new BFF calling an old Express has no `/capture`. Deploy **Express and Next together** inside a
 > short **AI Lab maintenance window** (step 6). Everything else (auth, checkout, webhooks, dashboard)
 > keeps working throughout.
+>
+> ⚠️ **Every signed-in user is logged out once.** Sessions now carry a token-version claim (`tv`);
+> tokens issued before this release have none and are refused (deliberately: it also ends any session
+> a pre-account-takeover attacker or a pre-reset session may still hold — FINDING-18/34). Users sign in
+> again; nothing else is lost. Users with a tab open during the deploy may see one failed sign-in
+> (their old page still calls the removed `/api/auth/set-cookie`) until they reload.
+>
+> ⚠️ **Deploy Express before (or together with) Next.js**, never Next first: the new Next.js
+> middleware refuses tokens without `tv`, and only the new Express issues them — a new Next in front
+> of an old Express would send every user into a login loop.
 
 Order: **1 backup → 2 read-only checks → 3 FINDING-03 abuse report → 4 migrations → 5 env vars →
 6 deploy both services together → 7 verify → 8 Lemon webhook check → 9 schedule jobs.**
@@ -146,14 +157,15 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008` and `009` are backward compatible with the currently deployed code:
+`008`, `009` and `010` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
-never does either. `009` only adds a table and two functions.
+never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
+(default 0), which the old code ignores.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008, 009)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008, 009, 010)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -179,6 +191,26 @@ openssl rand -base64 48
 | `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this |
 | `AI_HOLD_SWEEP_INTERVAL_MS` | — | optional (300000) | in-process settling of expired reservations; `0` disables |
 | `MIGRATION_DATABASE_URL` | — | optional | only for migration/reconcile jobs (direct URL) |
+| `FRONTEND_URL` | **must be exact** | (unchanged) | the public origin, scheme + host, no trailing slash (e.g. `https://moleculestudio.app`). Next.js now refuses **every** browser POST/PUT/PATCH/DELETE whose `Origin` differs (403 `CSRF_REJECTED`) — a wrong value blocks all sign-ins. `www.` and apex are different origins |
+| `CLIENT_IP_HEADER` | **strongly recommended** | — | the header **your platform** sets with the end-user IP (see below). Unset → all users share one rate-limit bucket; Next logs a startup warning |
+| `TRUST_PROXY_HOPS` | — | optional (`0`) | proxies in front of Express whose `X-Forwarded-For` is trusted for **direct** traffic. Keep `0` unless exactly one load balancer that appends the client IP sits in front |
+
+**Choosing `CLIENT_IP_HEADER` (Next.js):** it must be a header the platform **overwrites**, so a client
+cannot forge it. The right-most valid address is used.
+
+| Platform in front of Next.js | `CLIENT_IP_HEADER` |
+| --- | --- |
+| Vercel | `x-forwarded-for` |
+| nginx with `proxy_set_header X-Real-IP $remote_addr;` | `x-real-ip` |
+| Cloudflare (proxied) | `cf-connecting-ip` |
+| Next.js reachable directly (no proxy) | leave unset — there is no trustworthy header |
+
+**Choosing `TRUST_PROXY_HOPS` (Express):** Express is publicly reachable for Lemon webhooks. With `0` it
+ignores `X-Forwarded-For` (any client could forge it). BFF traffic is unaffected: the BFF sends the
+end-user IP in `X-Client-IP` together with the internal key, and only then is it trusted. Set `1` only
+if a single load balancer that **appends** the client address (e.g. Render, Railway, an AWS ALB) sits in
+front of Express; otherwise direct callers all share the load balancer's IP bucket (harmless: legitimate
+users never call Express directly).
 
 Also check: `JWT_SECRET` must still pass the (changed) strength check — ≥ 32 chars, not a documented
 placeholder, and **not low-variety** (e.g. `aaaa…` or a short repeated pattern is now refused). A
@@ -189,11 +221,15 @@ randomly generated key passes. Test locally: `node -e "import('./dist/config/sec
 ## 6. Deploy both services together (AI Lab maintenance window)
 
 1. Announce a ~10-minute AI Lab maintenance window (other pages stay up).
-2. Deploy **Express** (`auth-billing-service`). It exits at boot if `INTERNAL_SERVICE_SECRET` or
-   `JWT_SECRET` is weak/missing — check the logs for `FATAL:`.
+2. Deploy **Express** (`auth-billing-service`) **first**. It exits at boot if `INTERNAL_SERVICE_SECRET`
+   or `JWT_SECRET` is weak/missing — check the logs for `FATAL:`. From this moment existing sessions are
+   refused (no `tv`) and users are asked to sign in again — expected.
 3. Immediately deploy **Next.js**. It refuses to start (instrumentation) without a strong
-   `INTERNAL_SERVICE_SECRET`; `next build` does not need it.
-4. Between 2 and 3, AI Lab turns fail with 503 (old BFF has no key) — that is the window.
+   `INTERNAL_SERVICE_SECRET`; `next build` does not need it. Check its startup log for the
+   `CLIENT_IP_HEADER is not set` warning.
+4. Between 2 and 3, AI Lab turns fail with 503 (old BFF has no key) — that is the window. Sign-in keeps
+   working in between: the old Next.js still has `/api/auth/set-cookie`, and the old middleware accepts
+   the new tokens (extra claim).
 
 **Rollback 6:** redeploy the previous Express **and** Next together (§10.3).
 
@@ -214,6 +250,22 @@ Then, with a staff account that has credits: one AI Lab question.
 SELECT status, amount, ledger_id FROM ai_credit_holds WHERE user_id = '<staff-uuid>' ORDER BY created_at DESC LIMIT 1;  -- captured, 1, <id>
 SELECT amount, transaction_type FROM credit_ledger_transactions WHERE id = <ledger_id>;                                -- -1, CREDIT_CONSUMPTION
 ```
+
+Sessions and cookies (Batch 3):
+
+```bash
+# Sign-in through the public site: Set-Cookie session_token (HttpOnly; SameSite=Strict; Secure), NO token in the body
+curl -si -X POST https://<public-site>/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"<staff-email>","password":"<staff-password>"}' | grep -iE '^set-cookie|"token"'
+# Cross-site sign-in attempt is refused
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/auth/login \
+  -H 'Origin: https://evil.example' -H 'Content-Type: application/json' -d '{}'      # 403
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/auth/set-cookie   # 404 (removed)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<public-site>/api/billing/webhooks/lemonsqueezy   # 404
+```
+
+Rate limits per user: after deploy, check the Express logs for `signup_ip` values of new accounts — they
+must be end-user addresses, not the Next.js server's.
 
 Watch the BFF logs for an hour for `INTERNAL_AUTH_REJECTED` (the two services have different keys),
 `CAPTURE_FAILED`, `RELEASE_FAILED`, `BILLING_NOT_CONFIGURED`.
@@ -283,7 +335,10 @@ no need to revert it. Rolling back 009 requires the old code (§10.3) — the ne
 
 ### 10.3 Code
 
-Redeploy the previous Express **and** Next.js builds together. Reservations still `held` at that moment
+Redeploy the previous Express **and** Next.js builds together (rolling back only Express while the new
+Next.js stays would send every user into a login loop: new Next requires `tv`, old Express does not
+issue it). Users are logged out once more (tokens issued by the new Express are accepted by the old one,
+but the old Next.js expects to set the cookie itself — one sign-in fixes it). Reservations still `held` at that moment
 are never captured → those turns are free (not charged). Already captured turns are consistent with the
 ledger. The old code works with 008/009 applied.
 

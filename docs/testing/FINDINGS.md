@@ -14,16 +14,17 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 03 | Critical | Billing / BFF | Any user can refund successful AI operations → unlimited free AI | **Fixed** `fba88e7` — metering endpoints internal-only (key + BFF 404); reserve/capture/release; a captured charge is never refundable |
 | 01 | Critical | DB | `db:setup` / `db:reset` never apply migrations 006–007 → AI metering fails on a fresh DB | **Fixed** `030a484` — tracked migration runner applies every file in `database/init` |
 | 02 | High | DB | Migrations are not re-runnable (001 fails after 003) | **Fixed** `030a484` — 001 creates the legacy overload only on an empty DB; 001–007 each re-runnable (tested) |
-| 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets | Open — Batch 3 |
+| 34 | High | Auth / OAuth | Google sign-in links to and verifies an UNVERIFIED password account → pre-account takeover (found in Phase 1.5) | **Fixed** `ce43380` — Google user takes the account over: password invalidated, sessions revoked, pending tokens deleted |
+| 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets | **Fixed** `ce43380` `0b4a13c` — BFF forwards the platform client IP (`CLIENT_IP_HEADER`) with the internal key; service honours it only then; `TRUST_PROXY_HOPS` (default 0) stops X-Forwarded-For spoofing |
 | 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable | Open — Batch 5 |
 | 29 | High | Tooling | `db:reset` guard refuses only Supabase — a Neon URL is dropped | **Fixed** `030a484` — `db:reset` accepts local hosts only (shared `assertLocalDatabaseUrl`) |
 | 07 | Medium | Billing | `/deduct` double-charges under concurrency; users can write ADMIN_ADJUSTMENT rows | **Fixed** `fba88e7` — `/deduct` removed (no callers); no client-chosen ledger types remain |
 | 22 | Medium | Chat | Refund after a failed generation is a single best-effort call (no retry) | **Fixed** `fba88e7` — nothing debited before capture; retries; unsettled holds expire uncharged and are reported |
-| 23 | Medium | BFF / Webhook | BFF proxies the webhook path but strips `X-Signature` | Open — Batch 3 |
-| 24 | Medium | Auth | JWT returned in JSON bodies (readable by page JS) despite httpOnly cookie | Open — Batch 3 |
+| 23 | Medium | BFF / Webhook | BFF proxies the webhook path but strips `X-Signature` | **Fixed** `0b4a13c` — BFF answers 404 for `/api/billing/webhooks/*`; `.env.example` points at Express |
+| 24 | Medium | Auth | JWT returned in JSON bodies (readable by page JS) despite httpOnly cookie | **Fixed** `0b4a13c` — BFF sets the httpOnly cookie and strips `token` from bodies; `/api/auth/set-cookie` removed |
 | 06 | Medium | Auth / Profile | Date of birth shifts one day earlier on servers east of UTC (and drifts on each save) | Open — Batch 5 |
-| 09 | Medium | Auth | Registration reveals whether an email already has an account | Open — Batch 3 |
-| 18 | Medium | Auth | Password reset does not revoke existing sessions | Open — Batch 3 |
+| 09 | Medium | Auth | Registration reveals whether an email already has an account | **Fixed** `ce43380` — register answers `200` + the same message for every email and never signs in |
+| 18 | Medium | Auth | Password reset does not revoke existing sessions | **Fixed** `ce43380` — `token_version` (`010`); JWT claim `tv`; password reset revokes older sessions |
 | 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales | Open — Batch 5 |
 | 05 | Medium | DB | Ledger can be `TRUNCATE`d; `user_balances` can drift from the ledger | **Fixed** `030a484` — `008`: TRUNCATE blocked; balance writes only via `post_credit_transaction`; `ledger_reconciliation()` |
 | 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail | Open — Batch 4 |
@@ -32,17 +33,17 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 08 | Low | Billing | `/history?limit=abc` (or `2.7`) → 500 | Open — Batch 4 |
 | 15 | Low | Billing | Failed checkouts leave orphan `pending` orders, never expired | Open — Batch 4 |
 | 16 | Low | Billing | `packageId: "__proto__"` / `"constructor"` → 500 instead of 400 | Open — Batch 4 |
-| 19 | Low | Auth | Google sign-in misconfiguration reported as 401 "invalid token" | Open — Batch 3 |
-| 20 | Low | API | Any unhandled unique violation is answered `200 {success:true, "account created"}` | Open — Batch 3 |
+| 19 | Low | Auth | Google sign-in misconfiguration reported as 401 "invalid token" | **Fixed** `ce43380` — misconfiguration → `503 GOOGLE_AUTH_DISABLED` |
+| 20 | Low | API | Any unhandled unique violation is answered `200 {success:true, "account created"}` | **Fixed** `ce43380` — unhandled unique violation → `409 CONFLICT` |
 | 21 | Low | Chat | Gemini call has no timeout / abort signal | **Fixed** `fba88e7` — `AbortSignal.timeout(GEMINI_TIMEOUT_MS)`; timeout → 504, reservation released |
 | 25 | Low | Chat | Billing unreachable → unhandled exception (500) instead of `503 BILLING_UNAVAILABLE` | **Fixed** `fba88e7` — unreachable/misconfigured billing → `503 BILLING_UNAVAILABLE` |
 | 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping | Open — Batch 4 |
 | 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable | Open — Batch 4 |
 | 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash | Open — Batch 5 |
 | 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" | Open — Batch 4 |
-| 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) | Open — Batch 5 |
+| 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) | **Fixed** `0b4a13c` — the verification token is submitted once |
 | 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case | Open — Batch 5 |
-| 33 | Medium | Auth UI | Guest dialog on `/login` / `/signup` is closed by a late 401 hydration probe (found in Phase 1.5) | **Fixed** `47fc4b8` — guest probe 401s no longer close dialogs; only an expired real session does |
+| 33 | Medium | Auth UI | Stale 401s from guest-era requests close the sign-up dialog / delete a just-created session cookie (found in Phase 1.5) | **Fixed** `47fc4b8` `0b4a13c` — guest 401s neither close dialogs nor clear cookies; 401s from requests started before the latest sign-in are ignored |
 | 30 | Info | Repo | Hygiene: committed `node_modules`/`dist`, outdated README, deprecated `middleware.ts` | **Fixed** `69e1034` — vendored `node_modules`/`dist` untracked; README updated; JWT_SECRET entropy check. `middleware.ts` rename intentionally deferred |
 
 ---
@@ -51,8 +52,8 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 
 Branch `fix/phase1-findings`. Test changes made while fixing are logged in
 [TEST_CHANGES.md](./TEST_CHANGES.md); production steps are in
-[docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md). Batches 0–2 are done and await
-review; Batches 3–5 have not started.
+[docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md); every caller-visible change is in
+[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). Batches 0–3 are done; Batches 4–5 in progress.
 
 ## FINDING-33 — Medium — Guest auth dialog closed by a late hydration probe (new in Phase 1.5)
 
@@ -65,6 +66,33 @@ review; Batches 3–5 have not started.
 * **Tests:** `tests/unit/auth/AuthContext.test.tsx` (deterministic: the second probe is held until the
   dialog is open), plus "an expired real session still closes stale dialogs on 401".
 * **Fix (`47fc4b8`):** the handler closes dialogs only when a stored session existed (real expiry).
+
+## FINDING-34 — High — Google pre-account takeover (new in Phase 1.5; was an out-of-scope note)
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts#loginWithGoogle` — first Google
+  sign-in for an email that already has a local account.
+* **Attack:** register the victim's email with a password you know (it stays unverified). When the
+  victim later signs in with Google, the account was linked to their Google identity **and marked
+  verified**, while the attacker's password and sessions kept working — a shared account.
+* **Expected:** an unverified account cannot keep a third party's access after the real owner proves the
+  address. **Actual (before):** password and sessions survived.
+* **Tests:** `services/auth-billing-service/tests/api/auth.takeover-sessions.test.ts` — verified to fail
+  with the previous linking code (attacker login 200 instead of 401).
+* **Fix (`ce43380`) — policy:** Google has proven ownership, so the Google user takes the account over.
+  In one transaction: the password hash is replaced with an unguessable one, `token_version` is bumped
+  (all sessions revoked), verification and reset tokens are deleted, then the Google subject is linked and
+  the account verified (signup bonus once). A genuine owner who had simply never verified keeps the
+  account and its data, and can set a password via "Forgot password". **Verified** accounts are linked
+  without touching password or sessions. Rejected alternative: refusing the sign-in would lock genuine
+  owners out of their own address.
+
+## FINDING-33 addendum (Batch 3)
+
+With FINDING-09, the verification link is where a new account first signs in. Two stale-response races
+appeared on that path (E2E mobile): a guest-era `/balance` 401 arriving after sign-in triggered
+"session expired", and a guest probe's `clear-cookie` landed after `verify-email` had set the cookie.
+Fixed in `0b4a13c`: requests carry the session epoch they started in and stale 401s are ignored; guest
+401s never call `clear-cookie`. Deterministic unit tests in `tests/unit/auth/AuthContext.test.tsx`.
 
 ## FINDING-03 — Critical — Any user can refund successful AI operations
 
@@ -282,12 +310,10 @@ Non-production files added/changed: `.gitignore` (test artefacts, `.env.test`, n
 
 ## Out-of-scope observations (for Phase 2 — not tested further)
 
-* **Security:** pre-account-takeover — an attacker can register a victim's email (unverified) before
-  the victim first uses Google; Google sign-in then links to and verifies the attacker-created account,
-  whose password the attacker knows. Gateway `..` path segments escape the service prefix (all
-  services share one Express, so impact is limited). `clear-cookie` has no origin check (logout CSRF).
-  With Express exposed publicly for webhooks (as the README requires), `trust proxy 1` lets any client
-  spoof `X-Forwarded-For` and bypass Express rate limits. Output "content policy" is a 4-regex
+* **Security (resolved in Phase 1.5 Batch 3):** pre-account takeover → FINDING-34; gateway `..` escapes →
+  404 for every service; `clear-cookie` logout CSRF → origin/Sec-Fetch-Site guard; `X-Forwarded-For`
+  spoofing → `TRUST_PROXY_HOPS` (default 0) + internal-key-only `X-Client-IP`.
+* **Security (still open, Phase 2):** Output "content policy" is a 4-regex
   heuristic. Dev mailer logs raw verification/reset links whenever `RESEND_API_KEY` is unset and
   `NODE_ENV !== "production"` (e.g. a staging env).
 * **Performance:** `/api/chat` makes three sequential service round-trips (`/me`, `/consume`,
