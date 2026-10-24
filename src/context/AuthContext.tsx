@@ -230,11 +230,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCredits(null);
       setSessionExpired(false);
       setSessionExpiredMessage(null);
-      setAuthModalOpen(false);
 
       if (hadSession) {
+        // A real session just expired: close any stale dialog and tell the user.
+        setAuthModalOpen(false);
         toast.info("Your session has expired. Please sign in again.");
       }
+      // Guests: probes 401 by design. Never close a dialog the guest is looking at
+      // (e.g. /signup opened it while the second hydrate probe was in flight — FINDING-33).
     });
     return () => registerUnauthorizedHandler(null);
   }, []);

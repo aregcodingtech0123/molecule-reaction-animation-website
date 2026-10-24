@@ -159,3 +159,60 @@ describe("AuthContext session handling", () => {
     expect(ctx.isAuthenticated).toBe(false);
   });
 });
+
+describe("guest auth gate vs. late hydration probes (FINDING-33)", () => {
+  /**
+   * /login and /signup open the dialog as soon as hydration finishes. Hydration ends on the FIRST
+   * 401 of its two probes; the second probe's 401 used to arrive afterwards and the global 401
+   * handler closed the dialog the guest had just been shown (E2E saw it on mobile).
+   */
+  async function openGateThenLateProbe() {
+    let releaseProfile!: () => void;
+    const profileGate = new Promise<void>((r) => (releaseProfile = r));
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/balance": () => json({ success: false, error: "Authentication required." }, 401),
+        "GET /api/users/profile": async () => {
+          await profileGate;
+          return json({ success: false }, 401);
+        },
+        "POST /api/auth/clear-cookie": () => json({ success: true }),
+      }),
+    );
+    mount();
+    await waitFor(() => expect(ctx.isHydrated).toBe(true));
+    act(() => ctx.openAuthModal("register")); // what AuthGatePage does once hydrated
+    expect(ctx.authModalOpen).toBe(true);
+
+    await act(async () => {
+      releaseProfile();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+
+  it("a guest's late 401 probe does not close a dialog the guest is looking at (FINDING-33)", async () => {
+    await openGateThenLateProbe();
+    expect(ctx.authModalOpen).toBe(true);
+  });
+
+  it("an expired real session still closes stale dialogs on 401", async () => {
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(testUser));
+    let status = 200;
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/balance": () => (status === 200 ? json({ success: true, data: { userId: testUser.id, balance: 1, hasCredits: true } }) : json({}, 401)),
+        "GET /api/users/profile": () => json({ success: true, data: testUser }),
+        "POST /api/auth/clear-cookie": () => json({ success: true }),
+      }),
+    );
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:1"));
+    act(() => ctx.openAuthModal("login"));
+    status = 401;
+    await act(() => ctx.fetchBalance());
+    await waitFor(() => expect(ctx.authModalOpen).toBe(false));
+    expect(ctx.isAuthenticated).toBe(false);
+  });
+});
