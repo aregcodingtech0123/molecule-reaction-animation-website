@@ -9,42 +9,62 @@ Severity: **Critical** = money or data loss reachable by a normal user; **High**
 or production data at risk; **Medium** = incorrect behaviour with a workaround or limited blast
 radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 
-| ID | Sev | Area | Title |
-| --- | --- | --- | --- |
-| 03 | Critical | Billing / BFF | Any user can refund successful AI operations → unlimited free AI |
-| 01 | Critical | DB | `db:setup` / `db:reset` never apply migrations 006–007 → AI metering fails on a fresh DB |
-| 02 | High | DB | Migrations are not re-runnable (001 fails after 003) |
-| 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets |
-| 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable |
-| 29 | High | Tooling | `db:reset` guard refuses only Supabase — a Neon URL is dropped |
-| 07 | Medium | Billing | `/deduct` double-charges under concurrency; users can write ADMIN_ADJUSTMENT rows |
-| 22 | Medium | Chat | Refund after a failed generation is a single best-effort call (no retry) |
-| 23 | Medium | BFF / Webhook | BFF proxies the webhook path but strips `X-Signature` |
-| 24 | Medium | Auth | JWT returned in JSON bodies (readable by page JS) despite httpOnly cookie |
-| 06 | Medium | Auth / Profile | Date of birth shifts one day earlier on servers east of UTC (and drifts on each save) |
-| 09 | Medium | Auth | Registration reveals whether an email already has an account |
-| 18 | Medium | Auth | Password reset does not revoke existing sessions |
-| 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales |
-| 05 | Medium | DB | Ledger can be `TRUNCATE`d; `user_balances` can drift from the ledger |
-| 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail |
-| 11 | Low | Webhook | Losing concurrent duplicate delivery is logged as `[Webhook] FAILED` |
-| 12 | Low | API | Body-parser errors (oversized / malformed JSON) return 500 |
-| 08 | Low | Billing | `/history?limit=abc` (or `2.7`) → 500 |
-| 15 | Low | Billing | Failed checkouts leave orphan `pending` orders, never expired |
-| 16 | Low | Billing | `packageId: "__proto__"` / `"constructor"` → 500 instead of 400 |
-| 19 | Low | Auth | Google sign-in misconfiguration reported as 401 "invalid token" |
-| 20 | Low | API | Any unhandled unique violation is answered `200 {success:true, "account created"}` |
-| 21 | Low | Chat | Gemini call has no timeout / abort signal |
-| 25 | Low | Chat | Billing unreachable → unhandled exception (500) instead of `503 BILLING_UNAVAILABLE` |
-| 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping |
-| 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable |
-| 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash |
-| 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" |
-| 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) |
-| 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case |
-| 30 | Info | Repo | Hygiene: committed `node_modules`/`dist`, outdated README, deprecated `middleware.ts` |
+| ID | Sev | Area | Title | Status |
+| --- | --- | --- | --- | --- |
+| 03 | Critical | Billing / BFF | Any user can refund successful AI operations → unlimited free AI | **Fixed** `fba88e7` — metering endpoints internal-only (key + BFF 404); reserve/capture/release; a captured charge is never refundable |
+| 01 | Critical | DB | `db:setup` / `db:reset` never apply migrations 006–007 → AI metering fails on a fresh DB | **Fixed** `030a484` — tracked migration runner applies every file in `database/init` |
+| 02 | High | DB | Migrations are not re-runnable (001 fails after 003) | **Fixed** `030a484` — 001 creates the legacy overload only on an empty DB; 001–007 each re-runnable (tested) |
+| 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets | Open — Batch 3 |
+| 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable | Open — Batch 5 |
+| 29 | High | Tooling | `db:reset` guard refuses only Supabase — a Neon URL is dropped | **Fixed** `030a484` — `db:reset` accepts local hosts only (shared `assertLocalDatabaseUrl`) |
+| 07 | Medium | Billing | `/deduct` double-charges under concurrency; users can write ADMIN_ADJUSTMENT rows | **Fixed** `fba88e7` — `/deduct` removed (no callers); no client-chosen ledger types remain |
+| 22 | Medium | Chat | Refund after a failed generation is a single best-effort call (no retry) | **Fixed** `fba88e7` — nothing debited before capture; retries; unsettled holds expire uncharged and are reported |
+| 23 | Medium | BFF / Webhook | BFF proxies the webhook path but strips `X-Signature` | Open — Batch 3 |
+| 24 | Medium | Auth | JWT returned in JSON bodies (readable by page JS) despite httpOnly cookie | Open — Batch 3 |
+| 06 | Medium | Auth / Profile | Date of birth shifts one day earlier on servers east of UTC (and drifts on each save) | Open — Batch 5 |
+| 09 | Medium | Auth | Registration reveals whether an email already has an account | Open — Batch 3 |
+| 18 | Medium | Auth | Password reset does not revoke existing sessions | Open — Batch 3 |
+| 27 | Medium | i18n | 83 UI strings (auth, credits, pricing…) are English-only in all 11 other locales | Open — Batch 5 |
+| 05 | Medium | DB | Ledger can be `TRUNCATE`d; `user_balances` can drift from the ledger | **Fixed** `030a484` — `008`: TRUNCATE blocked; balance writes only via `post_credit_transaction`; `ledger_reconciliation()` |
+| 10 | Low | Webhook | A malformed `pending_order_id` makes the whole fulfilment fail | Open — Batch 4 |
+| 11 | Low | Webhook | Losing concurrent duplicate delivery is logged as `[Webhook] FAILED` | Open — Batch 4 |
+| 12 | Low | API | Body-parser errors (oversized / malformed JSON) return 500 | Open — Batch 4 |
+| 08 | Low | Billing | `/history?limit=abc` (or `2.7`) → 500 | Open — Batch 4 |
+| 15 | Low | Billing | Failed checkouts leave orphan `pending` orders, never expired | Open — Batch 4 |
+| 16 | Low | Billing | `packageId: "__proto__"` / `"constructor"` → 500 instead of 400 | Open — Batch 4 |
+| 19 | Low | Auth | Google sign-in misconfiguration reported as 401 "invalid token" | Open — Batch 3 |
+| 20 | Low | API | Any unhandled unique violation is answered `200 {success:true, "account created"}` | Open — Batch 3 |
+| 21 | Low | Chat | Gemini call has no timeout / abort signal | **Fixed** `fba88e7` — `AbortSignal.timeout(GEMINI_TIMEOUT_MS)`; timeout → 504, reservation released |
+| 25 | Low | Chat | Billing unreachable → unhandled exception (500) instead of `503 BILLING_UNAVAILABLE` | **Fixed** `fba88e7` — unreachable/misconfigured billing → `503 BILLING_UNAVAILABLE` |
+| 13 | Low | Webhook | Production Lemon variant IDs hard-coded as a fallback mapping | Open — Batch 4 |
+| 17 | Low | Billing | No pagination: ledger rows beyond the newest 200 are unreachable | Open — Batch 4 |
+| 26 | Low | Theme | No pre-hydration theme script → White Lab users see a Night Lab flash | Open — Batch 5 |
+| 14 | Info | Webhook | Valid signature + invalid JSON → 400 with body "Invalid signature" | Open — Batch 4 |
+| 32 | Info | Auth UI | `/verify-email` submits the token repeatedly (later calls 400) | Open — Batch 5 |
+| 28 | Info | Dashboard | Unknown ledger types render as `SOME NEW TYPE` instead of Title Case | Open — Batch 5 |
+| 33 | Medium | Auth UI | Guest dialog on `/login` / `/signup` is closed by a late 401 hydration probe (found in Phase 1.5) | **Fixed** `47fc4b8` — guest probe 401s no longer close dialogs; only an expired real session does |
+| 30 | Info | Repo | Hygiene: committed `node_modules`/`dist`, outdated README, deprecated `middleware.ts` | **Fixed** `69e1034` — vendored `node_modules`/`dist` untracked; README updated; JWT_SECRET entropy check. `middleware.ts` rename intentionally deferred |
 
 ---
+
+## Remediation status (Phase 1.5)
+
+Branch `fix/phase1-findings`. Test changes made while fixing are logged in
+[TEST_CHANGES.md](./TEST_CHANGES.md); production steps are in
+[docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md). Batches 0–2 are done and await
+review; Batches 3–5 have not started.
+
+## FINDING-33 — Medium — Guest auth dialog closed by a late hydration probe (new in Phase 1.5)
+
+* **Where:** `src/context/AuthContext.tsx` — guest hydration fires `/balance` and `/profile`;
+  `Promise.all` finished on the first 401, `AuthGatePage` opened the dialog, then the second probe's 401
+  reached the global unauthorized handler, which unconditionally ran `setAuthModalOpen(false)`.
+* **Reproduce:** open `/signup` as a guest when `/profile` answers a few ms after `/balance` (observed in
+  the E2E mobile run): the page says "Use the dialog…" but no dialog is shown.
+* **Expected:** the dialog stays open. **Actual:** closed.
+* **Tests:** `tests/unit/auth/AuthContext.test.tsx` (deterministic: the second probe is held until the
+  dialog is open), plus "an expired real session still closes stale dialogs on 401".
+* **Fix (`47fc4b8`):** the handler closes dialogs only when a stored session existed (real expiry).
 
 ## FINDING-03 — Critical — Any user can refund successful AI operations
 
