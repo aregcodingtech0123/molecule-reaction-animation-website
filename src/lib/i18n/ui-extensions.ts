@@ -1,4 +1,5 @@
 import type { Locale } from "./types";
+import { getAccountUi } from "./account-ui";
 
 /** UI strings added after initial JSON generation (phases, elements, etc.) */
 const MEASUREMENT_UI: Record<string, string> = {
@@ -165,6 +166,7 @@ const DASHBOARD_UI: Record<string, string> = {
   dashboard_balance_label: "AI Credits",
   dashboard_buy_credits: "Purchase more credits",
   dashboard_history_title: "Credit & Usage History",
+  dashboard_load_more: "Load more",
   dashboard_col_date: "Date",
   dashboard_col_type: "Type",
   dashboard_col_description: "Description",
@@ -577,5 +579,6 @@ export function getUiExtensions(locale: Locale): Record<string, string> {
     ...TOAST_UI,
     ...EXPLORE_LAYOUT_UI,
     ...(EXTENSIONS[locale] ?? EXTENSIONS.en),
+    ...getAccountUi(locale),
   };
 }

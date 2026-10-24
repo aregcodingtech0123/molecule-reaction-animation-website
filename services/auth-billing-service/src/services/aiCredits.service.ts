@@ -1,4 +1,6 @@
-import { pool } from "../db/index.js";
+import type { PoolClient } from "../db/index.js";
+import { pool, withTransaction } from "../db/index.js";
+import { env } from "../config/env.js";
 import {
   AI_OPERATION_LABELS,
   costForOperation,
@@ -7,57 +9,69 @@ import {
 } from "../config/aiOperations.js";
 import { AppError } from "../types/index.js";
 
-/** Postgres raises this from post_credit_transaction when a spend would go negative. */
-const PG_INSUFFICIENT_CREDITS = "P0001";
-/** Unique violation — our idempotency index caught a replay. */
-const PG_UNIQUE_VIOLATION = "23505";
+/**
+ * AI credit metering as a reservation (FINDING-03 / FINDING-22):
+ *
+ *   reserve → 'held'      no ledger write; the amount is excluded from the
+ *                          available balance so concurrent operations cannot overspend
+ *   capture → 'captured'  one CREDIT_CONSUMPTION ledger row, exactly once
+ *   release → 'released'  only from 'held'; never touches the ledger
+ *   expiry  → 'expired'   held past expires_at = never charged
+ *
+ * A captured operation can never be released, so a successful generation stays
+ * paid for even if someone obtains its reference. Every transition runs in one
+ * transaction under the same per-user advisory lock post_credit_transaction uses.
+ */
 
+const PG_INSUFFICIENT_CREDITS = "P0001";
 const MAX_REFERENCE_LENGTH = 255;
 
-export interface ConsumeMetadata {
-  /**
-   * Idempotency key for the operation — typically the AI job / chat turn id.
-   * Replaying the same reference never charges twice.
-   */
-  referenceId: string;
-  /** Free-form context; logged alongside the spend, not persisted to the ledger. */
-  [key: string]: unknown;
+export type HoldStatus = "held" | "captured" | "released" | "expired" | "capture_failed";
+
+interface HoldRow {
+  status: HoldStatus;
+  amount: number;
+  operation_type: string;
+  expired: boolean;
+  ledger_id: string | null;
 }
 
-export interface ConsumeResult {
+export interface ReserveResult {
   operationType: AiOperationType;
   cost: number;
+  /** Credits still available after this reservation. */
   balance: number;
-  ledgerId: string | null;
-  /** True when this reference had already been charged — no new deduction occurred. */
+  status: "held";
+  expiresAt: string;
+  /** Always null: a reservation writes no ledger row. Kept for response-shape compatibility. */
+  ledgerId: null;
+  alreadyProcessed: false;
+}
+
+export interface CaptureResult {
+  captured: true;
+  amount: number;
+  /** Cached balance after the debit. */
+  balance: number;
+  ledgerId: string;
   alreadyProcessed: boolean;
 }
 
 export interface RefundResult {
   refunded: boolean;
   amount: number;
+  /** Credits available after the call. */
   balance: number;
-  ledgerId: string | null;
-  reason?: string;
+  ledgerId: null;
+  reason?: "nothing_charged" | "already_refunded" | "not_refundable";
 }
 
 function pgErrorCode(err: unknown): string | null {
-  return err && typeof err === "object" && "code" in err
-    ? ((err as { code?: string }).code ?? null)
-    : null;
+  return err && typeof err === "object" && "code" in err ? ((err as { code?: string }).code ?? null) : null;
 }
 
-/** Balance without the 404 that `billing.service.getBalanceForUser` throws — absent row means zero. */
-async function readBalance(userId: string): Promise<number> {
-  const result = await pool.query<{ balance: number }>(
-    `SELECT balance FROM user_balances WHERE user_id = $1 LIMIT 1`,
-    [userId],
-  );
-  return result.rows[0]?.balance ?? 0;
-}
-
-function assertValidReference(referenceId: string): string {
-  const trimmed = referenceId?.trim();
+function assertValidReference(referenceId: unknown): string {
+  const trimmed = typeof referenceId === "string" ? referenceId.trim() : "";
   if (!trimmed) {
     throw new AppError(400, "referenceId is required.", "INVALID_REFERENCE");
   }
@@ -67,176 +81,233 @@ function assertValidReference(referenceId: string): string {
   return trimmed;
 }
 
-async function findLedgerRow(
-  userId: string,
-  transactionType: "CREDIT_CONSUMPTION" | "CREDIT_REFUND",
-  referenceId: string,
-): Promise<{ id: string; amount: number } | null> {
-  const result = await pool.query<{ id: string; amount: number }>(
-    `SELECT id::text, amount FROM credit_ledger_transactions
-      WHERE user_id = $1
-        AND transaction_type = $2::credit_transaction_type
-        AND reference_id = $3
-      LIMIT 1`,
-    [userId, transactionType, referenceId],
+async function lockUser(client: PoolClient, userId: string): Promise<void> {
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
+}
+
+async function findHold(client: PoolClient, userId: string, referenceId: string): Promise<HoldRow | null> {
+  const { rows } = await client.query<HoldRow>(
+    `SELECT status, amount, operation_type, expires_at <= NOW() AS expired, ledger_id::text
+     FROM ai_credit_holds
+     WHERE user_id = $1 AND reference_id = $2
+     FOR UPDATE`,
+    [userId, referenceId],
   );
-  return result.rows[0] ?? null;
+  return rows[0] ?? null;
+}
+
+/** Cached balance minus every unexpired reservation. */
+async function availableBalance(client: PoolClient | typeof pool, userId: string): Promise<number> {
+  const { rows } = await client.query<{ available: number }>(
+    `SELECT COALESCE((SELECT balance FROM user_balances WHERE user_id = $1), 0)
+          - COALESCE((SELECT SUM(amount) FROM ai_credit_holds
+                      WHERE user_id = $1 AND status = 'held' AND expires_at > NOW()), 0) AS available`,
+    [userId],
+  );
+  return Number(rows[0]?.available ?? 0);
+}
+
+async function cachedBalance(client: PoolClient, userId: string): Promise<number> {
+  const { rows } = await client.query<{ balance: number }>(
+    `SELECT balance FROM user_balances WHERE user_id = $1`,
+    [userId],
+  );
+  return rows[0]?.balance ?? 0;
 }
 
 /**
- * Charge a user for one AI operation.
+ * Reserve the price of one AI operation.
  *
- * The pre-flight balance read below is a courtesy: it lets us return a precise
- * 402 without touching the ledger. It is NOT the safety guard, because another
- * request can spend the balance between the read and the write. The real guard
- * is inside `post_credit_transaction`, which takes a per-user advisory lock and
- * refuses any update that would drive the balance below zero (P0001). Both
- * paths surface the same INSUFFICIENT_CREDITS error.
- *
- * @throws AppError 400 on an unknown operation or malformed reference
- * @throws AppError 402 `INSUFFICIENT_CREDITS` with `requiredCredits` + `balance`
+ * @throws 400 unknown operation / malformed reference
+ * @throws 409 OPERATION_ALREADY_EXISTS — the reference was already used (any status);
+ *         references are single-use, so the caller must not run the operation
+ * @throws 402 INSUFFICIENT_CREDITS with requiredCredits + balance (available)
  */
-export async function consumeCreditsForOperation(
+export async function reserveCreditsForOperation(
   userId: string,
-  operationType: AiOperationType,
-  metadata: ConsumeMetadata,
-): Promise<ConsumeResult> {
+  operationType: unknown,
+  referenceIdInput: unknown,
+): Promise<ReserveResult> {
   if (!isAiOperationType(operationType)) {
     throw new AppError(400, "Unknown AI operation.", "INVALID_OPERATION");
   }
-
-  const referenceId = assertValidReference(metadata?.referenceId);
+  const referenceId = assertValidReference(referenceIdInput);
   const cost = costForOperation(operationType);
 
-  const existing = await findLedgerRow(userId, "CREDIT_CONSUMPTION", referenceId);
-  if (existing) {
-    return {
-      operationType,
-      cost,
-      balance: await readBalance(userId),
-      ledgerId: existing.id,
-      alreadyProcessed: true,
-    };
-  }
+  const result = await withTransaction(async (client) => {
+    await lockUser(client, userId);
 
-  const balance = await readBalance(userId);
-  if (balance < cost) {
-    throw new AppError(402, "Insufficient credits.", "INSUFFICIENT_CREDITS", {
-      requiredCredits: cost,
-      balance,
-      operationType,
-    });
-  }
+    const existing = await findHold(client, userId, referenceId);
+    if (existing) {
+      throw new AppError(409, "This operation reference has already been used.", "OPERATION_ALREADY_EXISTS", {
+        status: existing.status,
+      });
+    }
 
-  let ledgerId: string | null;
-  try {
-    const posted = await pool.query<{ ledger_id: string }>(
-      `SELECT post_credit_transaction($1, $2, 'CREDIT_CONSUMPTION'::credit_transaction_type, $3) AS ledger_id`,
-      [userId, -cost, referenceId],
-    );
-    ledgerId = posted.rows[0]?.ledger_id ?? null;
-  } catch (err) {
-    const code = pgErrorCode(err);
-
-    if (code === PG_INSUFFICIENT_CREDITS) {
+    const available = await availableBalance(client, userId);
+    if (available < cost) {
       throw new AppError(402, "Insufficient credits.", "INSUFFICIENT_CREDITS", {
         requiredCredits: cost,
-        balance: await readBalance(userId),
+        balance: available,
         operationType,
       });
     }
 
-    // Concurrent replay of the same reference — the first one won, so this is a
-    // success from the caller's point of view, not a double charge.
-    if (code === PG_UNIQUE_VIOLATION) {
-      const winner = await findLedgerRow(userId, "CREDIT_CONSUMPTION", referenceId);
-      return {
-        operationType,
-        cost,
-        balance: await readBalance(userId),
-        ledgerId: winner?.id ?? null,
-        alreadyProcessed: true,
-      };
-    }
+    const { rows } = await client.query<{ expires_at: Date }>(
+      `INSERT INTO ai_credit_holds (user_id, reference_id, operation_type, amount, expires_at)
+       VALUES ($1, $2, $3, $4, NOW() + make_interval(secs => $5))
+       RETURNING expires_at`,
+      [userId, referenceId, operationType, cost, env.aiHoldTtlSeconds],
+    );
 
-    throw err;
-  }
-
-  const newBalance = await readBalance(userId);
-  console.log("[credits] Consumed", {
-    userId,
-    operation: AI_OPERATION_LABELS[operationType],
-    cost,
-    referenceId,
-    newBalance,
-    ledgerId,
+    return { balance: available - cost, expiresAt: rows[0]!.expires_at.toISOString() };
   });
 
-  return { operationType, cost, balance: newBalance, ledgerId, alreadyProcessed: false };
+  return {
+    operationType,
+    cost,
+    balance: result.balance,
+    status: "held",
+    expiresAt: result.expiresAt,
+    ledgerId: null,
+    alreadyProcessed: false,
+  };
 }
 
 /**
- * Give back credits when an AI operation failed after it was charged.
+ * Turn a held reservation into exactly one CREDIT_CONSUMPTION ledger debit.
+ * Debits the amount recorded at reservation time (a later price change does not apply).
  *
- * Refunds the amount actually taken, read back from the ledger, rather than the
- * current price — a price change between the charge and the failure must not
- * hand the user more (or less) than they paid.
- *
- * Safe to call blindly: it is a no-op when nothing was charged for this
- * reference, and a no-op when a refund already exists.
+ * @throws 404 HOLD_NOT_FOUND — no reservation for this user + reference
+ * @throws 409 HOLD_EXPIRED — expired before capture; settled as 'expired', never charged
+ * @throws 409 NOT_CAPTURABLE — already released / expired / failed
+ * @throws 409 CAPTURE_FAILED — the debit could not be posted; recorded durably as 'capture_failed'
  */
-export async function refundOperation(
-  userId: string,
-  referenceId: string,
-  reason: string,
-): Promise<RefundResult> {
-  const reference = assertValidReference(referenceId);
+export async function captureOperation(userId: string, referenceIdInput: unknown): Promise<CaptureResult> {
+  const referenceId = assertValidReference(referenceIdInput);
 
-  const charge = await findLedgerRow(userId, "CREDIT_CONSUMPTION", reference);
-  if (!charge) {
-    return {
-      refunded: false,
-      amount: 0,
-      balance: await readBalance(userId),
-      ledgerId: null,
-      reason: "nothing_charged",
-    };
+  const outcome = await withTransaction(async (client) => {
+      await lockUser(client, userId);
+      const hold = await findHold(client, userId, referenceId);
+      if (!hold) {
+        throw new AppError(404, "No reservation for this operation.", "HOLD_NOT_FOUND");
+      }
+      if (hold.status === "captured") {
+        return {
+          captured: true as const,
+          amount: hold.amount,
+          balance: await cachedBalance(client, userId),
+          ledgerId: hold.ledger_id!,
+          alreadyProcessed: true,
+        };
+      }
+      if (hold.status !== "held") {
+        throw new AppError(409, "This operation can no longer be captured.", "NOT_CAPTURABLE", { status: hold.status });
+      }
+      if (hold.expired) {
+        await client.query(
+          `UPDATE ai_credit_holds SET status = 'expired', settled_at = NOW(), settle_reason = 'capture_after_expiry'
+           WHERE user_id = $1 AND reference_id = $2`,
+          [userId, referenceId],
+        );
+        return { expiredAtCapture: true as const };
+      }
+
+      let ledgerId: string;
+      try {
+        await client.query("SAVEPOINT capture_debit");
+        const posted = await client.query<{ ledger_id: string }>(
+          `SELECT post_credit_transaction($1, $2, 'CREDIT_CONSUMPTION'::credit_transaction_type, $3)::text AS ledger_id`,
+          [userId, -hold.amount, referenceId],
+        );
+        ledgerId = posted.rows[0]!.ledger_id;
+      } catch (err) {
+        await client.query("ROLLBACK TO SAVEPOINT capture_debit");
+        const code = pgErrorCode(err);
+        const reason = code === PG_INSUFFICIENT_CREDITS ? "insufficient_credits_at_capture" : `db_error_${code ?? "unknown"}`;
+        await client.query(
+          `UPDATE ai_credit_holds SET status = 'capture_failed', settled_at = NOW(), settle_reason = $3
+           WHERE user_id = $1 AND reference_id = $2`,
+          [userId, referenceId, reason],
+        );
+        return { captureFailed: true as const, reason, amount: hold.amount };
+      }
+
+      await client.query(
+        `UPDATE ai_credit_holds SET status = 'captured', settled_at = NOW(), ledger_id = $3
+         WHERE user_id = $1 AND reference_id = $2`,
+        [userId, referenceId, ledgerId],
+      );
+      const balance = await cachedBalance(client, userId);
+      console.log("[credits] Captured", {
+        userId,
+        operation: AI_OPERATION_LABELS[hold.operation_type as AiOperationType] ?? hold.operation_type,
+        amount: hold.amount,
+        referenceId,
+        balance,
+        ledgerId,
+      });
+      return { captured: true as const, amount: hold.amount, balance, ledgerId, alreadyProcessed: false };
+  });
+
+  // Settlements above are committed before the rejection is reported.
+  if ("expiredAtCapture" in outcome) {
+    throw new AppError(409, "The reservation expired before capture; nothing was charged.", "HOLD_EXPIRED");
   }
-
-  const alreadyRefunded = await findLedgerRow(userId, "CREDIT_REFUND", reference);
-  if (alreadyRefunded) {
-    return {
-      refunded: false,
-      amount: Math.abs(alreadyRefunded.amount),
-      balance: await readBalance(userId),
-      ledgerId: alreadyRefunded.id,
-      reason: "already_refunded",
-    };
+  if ("captureFailed" in outcome) {
+    console.error("[credits] CAPTURE_FAILED (recorded as capture_failed)", {
+      userId,
+      referenceId,
+      amount: outcome.amount,
+      reason: outcome.reason,
+    });
+    throw new AppError(409, "The charge could not be captured; nothing was charged.", "CAPTURE_FAILED");
   }
+  return outcome;
+}
 
-  const amount = Math.abs(charge.amount);
+/**
+ * Release a held reservation after a failed operation. Never writes to the ledger.
+ * Safe to call blindly: unknown, already-released and expired references are no-ops;
+ * a captured operation is never refundable.
+ */
+export async function releaseOperation(userId: string, referenceIdInput: unknown, reason: string): Promise<RefundResult> {
+  const referenceId = assertValidReference(referenceIdInput);
+  const settleReason = reason.slice(0, 200) || "released";
 
-  try {
-    const posted = await pool.query<{ ledger_id: string }>(
-      `SELECT post_credit_transaction($1, $2, 'CREDIT_REFUND'::credit_transaction_type, $3) AS ledger_id`,
-      [userId, amount, reference],
-    );
+  return withTransaction(async (client) => {
+    await lockUser(client, userId);
+    const hold = await findHold(client, userId, referenceId);
 
-    const balance = await readBalance(userId);
-    console.log("[credits] Refunded", { userId, amount, referenceId: reference, reason, balance });
-
-    return { refunded: true, amount, balance, ledgerId: posted.rows[0]?.ledger_id ?? null };
-  } catch (err) {
-    if (pgErrorCode(err) === PG_UNIQUE_VIOLATION) {
-      const winner = await findLedgerRow(userId, "CREDIT_REFUND", reference);
+    if (!hold) {
+      return { refunded: false, amount: 0, balance: await availableBalance(client, userId), ledgerId: null, reason: "nothing_charged" };
+    }
+    if (hold.status === "captured") {
+      return { refunded: false, amount: hold.amount, balance: await availableBalance(client, userId), ledgerId: null, reason: "not_refundable" };
+    }
+    if (hold.status !== "held") {
       return {
         refunded: false,
-        amount,
-        balance: await readBalance(userId),
-        ledgerId: winner?.id ?? null,
-        reason: "already_refunded",
+        amount: hold.amount,
+        balance: await availableBalance(client, userId),
+        ledgerId: null,
+        reason: hold.status === "capture_failed" ? "nothing_charged" : "already_refunded",
       };
     }
-    throw err;
-  }
+
+    await client.query(
+      `UPDATE ai_credit_holds SET status = 'released', settled_at = NOW(), settle_reason = $3
+       WHERE user_id = $1 AND reference_id = $2`,
+      [userId, referenceId, settleReason],
+    );
+    const balance = await availableBalance(client, userId);
+    console.log("[credits] Released", { userId, amount: hold.amount, referenceId, reason: settleReason, balance });
+    return { refunded: true, amount: hold.amount, balance, ledgerId: null };
+  });
+}
+
+/** Settle every expired reservation (never charged). Returns how many were settled. */
+export async function releaseExpiredHolds(): Promise<number> {
+  const { rows } = await pool.query<{ n: number }>(`SELECT release_expired_ai_holds() AS n`);
+  return rows[0]?.n ?? 0;
 }

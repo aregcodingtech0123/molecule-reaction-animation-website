@@ -42,10 +42,10 @@ const DUMMY_BCRYPT_HASH =
   "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 const USER_PUBLIC_COLUMNS =
-  "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at";
+  "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, token_version";
 
 function authResponse(user: UserRow, message: string) {
-  const token = signToken({ sub: user.id, email: user.email });
+  const token = signToken({ sub: user.id, email: user.email, tv: user.token_version ?? 0 });
   return {
     message,
     token,
@@ -53,9 +53,10 @@ function authResponse(user: UserRow, message: string) {
   };
 }
 
-export type RegisterResult =
-  | { kind: "created"; data: ReturnType<typeof authResponse> }
-  | { kind: "ambiguous"; message: string };
+/** Registration answers identically for new and existing emails (FINDING-09). */
+export interface RegisterResult {
+  message: string;
+}
 
 async function createOAuthPasswordHash(): Promise<string> {
   const placeholder = randomBytes(48).toString("base64url");
@@ -157,7 +158,7 @@ export async function registerUser(
   );
 
   if (existing.rowCount && existing.rowCount > 0) {
-    return { kind: "ambiguous", message: GENERIC_REGISTER_MESSAGE };
+    return { message: GENERIC_REGISTER_MESSAGE };
   }
 
   let user: UserRow;
@@ -180,7 +181,7 @@ export async function registerUser(
     const pgCode =
       err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
     if (pgCode === "23505") {
-      return { kind: "ambiguous", message: GENERIC_REGISTER_MESSAGE };
+      return { message: GENERIC_REGISTER_MESSAGE };
     }
     throw err;
   }
@@ -189,16 +190,12 @@ export async function registerUser(
     await sendVerificationLink(user, rawToken);
   } catch (err) {
     console.error("[auth] Failed to send verification email:", err);
-    // Account exists; user can request resend. Still return session so UX can show "check email".
+    // Account exists; the user can request a resend.
   }
 
-  return {
-    kind: "created",
-    data: authResponse(
-      user,
-      "Account created. Please verify your email to unlock starter AI credits.",
-    ),
-  };
+  // No session here: the verification link signs the user in. Issuing a token only for new
+  // emails would reveal which addresses already have an account (FINDING-09).
+  return { message: GENERIC_REGISTER_MESSAGE };
 }
 
 export async function verifyEmailWithToken(rawTokenInput: unknown) {
@@ -319,34 +316,33 @@ async function linkOAuthAccount(
   provider: string,
   providerAccountId: string,
 ): Promise<void> {
-  try {
-    await client.query(
-      `INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
-       VALUES ($1, $2, $3)`,
-      [userId, provider, providerAccountId],
-    );
-  } catch (err: unknown) {
-    const pgCode =
-      err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
-    if (pgCode !== "23505") throw err;
+  // ON CONFLICT instead of catching 23505: a caught error would leave the caller's transaction
+  // aborted, so the owner lookup below failed with 25P02 and a concurrent first sign-in got a
+  // 500 (FINDING-35). A concurrent uncommitted link of the same subject is waited for, so the
+  // owner read below sees it.
+  await client.query(
+    `INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (provider, provider_account_id) DO NOTHING`,
+    [userId, provider, providerAccountId],
+  );
 
-    const existing = await client.query<{ user_id: string }>(
-      `SELECT user_id::text
-       FROM oauth_accounts
-       WHERE provider = $1 AND provider_account_id = $2
-       LIMIT 1`,
-      [provider, providerAccountId],
+  const existing = await client.query<{ user_id: string }>(
+    `SELECT user_id::text
+     FROM oauth_accounts
+     WHERE provider = $1 AND provider_account_id = $2
+     LIMIT 1`,
+    [provider, providerAccountId],
+  );
+  const ownerId = existing.rows[0]?.user_id;
+  if (ownerId !== userId) {
+    throw new AppError(
+      409,
+      "This Google account is already linked to another user.",
+      "OAUTH_ALREADY_LINKED",
     );
-    const ownerId = existing.rows[0]?.user_id;
-    if (ownerId && ownerId !== userId) {
-      throw new AppError(
-        409,
-        "This Google account is already linked to another user.",
-        "OAUTH_ALREADY_LINKED",
-      );
-    }
-    // Idempotent: already linked to this user.
   }
+  // Linked to this user — newly, or already (idempotent).
 }
 
 async function findUserByOAuth(
@@ -355,7 +351,7 @@ async function findUserByOAuth(
 ): Promise<UserRow | null> {
   const result = await pool.query<UserRow>(
     `SELECT u.id, u.email, u.first_name, u.last_name, u.date_of_birth,
-            u.is_admin, u.is_verified, u.created_at
+            u.is_admin, u.is_verified, u.created_at, u.token_version
      FROM oauth_accounts oa
      INNER JOIN users u ON u.id = oa.user_id
      WHERE oa.provider = $1
@@ -404,14 +400,32 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
   const existingEmailUser = byEmail.rows[0];
 
   if (existingEmailUser) {
+    // Pre-account takeover guard (FINDING-34): an UNVERIFIED password account with this email
+    // may have been registered by someone else before the real owner arrived. Google has just
+    // proven ownership of the address, so the Google user takes the account over: the old
+    // password is replaced with an unguessable one, every existing session is revoked, and
+    // outstanding verification / reset tokens are deleted. Verified accounts are linked as before.
+    const takeoverPasswordHash = existingEmailUser.is_verified ? null : await createOAuthPasswordHash();
     try {
       await withTransaction(async (client) => {
         await linkOAuthAccount(client, existingEmailUser.id, GOOGLE_PROVIDER, googleSub);
         if (!existingEmailUser.is_verified) {
-          await client.query(
-            `UPDATE users SET is_verified = true, updated_at = NOW() WHERE id = $1 AND is_verified = false`,
-            [existingEmailUser.id],
+          const updated = await client.query<{ token_version: number }>(
+            `UPDATE users
+             SET is_verified = true, password_hash = $2, token_version = token_version + 1, updated_at = NOW()
+             WHERE id = $1 AND is_verified = false
+             RETURNING token_version`,
+            [existingEmailUser.id, takeoverPasswordHash],
           );
+          if (updated.rows[0]) {
+            await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+            await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+            existingEmailUser.token_version = updated.rows[0].token_version;
+            console.warn(
+              "[auth] Google sign-in took over an unverified password account; password invalidated, sessions revoked",
+              { userId: existingEmailUser.id },
+            );
+          }
           await grantSignupBonus(client, existingEmailUser.id);
           existingEmailUser.is_verified = true;
         }
@@ -560,8 +574,9 @@ export async function resetPassword(rawTokenInput: unknown, passwordInput: unkno
       throw new AppError(400, "Invalid or expired reset link.", "TOKEN_EXPIRED");
     }
 
+    // Bumping token_version revokes every session issued before the reset (FINDING-18).
     await client.query(
-      `UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET password_hash = $2, token_version = token_version + 1, updated_at = NOW() WHERE id = $1`,
       [token.user_id, passwordHash],
     );
 

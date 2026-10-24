@@ -21,9 +21,12 @@ export interface ProfileUpdateInput {
   dateOfBirth?: string;
 }
 
+/**
+ * Successful sign-in as seen by the browser. The session JWT is NOT here: the BFF puts it in the
+ * httpOnly `session_token` cookie and strips it from the body (FINDING-24).
+ */
 export interface AuthSuccessData {
   message: string;
-  token: string;
   user: AuthUser;
 }
 

@@ -1,13 +1,14 @@
 "use client";
 
 import { Suspense, type ReactNode } from "react";
-import { Environment, Stars, AdaptiveDpr, Preload } from "@react-three/drei";
+import { Stars, AdaptiveDpr, Preload } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import { useTheme } from "@/context/ThemeContext";
 import { SceneLighting } from "./SceneLighting";
 import { ParticleField } from "./ParticleField";
 import { CanvasLoadingFallback } from "./CanvasLoadingFallback";
+import { SceneEnvironment } from "./SceneEnvironment";
 
 interface SceneStageProps {
   accentColor: string;
@@ -39,7 +40,7 @@ export function SceneStage({ accentColor, children, footer, reduceEffects = fals
       />
 
       <SceneLighting />
-      <Environment preset={scene.environmentPreset} environmentIntensity={scene.environmentIntensity} />
+      <SceneEnvironment name={scene.environmentPreset} intensity={scene.environmentIntensity} />
 
       {scene.showStars && (
         <Stars

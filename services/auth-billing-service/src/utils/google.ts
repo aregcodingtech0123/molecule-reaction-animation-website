@@ -20,9 +20,11 @@ export interface VerifiedGoogleIdentity {
 
 /** Verify a Google ID token from the frontend Sign-In flow. */
 export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoogleIdentity> {
+  // Outside the try: "not configured" is a server problem (503), not a bad token (FINDING-19).
+  const googleClient = getGoogleClient();
   let ticket;
   try {
-    ticket = await getGoogleClient().verifyIdToken({
+    ticket = await googleClient.verifyIdToken({
       idToken,
       audience: env.googleClientId,
     });

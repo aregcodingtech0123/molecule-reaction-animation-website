@@ -28,7 +28,10 @@ export async function verifyJwtToken(token: string): Promise<VerifiedSession | n
 
     const sub = typeof payload.sub === "string" ? payload.sub : null;
     const email = typeof payload.email === "string" ? payload.email : null;
-    if (!sub || !email) return null;
+    // Session generation claim (FINDING-18/34). Tokens issued before it existed are refused, so
+    // the middleware sends their holders to /login and deletes the stale cookie.
+    const tv = Number.isInteger(payload.tv) && (payload.tv as number) >= 0;
+    if (!sub || !email || !tv) return null;
 
     return { sub, email };
   } catch {

@@ -44,6 +44,10 @@ function buildContentSecurityPolicy(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Testability: the E2E suite runs its own `next dev` in `.next-e2e` so it never
+  // collides with a developer's dev server (Next allows one dev server per distDir).
+  // Unset → Next's default `.next`.
+  distDir: process.env.NEXT_DIST_DIR?.trim() || ".next",
   async headers() {
     return [
       {

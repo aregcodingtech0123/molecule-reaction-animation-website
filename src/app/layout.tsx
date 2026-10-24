@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { themeInitScript } from "@/lib/theme/pre-hydration";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const syne = Syne({
@@ -24,6 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" data-theme="night-lab" suppressHydrationWarning>
+      <head>
+        {/* Applies the stored theme before first paint (FINDING-26). Key = THEME_STORAGE_KEY. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript("moleculestudio-theme") }} />
+      </head>
       <body
         className={`${inter.variable} ${syne.variable} font-sans antialiased transition-colors duration-500`}
       >

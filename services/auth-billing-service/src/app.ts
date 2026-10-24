@@ -1,11 +1,12 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
-import billingRoutes from "./routes/billing.routes.js";
+import billingRoutes, { internalBillingRouter } from "./routes/billing.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import { lemonSqueezyWebhook } from "./controllers/billing.controller.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
+import { resolveClientIp } from "./middlewares/resolveClientIp.js";
 import { isDatabaseReady, getDatabaseError } from "./db/index.js";
 
 declare global {
@@ -50,7 +51,7 @@ function developmentCors(req: Request, res: Response, next: NextFunction): void 
 export function createApp() {
   const app = express();
 
-  app.set("trust proxy", 1);
+  app.set("trust proxy", env.trustProxyHops);
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -68,6 +69,7 @@ export function createApp() {
     }),
   );
   app.use(developmentCors);
+  app.use(resolveClientIp);
 
   app.get("/health", (_req, res) => {
     const dbReady = isDatabaseReady();
@@ -92,6 +94,7 @@ export function createApp() {
   app.use(express.json({ limit: "32kb" }));
 
   app.use("/api/auth", authRoutes);
+  app.use("/api/billing", internalBillingRouter);
   app.use("/api/billing", billingRoutes);
   app.use("/api/users", usersRoutes);
 

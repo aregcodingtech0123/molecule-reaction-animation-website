@@ -1,1 +1,0 @@
-{"version":3,"file":"internal-auth.d.ts","sourceRoot":"","sources":["../../src/middleware/internal-auth.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAkB/D,gFAAgF;AAChF,wBAAgB,mBAAmB,CAAC,GAAG,EAAE,OAAO,EAAE,IAAI,EAAE,QAAQ,EAAE,IAAI,EAAE,YAAY,GAAG,IAAI,CAO1F"}

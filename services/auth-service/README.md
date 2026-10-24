@@ -1,3 +1,5 @@
+> ⚠️ **LEGACY — not wired into the running stack, kept for reference, pending removal.** See [LEGACY.md](./LEGACY.md).
+
 # MoleculeStudio Auth Service
 
 Isolated Node.js/Express microservice for registration, login, JWT sessions, and profile state.

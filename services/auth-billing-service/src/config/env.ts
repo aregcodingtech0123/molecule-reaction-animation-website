@@ -53,6 +53,38 @@ export const env = {
     return readEnv("LEMONSQUEEZY_VARIANT_ENTERPRISE");
   },
 
+  // ── Internal service-to-service credential (BFF → this service) ───────────
+  /** Shared secret the Next.js BFF sends as X-Internal-Service-Key on metering calls. */
+  get internalServiceSecret() {
+    return readEnv("INTERNAL_SERVICE_SECRET");
+  },
+
+  // ── Client IP resolution (FINDING-04) ─────────────────────────────────────
+  /**
+   * Number of reverse proxies in front of this service whose X-Forwarded-For entries are
+   * trusted for DIRECT traffic. 0 (default) = ignore X-Forwarded-For entirely, because this
+   * service is publicly reachable for webhooks and any client could otherwise spoof its IP.
+   * Set it to the number of proxies your platform adds (e.g. 1 behind a single load balancer
+   * that appends the client address). BFF traffic uses X-Client-IP + the internal key instead.
+   */
+  get trustProxyHops() {
+    const v = Number(readEnv("TRUST_PROXY_HOPS"));
+    return Number.isInteger(v) && v >= 0 ? v : 0;
+  },
+
+  // ── AI credit reservations ────────────────────────────────────────────────
+  /** How long a reservation may stay 'held' before it expires (never charged). */
+  get aiHoldTtlSeconds() {
+    const v = Number(readEnv("AI_HOLD_TTL_SECONDS"));
+    return Number.isInteger(v) && v > 0 ? v : 600;
+  },
+  /** How often the service settles expired reservations. 0 disables the timer. */
+  get aiHoldSweepIntervalMs() {
+    const raw = readEnv("AI_HOLD_SWEEP_INTERVAL_MS");
+    const v = Number(raw);
+    return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 300_000;
+  },
+
   // ── Email (Resend) ────────────────────────────────────────────────────────
   get resendApiKey() {
     return readEnv("RESEND_API_KEY");
@@ -79,6 +111,42 @@ export function assertEnv(): void {
   if (env.isProduction && !env.googleClientId) {
     console.warn("[env] GOOGLE_CLIENT_ID is not set — POST /api/auth/google will return 503.");
   }
+}
+
+const LEMON_VARIANT_ENV = [
+  "LEMONSQUEEZY_VARIANT_STARTER",
+  "LEMONSQUEEZY_VARIANT_PRO",
+  "LEMONSQUEEZY_VARIANT_ENTERPRISE",
+] as const;
+
+/**
+ * Why the Lemon variant → pack mapping is unusable, or null when it is fine.
+ * The mapping comes from the environment only (FINDING-13): a missing,
+ * non-numeric or shared variant id would credit the wrong pack or none.
+ */
+export function lemonVariantConfigProblem(source: NodeJS.ProcessEnv = process.env): string | null {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Map<string, string>();
+  for (const name of LEMON_VARIANT_ENV) {
+    const value = source[name]?.trim() ?? "";
+    if (!value) {
+      missing.push(name);
+    } else if (!/^\d+$/.test(value)) {
+      invalid.push(name);
+    } else if (seen.has(value)) {
+      return `${name} and ${seen.get(value)} use the same variant id ${value}; each pack needs its own.`;
+    } else {
+      seen.set(value, name);
+    }
+  }
+  if (missing.length) {
+    return `${missing.join(", ")} not set — purchases of those packs cannot be mapped to credits.`;
+  }
+  if (invalid.length) {
+    return `${invalid.join(", ")} must be a numeric Lemon Squeezy variant id.`;
+  }
+  return null;
 }
 
 export function lemonVariantForPackage(packageId: string): string {

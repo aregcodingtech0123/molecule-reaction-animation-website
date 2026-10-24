@@ -41,8 +41,9 @@ export const CREDIT_PACKAGES: Record<string, CreditPackageConfig> = {
 };
 
 export function resolveCreditPackage(packageId: unknown): CreditPackageConfig {
-  if (typeof packageId !== "string" || !CREDIT_PACKAGES[packageId]) {
+  // Own keys only: "__proto__" / "constructor" / "toString" are not packages (FINDING-16).
+  if (typeof packageId !== "string" || !Object.hasOwn(CREDIT_PACKAGES, packageId)) {
     throw new Error("INVALID_PACKAGE");
   }
-  return CREDIT_PACKAGES[packageId];
+  return CREDIT_PACKAGES[packageId]!;
 }

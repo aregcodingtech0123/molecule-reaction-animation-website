@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -43,3 +44,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test artefacts (Phase 1 functional test suite)
+coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+.env.test
+# service dependencies are installed per checkout (see FINDINGS: node_modules was committed)
+node_modules/
+
+# build output at any level (Express service and legacy services compile src/ → dist/)
+dist/
+
+# Python bytecode and virtualenvs (services/ai-engine)
+__pycache__/
+*.py[cod]
+.venv/

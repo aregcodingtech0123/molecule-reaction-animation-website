@@ -113,7 +113,8 @@ export function packageIdForLemonVariant(variantId: string | number | null | und
   const id = String(variantId).trim();
   if (!id) return null;
 
-  // Env-configured mappings (preferred).
+  // Environment only (FINDING-13): no hard-coded ids that would credit packs in
+  // every environment. Production refuses to start without all three.
   const pairs: Array<[string, string]> = [
     [env.lemonSqueezyVariantStarter, "starter"],
     [env.lemonSqueezyVariantPro, "pro"],
@@ -123,14 +124,7 @@ export function packageIdForLemonVariant(variantId: string | number | null | und
   for (const [variant, packageId] of pairs) {
     if (variant && variant === id) return packageId;
   }
-
-  // Hardcoded fallbacks so credits still apply if .env variants are missing/stale.
-  const HARDCODED: Record<string, string> = {
-    "2154652": "starter",
-    "2154661": "pro",
-    "2154665": "enterprise",
-  };
-  return HARDCODED[id] ?? null;
+  return null;
 }
 
 /** Coerce Lemon custom_data values (may arrive as string | number | boolean). */
@@ -156,18 +150,28 @@ function sanitizeReturnPath(raw: string | undefined): string {
   return pathOnly || "/dashboard";
 }
 
-export async function createLemonSqueezyCheckoutUrl(
-  params: LemonCheckoutParams & { pendingOrderId?: string },
-): Promise<string> {
+function requireLemonCheckoutConfig(packageId: string): { apiKey: string; storeId: string; variantId: string } {
   const { apiKey, storeId } = requireLemonApiConfig();
-  const variantId = lemonVariantForPackage(params.packageId);
+  const variantId = lemonVariantForPackage(packageId);
   if (!variantId) {
     throw new AppError(
       503,
-      `Lemon Squeezy variant is not configured for package "${params.packageId}".`,
+      `Lemon Squeezy variant is not configured for package "${packageId}".`,
       "LEMONSQUEEZY_VARIANT_MISSING",
     );
   }
+  return { apiKey, storeId, variantId };
+}
+
+/** Throws the same 503s as a checkout would — before anything is written. */
+export function assertLemonCheckoutConfigured(packageId: string): void {
+  requireLemonCheckoutConfig(packageId);
+}
+
+export async function createLemonSqueezyCheckoutUrl(
+  params: LemonCheckoutParams & { pendingOrderId?: string },
+): Promise<string> {
+  const { apiKey, storeId, variantId } = requireLemonCheckoutConfig(params.packageId);
 
   const credits = Math.max(0, Math.floor(params.credits));
   const returnPath = sanitizeReturnPath(params.returnPath);

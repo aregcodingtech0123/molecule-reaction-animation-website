@@ -1,29 +1,45 @@
 import "./config/loadEnv.js";
-import { assertEnv, env } from "./config/env.js";
+import { assertEnv, env, lemonVariantConfigProblem } from "./config/env.js";
 import { createApp } from "./app.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
+import { weakSecretReason } from "./config/secretStrength.js";
+import { releaseExpiredHolds } from "./services/aiCredits.service.js";
 
 const PORT = env.port;
 
-const WEAK_SECRETS = [
-  "replace-with-at-least-32-characters-secret-key",
-  "changeme",
-  "secret",
-  "your-secret-here",
-  "jwt-secret",
-];
-
 function enforceProductionSecurityGuards(): void {
-  const jwtSecret = process.env.JWT_SECRET ?? "";
-  if (WEAK_SECRETS.some((weak) => jwtSecret.includes(weak))) {
-    console.error("FATAL: JWT_SECRET matches a known weak/placeholder value. Exiting.");
-    process.exit(1);
+  for (const name of ["JWT_SECRET", "INTERNAL_SERVICE_SECRET"] as const) {
+    const reason = weakSecretReason(name, process.env[name]);
+    if (reason) {
+      console.error(`FATAL: ${reason} Exiting.`);
+      process.exit(1);
+    }
   }
 
-  if (jwtSecret.length < 32) {
-    console.error("FATAL: JWT_SECRET must be at least 32 characters. Exiting.");
+  // Variant ids come from the environment only (FINDING-13); production fails closed.
+  const variantProblem = lemonVariantConfigProblem();
+  if (variantProblem && env.isProduction) {
+    console.error(`FATAL: ${variantProblem} Exiting.`);
     process.exit(1);
   }
+  if (variantProblem) {
+    console.warn(`[auth-billing-service] ${variantProblem}`);
+  }
+}
+
+/** Periodically settle AI reservations that were never captured or released (never charged). */
+function startExpiredHoldSweeper(): void {
+  const intervalMs = env.aiHoldSweepIntervalMs;
+  if (intervalMs <= 0) return;
+  const timer = setInterval(() => {
+    if (!isDatabaseReady()) return;
+    void releaseExpiredHolds()
+      .then((n) => {
+        if (n > 0) console.warn(`[credits] Settled ${n} expired AI reservation(s) as not charged (see db:reconcile).`);
+      })
+      .catch((err) => console.error("[credits] Expired-hold sweep failed:", err instanceof Error ? err.message : err));
+  }, intervalMs);
+  timer.unref();
 }
 
 function resolveListenHost(): string {
@@ -84,6 +100,7 @@ async function bootstrap(): Promise<void> {
       console.log(
         "[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/lemonsqueezy",
       );
+      startExpiredHoldSweeper();
       resolve();
     });
 

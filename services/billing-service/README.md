@@ -1,3 +1,5 @@
+> ⚠️ **LEGACY — not wired into the running stack, kept for reference, pending removal.** See [LEGACY.md](./LEGACY.md).
+
 # MoleculeStudio Billing Service
 
 Double-entry credit ledger with Stripe checkout integration.

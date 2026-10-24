@@ -74,7 +74,7 @@ npm install
 cp .env.example .env
 # Keep the LOCAL DATABASE_URL (Docker). Do not paste a production URI here for day-to-day dev.
 
-npm run db:setup    # waits for health, creates DB if needed, applies 001→005
+npm run db:setup    # waits for health, creates DB if needed, applies every migration in database/init
 npm run dev         # http://localhost:4000
 ```
 
@@ -105,8 +105,11 @@ npm run dev:all     # tries docker:up, then Next (:3000) + Express (:4000)
 ### Switching to hosted Postgres (Neon / Supabase)
 
 1. In `services/auth-billing-service/.env`, set `DATABASE_URL` to your hosted URI (`?sslmode=require`).
-2. Run `npm run db:setup` **once** against that URI (idempotent migrations).
-3. Never run `db:reset` / `docker:reset` against production.
+2. Migrations run through a tracked runner (`schema_migrations` table). Use a **direct** (non-pooled)
+   connection for it — set `MIGRATION_DATABASE_URL` if `DATABASE_URL` points at a pooler; pooled URLs are refused.
+3. A database created before the runner existed must be adopted once with `npm run db:migrate:baseline`
+   (preview with `node scripts/migrate.mjs --baseline --dry-run`). See `docs/ops/PRODUCTION_RUNBOOK.md`.
+4. `db:reset` refuses every non-local host; never run `docker:reset` against production.
 
 #### Neon cold starts
 
@@ -227,7 +230,7 @@ Package resolution prefers the Lemon **variant id** map, then falls back to `cus
 ├── services/
 │   └── auth-billing-service/   # Auth + billing microservice (checkout + webhooks on :4000)
 ├── database/
-│   └── init/                   # PostgreSQL schema & ledger functions
+│   └── init/                   # NNN_*.sql migrations (001–007 legacy, 008+ wrapped by the runner)
 ├── docker-compose.yml          # Local Postgres 16
 └── .env.example
 ```
@@ -239,13 +242,40 @@ Package resolution prefers the Lemon **variant id** map, then falls back to `cus
 | `npm run docker:up` | root | Start local Postgres (`postgres:16-alpine`) |
 | `npm run docker:down` | root | Stop local Postgres (keeps volume) |
 | `npm run docker:reset` | root | Wipe volume + recreate container |
-| `npm run db:setup` | root or service | Apply migrations `001`→`005` |
-| `npm run db:reset` | service | DROP/CREATE local DB + migrate (blocks production URLs) |
+| `npm run db:setup` | root or service | Create the DB if missing, then apply pending migrations (`001`→latest) via the tracked runner |
+| `npm run db:migrate` | service | Apply pending migrations (`--dry-run` to preview) |
+| `npm run db:migrate:status` | service | List applied / baselined / pending migrations |
+| `npm run db:migrate:baseline` | service | Adopt a pre-runner database without re-running existing migrations |
+| `npm run db:reconcile` | service | Read-only report: balances that differ from the ledger (exit 2 if any) |
+| `npm run db:reset` | service | DROP/CREATE local DB + migrate (local hosts only: localhost / 127.0.0.1 / ::1 / docker) |
 | `npm run dev` | root | Start Next.js only (`:3000`) |
 | `npm run dev:all` | root | Ensure Docker (best-effort) + Next.js + auth-billing together |
 | `npm run dev:all:nodocker` | root | Same pair without attempting Docker |
 | `npm run build` | root | Production build |
 | `npm run dev` | `services/auth-billing-service` | Start Express on port 4000 |
+
+## Testing
+
+Plan, findings and remediation status: [`docs/testing/TEST_PLAN.md`](docs/testing/TEST_PLAN.md) ·
+[`docs/testing/FINDINGS.md`](docs/testing/FINDINGS.md) · [`docs/testing/TEST_CHANGES.md`](docs/testing/TEST_CHANGES.md).
+
+Tests only ever touch a **local** Postgres whose database name contains `test`
+(`scripts/test/db-guard.mjs`) and never call Lemon Squeezy, Google, Gemini or Resend
+(`scripts/test/network-guard.mjs`).
+
+```bash
+cp .env.test.example .env.test   # once (only TEST_DATABASE_URL / E2E ports are read from it)
+npm run test:db:up               # throwaway Postgres on 127.0.0.1:55432 (Docker, tmpfs)
+npm test                         # frontend unit + BFF suites, then all service suites
+npm run test:unit                # frontend (jsdom)
+npm run test:api                 # BFF gateway + /api/chat against the real Express service
+npm run test:db                  # service: migrations, ledger, concurrency
+npm run test:e2e                 # Playwright (first time: npx playwright install chromium)
+npm run test:coverage            # coverage for root and service
+```
+
+> `src/middleware.ts` uses the file convention Next.js 16 deprecated in favour of `proxy.ts`;
+> it still works and is intentionally left as-is for now.
 
 ## Themes
 

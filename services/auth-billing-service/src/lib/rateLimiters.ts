@@ -1,11 +1,18 @@
+import type { Request } from "express";
 import rateLimit from "express-rate-limit";
+
+/** Trusted client address (resolveClientIp) - never a raw X-Forwarded-For value. */
+const ip = (req: Request) => req.clientIp ?? req.ip ?? "unknown";
+/** X-Forwarded-For is resolved deliberately via TRUST_PROXY_HOPS; silence the library guess. */
+const validate = { xForwardedForHeader: false } as const;
 
 /** Login: 5 attempts per 15 minutes per IP + email. */
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${req.ip ?? "unknown"}:${String(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ip(req)}:${String(req.body?.email ?? "").toLowerCase()}`,
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 900 },
+  validate,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -14,8 +21,9 @@ export const loginRateLimiter = rateLimit({
 export const registerRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ip(req),
   message: { success: false, error: "TOO_MANY_REGISTRATIONS", retryAfter: 3600 },
+  validate,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -24,8 +32,9 @@ export const registerRateLimiter = rateLimit({
 export const googleRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ip(req),
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 900 },
+  validate,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -34,8 +43,9 @@ export const googleRateLimiter = rateLimit({
 export const emailActionRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${req.ip ?? "unknown"}:${String(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ip(req)}:${String(req.body?.email ?? "").toLowerCase()}`,
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  validate,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -44,8 +54,9 @@ export const emailActionRateLimiter = rateLimit({
 export const tokenActionRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ip(req),
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  validate,
   standardHeaders: true,
   legacyHeaders: false,
 });

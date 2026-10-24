@@ -159,6 +159,8 @@ export interface UserRow {
   is_admin: boolean;
   is_verified: boolean;
   created_at: Date;
+  /** Session generation (not part of the public profile). */
+  token_version?: number;
 }
 
 function formatDateOfBirth(value: Date | string | null): string {

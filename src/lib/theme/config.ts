@@ -110,7 +110,8 @@ export interface ThemeSceneConfig {
   starCount: number;
   showParticles: boolean;
   particleOpacity: number;
-  environmentPreset: "city" | "studio" | "warehouse";
+  /** Self-hosted map, see components/canvas/SceneEnvironment.tsx (FINDING-31). */
+  environmentPreset: "city" | "studio";
   environmentIntensity: number;
   accentLightIntensity: number;
   ambient: { intensity: number; color: string };

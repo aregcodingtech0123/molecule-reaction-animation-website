@@ -21,6 +21,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { fetchProfileRequest, resendVerificationRequest, updateProfileRequest } from "@/lib/auth/api";
 import type { AuthUser } from "@/lib/auth/types";
 import {
+  formatDateOfBirthForDisplay,
   validateDateOfBirth,
   validateFirstName,
   validateLastName,
@@ -39,18 +40,6 @@ function formatMemberSince(iso: string): string {
     return new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(iso));
   } catch {
     return iso;
-  }
-}
-
-function formatDisplayDate(isoDate: string): string {
-  if (!isoDate) return "—";
-  try {
-    const [y, m, d] = isoDate.split("-").map(Number);
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(
-      new Date(Date.UTC(y, m - 1, d)),
-    );
-  } catch {
-    return isoDate;
   }
 }
 
@@ -405,7 +394,7 @@ export default function ProfilePage() {
                         {t.profile_dob ?? "Date of Birth"}
                       </dt>
                       <dd className={cn("mt-1 text-sm font-medium", ui.typography.title)}>
-                        {formatDisplayDate(profile.dateOfBirth)}
+                        {formatDateOfBirthForDisplay(profile.dateOfBirth)}
                       </dd>
                     </div>
                     <div

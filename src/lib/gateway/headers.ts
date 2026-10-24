@@ -1,4 +1,5 @@
 import { parseSessionTokenFromCookieHeader } from "@/lib/auth/resolve-session-token";
+import { resolveClientIp } from "./client-ip";
 
 const FORWARD_REQUEST_HEADERS = [
   "accept",
@@ -54,6 +55,15 @@ export function buildDownstreamHeaders(
 
   headers.set("X-Forwarded-By", "moleculestudio-gateway");
   headers.set("X-Gateway-Service", service);
+
+  // Server-to-server only (never copied from the client, see FORWARD_REQUEST_HEADERS): the
+  // internal key lets the service trust X-Client-IP for rate limiting (FINDING-04).
+  const internalKey = process.env.INTERNAL_SERVICE_SECRET?.trim();
+  if (internalKey) {
+    headers.set("X-Internal-Service-Key", internalKey);
+    const clientIp = resolveClientIp(request);
+    if (clientIp) headers.set("X-Client-IP", clientIp);
+  }
 
   return headers;
 }

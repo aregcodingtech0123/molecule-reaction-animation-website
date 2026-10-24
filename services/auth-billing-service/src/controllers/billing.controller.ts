@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import * as billingService from "../services/billing.service.js";
-import { consumeCreditsForOperation, refundOperation } from "../services/aiCredits.service.js";
+import { captureOperation, releaseOperation, reserveCreditsForOperation } from "../services/aiCredits.service.js";
 import { AI_OPERATION_COSTS, isAiOperationType } from "../config/aiOperations.js";
 import { createUnifiedCheckout } from "../services/checkout.service.js";
 import {
@@ -30,6 +30,22 @@ export async function getBalance(req: Request, res: Response, next: NextFunction
   }
 }
 
+const DEFAULT_HISTORY_LIMIT = 100;
+
+/**
+ * `?limit=` → a number the service clamps to 1..200. Anything that is not an
+ * integer (or ±Infinity) — "abc", "2.7", "NaN", a repeated parameter — falls
+ * back to the default page size instead of reaching SQL as NaN (FINDING-08).
+ */
+function parseHistoryLimit(raw: unknown): number {
+  if (raw === undefined) return DEFAULT_HISTORY_LIMIT;
+  if (typeof raw !== "string") return DEFAULT_HISTORY_LIMIT;
+  const n = Number(raw);
+  if (Number.isNaN(n)) return DEFAULT_HISTORY_LIMIT;
+  if (Number.isFinite(n) && !Number.isInteger(n)) return DEFAULT_HISTORY_LIMIT;
+  return n;
+}
+
 export async function getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user?.sub;
@@ -37,12 +53,13 @@ export async function getHistory(req: Request, res: Response, next: NextFunction
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
 
-    const limit = Number(req.query.limit ?? 100);
-    const transactions = await billingService.getLedgerHistoryForUser(userId, limit);
+    const limit = parseHistoryLimit(req.query.limit);
+    const cursor = req.query.cursor === undefined ? null : billingService.decodeHistoryCursor(req.query.cursor);
+    const page = await billingService.getLedgerHistoryForUser(userId, limit, cursor);
 
     res.json({
       success: true,
-      data: { transactions },
+      data: { transactions: page.transactions, nextCursor: page.nextCursor },
     });
   } catch (err) {
     next(err);
@@ -89,12 +106,12 @@ export function getOperationCosts(_req: Request, res: Response): void {
 }
 
 /**
- * POST /api/billing/consume
- * Body: { operationType, referenceId, metadata? }
+ * POST /api/billing/consume — internal only (BFF). Reserves the price of one AI
+ * operation; nothing is debited until /capture.
+ * Body: { operationType, referenceId }
  *
- * Returns 402 with `{ success: false, code: "INSUFFICIENT_CREDITS", requiredCredits }`
- * when the balance is too low — the shape the web client keys off to open the
- * billing modal.
+ * 402 `{ success:false, code:"INSUFFICIENT_CREDITS", requiredCredits, balance }`
+ * 409 `OPERATION_ALREADY_EXISTS` when the reference was already used.
  */
 export async function consumeCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -102,17 +119,8 @@ export async function consumeCredits(req: Request, res: Response, next: NextFunc
     if (!userId) {
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
-
-    const { operationType, referenceId, metadata } = req.body ?? {};
-    if (!isAiOperationType(operationType)) {
-      throw new AppError(400, "Unknown AI operation.", "INVALID_OPERATION");
-    }
-
-    const result = await consumeCreditsForOperation(userId, operationType, {
-      ...(metadata && typeof metadata === "object" ? metadata : {}),
-      referenceId: String(referenceId ?? ""),
-    });
-
+    const { operationType, referenceId } = req.body ?? {};
+    const result = await reserveCreditsForOperation(userId, operationType, referenceId);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -120,13 +128,30 @@ export async function consumeCredits(req: Request, res: Response, next: NextFunc
 }
 
 /**
- * POST /api/billing/refund
+ * POST /api/billing/capture — internal only (BFF). Charges a held reservation
+ * exactly once after the AI operation succeeded.
+ * Body: { referenceId }
+ */
+export async function captureCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
+    }
+    const result = await captureOperation(userId, req.body?.referenceId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/billing/refund — internal only (BFF). Releases a held reservation
+ * after the AI operation failed. Never refunds a captured (successful) charge.
  * Body: { referenceId, reason? }
  *
- * Compensating transaction for an AI operation that failed after being charged.
- * Always 200 — "nothing was charged" and "already refunded" are normal outcomes
- * reported in the body, not errors, so a caller can fire this from a catch block
- * without needing to branch.
+ * Always 200: "nothing charged", "already released" and "not refundable" are
+ * normal outcomes reported in the body.
  */
 export async function refundCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -134,43 +159,9 @@ export async function refundCredits(req: Request, res: Response, next: NextFunct
     if (!userId) {
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
-
     const { referenceId, reason } = req.body ?? {};
-    const result = await refundOperation(
-      userId,
-      String(referenceId ?? ""),
-      String(reason ?? "ai_operation_failed"),
-    );
-
+    const result = await releaseOperation(userId, referenceId, String(reason ?? "ai_operation_failed"));
     res.json({ success: true, data: result });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function deductCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const userId = req.user?.sub;
-    if (!userId) {
-      throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
-    }
-
-    const { amount, type, referenceId } = req.body ?? {};
-    const result = await billingService.deductCreditsForUser(
-      userId,
-      Number(amount),
-      String(type ?? ""),
-      String(referenceId ?? ""),
-    );
-
-    res.json({
-      success: true,
-      data: {
-        newBalance: result.newBalance,
-        ledgerId: result.ledgerId,
-        alreadyProcessed: result.alreadyProcessed,
-      },
-    });
   } catch (err) {
     next(err);
   }
@@ -209,7 +200,9 @@ export function lemonSqueezyWebhook(req: Request, res: Response): void {
     const status = err instanceof AppError ? err.statusCode : 401;
     // Log server-side only; never leak the stack trace to the caller.
     console.warn("[Webhook] Rejected:", err instanceof Error ? err.message : String(err));
-    res.status(status).json({ error: status === 503 ? "Webhook not configured" : "Invalid signature" });
+    // 400 only happens after the signature was verified (FINDING-14).
+    const error = status === 503 ? "Webhook not configured" : status === 400 ? "Invalid webhook body" : "Invalid signature";
+    res.status(status).json({ error });
     return;
   }
 

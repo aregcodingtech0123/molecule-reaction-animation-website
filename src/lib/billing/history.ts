@@ -11,13 +11,21 @@ export interface LedgerTransaction {
 
 export interface HistoryApiResponse {
   success: boolean;
-  data?: { transactions: LedgerTransaction[] };
+  data?: { transactions: LedgerTransaction[]; nextCursor?: string | null };
   error?: string;
   code?: string;
 }
 
-export async function fetchLedgerHistory(): Promise<LedgerTransaction[]> {
-  const res = await authFetch("/api/billing/history", {
+export interface LedgerPage {
+  transactions: LedgerTransaction[];
+  /** Pass to the next call for older rows; null when there are none. */
+  nextCursor: string | null;
+}
+
+/** One newest-first page of the ledger; `cursor` continues after a previous page (FINDING-17). */
+export async function fetchLedgerHistoryPage(cursor?: string | null): Promise<LedgerPage> {
+  const url = cursor ? `/api/billing/history?${new URLSearchParams({ cursor })}` : "/api/billing/history";
+  const res = await authFetch(url, {
     method: "GET",
     cache: "no-store",
     credentials: "include",
@@ -28,7 +36,29 @@ export async function fetchLedgerHistory(): Promise<LedgerTransaction[]> {
     throw new Error(data.error ?? "Unable to load transaction history.");
   }
 
-  return data.data.transactions;
+  return { transactions: data.data.transactions, nextCursor: data.data.nextCursor ?? null };
+}
+
+/**
+ * Fold a freshly fetched first page into what is already shown. If it overlaps
+ * the shown rows, only the new ones are added on top and the pagination
+ * position is kept; otherwise (nothing shown yet, or more new rows than one
+ * page) the first page replaces everything.
+ */
+export function mergeFirstPage(shown: LedgerPage, first: LedgerPage): LedgerPage {
+  const known = new Set(shown.transactions.map((tx) => tx.id));
+  const fresh = first.transactions.filter((tx) => !known.has(tx.id));
+  if (fresh.length === first.transactions.length) return first;
+  return { transactions: [...fresh, ...shown.transactions], nextCursor: shown.nextCursor };
+}
+
+/** Append an older page, skipping rows already shown. */
+export function appendPage(shown: LedgerPage, older: LedgerPage): LedgerPage {
+  const known = new Set(shown.transactions.map((tx) => tx.id));
+  return {
+    transactions: [...shown.transactions, ...older.transactions.filter((tx) => !known.has(tx.id))],
+    nextCursor: older.nextCursor,
+  };
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -85,7 +115,13 @@ export function formatTransactionDescription(tx: {
 }
 
 export function formatTransactionType(type: string): string {
-  return TYPE_LABELS[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (Object.hasOwn(TYPE_LABELS, type)) return TYPE_LABELS[type]!;
+  // A type added server-side before this table knows it: SOME_NEW_TYPE → "Some New Type" (FINDING-28).
+  return type
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export function formatLedgerAmount(amount: number): string {

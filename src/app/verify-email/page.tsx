@@ -1,27 +1,35 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, MailWarning } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { verifyEmailRequest } from "@/lib/auth/api";
-import { AUTH_USER_STORAGE_KEY } from "@/lib/auth/types";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { patchUser, fetchBalance, openAuthModal } = useAuth();
+  const { completeSignIn, fetchBalance, openAuthModal } = useAuth();
   const { ui, isWhiteLab } = useTheme();
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
+  /** Tokens already submitted: a one-time token must be posted exactly once (FINDING-32). */
+  const submittedRef = useRef<Set<string>>(new Set());
+
   const runVerify = useCallback(async () => {
     const token = searchParams.get("token")?.trim();
+    if (token) {
+      // The effect re-runs whenever auth callbacks change identity (and twice in React Strict
+      // Mode); re-posting a consumed token answered 400 and could overwrite the success state.
+      if (submittedRef.current.has(token)) return;
+      submittedRef.current.add(token);
+    }
     if (!token) {
       setStatus("error");
       setMessage("Missing verification token. Open the link from your email.");
@@ -30,20 +38,14 @@ function VerifyEmailInner() {
 
     setStatus("loading");
     try {
+      // The BFF set the httpOnly session cookie on this response (FINDING-24); the page only
+      // adopts the public profile. Verification is also how a new account first signs in (FINDING-09).
       const data = await verifyEmailRequest(token);
-      if (data.token) {
-        await fetch("/api/auth/set-cookie", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ token: data.token }),
-        });
-      }
       if (data.user) {
-        window.localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(data.user));
-        patchUser(data.user);
+        await completeSignIn(data.user);
+      } else {
+        await fetchBalance();
       }
-      await fetchBalance();
       setStatus("success");
       setMessage(data.message || "Email verified. Starter credits have been added.");
       toast.success("Email verified. 10 AI credits unlocked.");
@@ -53,7 +55,7 @@ function VerifyEmailInner() {
       setMessage(msg);
       toast.error(msg);
     }
-  }, [searchParams, patchUser, fetchBalance]);
+  }, [searchParams, completeSignIn, fetchBalance]);
 
   useEffect(() => {
     void runVerify();

@@ -164,7 +164,20 @@ COMMENT ON COLUMN credit_ledger_transactions.reference_id IS 'External correlati
 -- =============================================================================
 -- 4. ATOMIC CREDIT POSTING (optional helper — ledger + balance in one TX)
 -- =============================================================================
-CREATE OR REPLACE FUNCTION post_credit_transaction(
+-- Legacy 4-argument version. 003 replaces it with the provider-aware 5-argument
+-- function and drops this overload. It is only created on a brand-new database:
+-- re-running 001 after 003 used to re-create it, leaving two overloads, and the
+-- unqualified COMMENT ON FUNCTION then failed with 42725 (FINDING-02).
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'post_credit_transaction'
+  ) THEN
+    EXECUTE $create$
+CREATE FUNCTION post_credit_transaction(
   p_user_id          UUID,
   p_amount           INTEGER,
   p_transaction_type credit_transaction_type,
@@ -172,7 +185,7 @@ CREATE OR REPLACE FUNCTION post_credit_transaction(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
-AS $$
+AS $body$
 DECLARE
   v_ledger_id BIGINT;
 BEGIN
@@ -210,10 +223,14 @@ BEGIN
 
   RETURN v_ledger_id;
 END;
-$$;
+$body$
+    $create$;
 
-COMMENT ON FUNCTION post_credit_transaction IS
-  'Atomically append an immutable ledger row and adjust user_balances (advisory-locked).';
+    COMMENT ON FUNCTION post_credit_transaction(UUID, INTEGER, credit_transaction_type, VARCHAR) IS
+      'Atomically append an immutable ledger row and adjust user_balances (advisory-locked).';
+  END IF;
+END
+$do$;
 
 COMMIT;
 

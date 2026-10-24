@@ -215,7 +215,17 @@ export async function processLemonSqueezyEvent(
   const custom = event.meta?.custom_data ?? {};
   const customUserId = readCustomDataString(custom, "user_id");
   const customPackageId = readCustomDataString(custom, "package_id");
-  const pendingOrderId = readCustomDataString(custom, "pending_order_id") ?? undefined;
+  const rawPendingOrderId = readCustomDataString(custom, "pending_order_id");
+  // Only bookkeeping: a malformed value must never cost the buyer their credits (FINDING-10).
+  let pendingOrderId: string | undefined;
+  if (rawPendingOrderId && UUID_RE.test(rawPendingOrderId)) {
+    pendingOrderId = rawPendingOrderId;
+  } else if (rawPendingOrderId) {
+    console.warn("[Webhook] custom_data.pending_order_id is not a UUID — ignoring it", {
+      orderId: order.id,
+      pendingOrderId: rawPendingOrderId,
+    });
+  }
 
   const variantId = attrs.first_order_item?.variant_id ?? null;
   const packageFromVariant = packageIdForLemonVariant(variantId);
