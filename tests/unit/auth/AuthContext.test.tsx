@@ -12,6 +12,7 @@ vi.mock("@/lib/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), info:
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/auth/types";
+import { fetchBalanceRequest } from "@/lib/auth/api";
 
 const JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig";
 
@@ -59,16 +60,13 @@ describe("AuthContext session handling", () => {
     expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
   });
 
-  it("login: sends the JWT only to /api/auth/set-cookie, stores the user profile but never the token", async () => {
-    let setCookieBody: unknown;
+  it("login: the browser never receives the JWT (the BFF sets the httpOnly cookie); only the profile is stored", async () => {
+    // Phase 1 asserted the token went only to /api/auth/set-cookie; that route is gone (FINDING-24,
+    // TEST_CHANGES TC-27): the login response carries no token at all.
     const fetchMock = routeFetch({
       "GET /api/billing/balance": () => json({ success: true, data: { userId: testUser.id, balance: 10, hasCredits: true } }),
       "GET /api/users/profile": () => json({ success: false }, 401),
-      "POST /api/auth/login": () => json({ success: true, data: { message: "Login successful.", token: JWT, user: testUser } }),
-      "POST /api/auth/set-cookie": (init) => {
-        setCookieBody = JSON.parse(String(init?.body));
-        return json({ success: true });
-      },
+      "POST /api/auth/login": () => json({ success: true, data: { message: "Login successful.", user: testUser } }),
     });
     vi.stubGlobal("fetch", fetchMock);
     mount();
@@ -76,31 +74,49 @@ describe("AuthContext session handling", () => {
 
     await act(() => ctx.login("ada@example.test", "Correct-1"));
 
-    expect(setCookieBody).toEqual({ token: JWT });
     expect(screen.getByTestId("state")).toHaveTextContent("in:10");
     expect(JSON.parse(localStorage.getItem(AUTH_USER_STORAGE_KEY)!)).toEqual(testUser);
     expect(storageContainsJwt()).toBe(false);
-
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
     const calls = fetchMock.mock.calls.map(([u, init]) => `${init?.method ?? "GET"} ${u}`);
-    expect(calls).toContain("POST /api/auth/set-cookie");
+    expect(calls.some((c) => c.includes("set-cookie"))).toBe(false);
     expect(fetchMock.mock.calls.every(([, init]) => (init?.credentials ?? "include") === "include")).toBe(true);
   });
 
-  it("login fails when the session cookie cannot be established (no half-signed-in state)", async () => {
+  it("a failed login leaves no half-signed-in state", async () => {
+    // Replaces "login fails when the session cookie cannot be established" (TC-27): the client no
+    // longer establishes the cookie, so the failure mode is the login call itself.
     vi.stubGlobal(
       "fetch",
       routeFetch({
         "GET /api/billing/balance": () => json({}, 401),
         "GET /api/users/profile": () => json({}, 401),
-        "POST /api/auth/login": () => json({ success: true, data: { message: "ok", token: JWT, user: testUser } }),
-        "POST /api/auth/set-cookie": () => json({ error: "FORBIDDEN" }, 403),
+        "POST /api/auth/login": () => json({ success: false, error: "Invalid email or password.", code: "INVALID_CREDENTIALS" }, 401),
       }),
     );
     mount();
     await waitFor(() => expect(ctx.isHydrated).toBe(true));
-    await expect(act(() => ctx.login("ada@example.test", "Correct-1"))).rejects.toThrow("Failed to establish session.");
+    await expect(act(() => ctx.login("ada@example.test", "Wrong-1"))).rejects.toThrow("Invalid email or password.");
     expect(ctx.isAuthenticated).toBe(false);
     expect(localStorage.getItem(AUTH_USER_STORAGE_KEY)).toBeNull();
+  });
+
+  it("completeSignIn adopts a server-established session (email verification) and loads the balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/balance": (() => {
+          let n = 0;
+          return () => (n++ === 0 ? json({}, 401) : json({ success: true, data: { userId: testUser.id, balance: 10, hasCredits: true } }));
+        })(),
+        "GET /api/users/profile": () => json({}, 401),
+      }),
+    );
+    mount();
+    await waitFor(() => expect(ctx.isHydrated).toBe(true));
+    await act(() => ctx.completeSignIn(testUser));
+    expect(screen.getByTestId("state")).toHaveTextContent("in:10");
+    expect(JSON.parse(localStorage.getItem(AUTH_USER_STORAGE_KEY)!)).toEqual(testUser);
   });
 
   it("logout: revokes server-side, clears the cookie and local profile", async () => {
@@ -214,5 +230,81 @@ describe("guest auth gate vs. late hydration probes (FINDING-33)", () => {
     await act(() => ctx.fetchBalance());
     await waitFor(() => expect(ctx.authModalOpen).toBe(false));
     expect(ctx.isAuthenticated).toBe(false);
+  });
+});
+
+describe("stale 401 from before sign-in (FINDING-33, extended in Phase 1.5 Batch 3)", () => {
+  /**
+   * Email verification is now the moment a new account signs in (FINDING-09). A balance request
+   * sent BEFORE the session cookie existed can answer 401 AFTER sign-in; it must not be taken as
+   * "session expired" (which cleared the brand-new cookie — seen in the E2E mobile run).
+   */
+  it("a 401 for a request issued before sign-in does not sign the user out or clear the cookie", async () => {
+    let releaseStale!: () => void;
+    const staleGate = new Promise<void>((r) => (releaseStale = r));
+    let balanceCalls = 0;
+    const fetchMock = routeFetch({
+      "GET /api/billing/balance": async () => {
+        balanceCalls += 1;
+        if (balanceCalls === 2) {
+          await staleGate; // the in-flight guest request
+          return json({}, 401);
+        }
+        return balanceCalls === 1 ? json({}, 401) : json({ success: true, data: { userId: testUser.id, balance: 10, hasCredits: true } });
+      },
+      "GET /api/users/profile": () => json({}, 401),
+      "POST /api/auth/clear-cookie": () => json({ success: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount();
+    await waitFor(() => expect(ctx.isHydrated).toBe(true));
+
+    const inflight = fetchBalanceRequest().catch(() => null); // guest-era authFetch, still pending
+    await waitFor(() => expect(balanceCalls).toBe(2));
+    await act(() => ctx.completeSignIn(testUser)); // verification signs the user in
+    const callsAtSignIn = fetchMock.mock.calls.length;
+    await act(async () => {
+      releaseStale();
+      await inflight;
+    });
+
+    expect(ctx.isAuthenticated).toBe(true);
+    // (Guest-era probes may clear a non-existent cookie before sign-in; nothing may clear it after.)
+    const after = fetchMock.mock.calls.slice(callsAtSignIn).map(([u, init]) => `${init?.method ?? "GET"} ${u}`);
+    expect(after).not.toContain("POST /api/auth/clear-cookie");
+  });
+
+  it("a 401 for a request issued AFTER sign-in still signs the user out (real expiry)", async () => {
+    let status = 200;
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "GET /api/billing/balance": () =>
+          status === 200 ? json({ success: true, data: { userId: testUser.id, balance: 10, hasCredits: true } }) : json({}, 401),
+        "GET /api/users/profile": () => json({}, 401),
+        "POST /api/auth/clear-cookie": () => json({ success: true }),
+      }),
+    );
+    mount();
+    await waitFor(() => expect(ctx.isHydrated).toBe(true));
+    await act(() => ctx.completeSignIn(testUser));
+    status = 401;
+    await act(() => ctx.fetchBalance());
+    await waitFor(() => expect(ctx.isAuthenticated).toBe(false));
+  });
+});
+
+describe("guest 401 probes never clear cookies", () => {
+  it("hydrating as a guest sends no clear-cookie (it could race a sign-in and delete the new session)", async () => {
+    const fetchMock = routeFetch({
+      "GET /api/billing/balance": () => json({}, 401),
+      "GET /api/users/profile": () => json({}, 401),
+      "POST /api/auth/clear-cookie": () => json({ success: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount();
+    await waitFor(() => expect(ctx.isHydrated).toBe(true));
+    const calls = fetchMock.mock.calls.map(([u, init]) => `${init?.method ?? "GET"} ${u}`);
+    expect(calls).not.toContain("POST /api/auth/clear-cookie");
   });
 });

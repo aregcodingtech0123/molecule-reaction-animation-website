@@ -77,8 +77,16 @@ test.describe("guest journeys", () => {
     expect(res.status()).toBe(401);
   });
 
-  test("set-cookie refuses cross-origin requests", async ({ request }) => {
-    const res = await request.post("/api/auth/set-cookie", { headers: { Origin: "https://evil.example" }, data: { token: "x" } });
-    expect(res.status()).toBe(403);
+  // Replaces "set-cookie refuses cross-origin requests" (route removed by FINDING-24, TEST_CHANGES TC-28):
+  // the same cross-origin guard now protects every state-changing BFF request.
+  test("cross-origin state-changing requests are refused (login CSRF) and the old set-cookie route is gone", async ({ request }) => {
+    const login = await request.post("/api/auth/login", {
+      headers: { Origin: "https://evil.example" },
+      data: { email: "x@example.test", password: "Whatever-123" },
+    });
+    expect(login.status()).toBe(403);
+    expect(login.headers()["set-cookie"]).toBeUndefined();
+    expect((await request.post("/api/auth/clear-cookie", { headers: { Origin: "https://evil.example" } })).status()).toBe(403);
+    expect((await request.post("/api/auth/set-cookie", { data: { token: "x" } })).status()).toBe(404);
   });
 });

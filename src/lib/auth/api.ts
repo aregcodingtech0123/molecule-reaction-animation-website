@@ -69,7 +69,8 @@ export async function registerRequest(
     throw new Error(extractError(data, "Registration could not be completed."));
   }
 
-  if ("token" in data.data && data.data.token && data.data.user) {
+  // Since FINDING-09 registration never signs in; kept tolerant of a user payload.
+  if ("user" in data.data && data.data.user) {
     return data.data;
   }
 

@@ -70,6 +70,7 @@ export function makeAuth(overrides: Record<string, unknown> = {}) {
     logout: vi.fn(),
     fetchBalance: vi.fn().mockResolvedValue(null),
     patchUser: vi.fn(),
+    completeSignIn: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

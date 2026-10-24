@@ -36,17 +36,21 @@ test("register → verify → dashboard → checkout → signed webhook → cred
   await dialog.getByRole("button", { name: "Create Account" }).click();
   await expect(dialog).toBeHidden();
 
-  // Session lives only in an httpOnly cookie — never in web storage.
+  // Sign-up never signs in (FINDING-09): identical answer for new and existing emails, no session.
+  expect((await context.cookies()).some((c) => c.name === "session_token")).toBe(false);
+  expect(await balanceVia(page.request)).toBeNull();
+
+  // ── Verify email (token planted the way the mailer would deliver it) — this signs the user in ──
+  const raw = await plantVerificationToken(email);
+  await page.goto(`/verify-email?token=${encodeURIComponent(raw)}`);
+  await expect(page.getByText("Email verified").first()).toBeVisible();
+
+  // Session set by the BFF (FINDING-24): httpOnly cookie only — never in web storage, never in a body.
+  await expect.poll(async () => (await context.cookies()).some((c) => c.name === "session_token")).toBe(true);
   const session = (await context.cookies()).find((c) => c.name === "session_token");
   expect(session).toMatchObject({ httpOnly: true, sameSite: "Strict", secure: false, path: "/" });
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
   expect(storage).not.toContain(session!.value);
-  expect(await balanceVia(page.request)).toBe(0);
-
-  // ── Verify email (token planted the way the mailer would deliver it) ─────────
-  const raw = await plantVerificationToken(email);
-  await page.goto(`/verify-email?token=${encodeURIComponent(raw)}`);
-  await expect(page.getByText("Email verified").first()).toBeVisible();
   await expect.poll(() => balanceVia(page.request)).toBe(10);
 
   // ── Dashboard shows the signup bonus ─────────────────────────────────────────

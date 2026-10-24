@@ -19,7 +19,7 @@ beforeEach(() => {
 // FINDING-04 (High): the gateway forwards neither the client IP nor X-Forwarded-For, so behind the
 // BFF every user shares ONE rate-limit bucket keyed on the Next server's address: 3 sign-ups per
 // hour site-wide, 20 verify/reset per hour site-wide, 10 Google sign-ins per 15 min site-wide.
-it.fails("rate limits are applied per end-user client IP behind the BFF (FINDING-04)", async () => {
+it("rate limits are applied per end-user client IP behind the BFF (FINDING-04)", async () => {
   const statuses = [];
   for (let i = 1; i <= 4; i++) {
     const res = await callGateway("auth", "register", {
@@ -29,5 +29,6 @@ it.fails("rate limits are applied per end-user client IP behind the BFF (FINDING
     });
     statuses.push(res.status);
   }
-  expect(statuses).toEqual([201, 201, 201, 201]);
+  // 200: registration answers identically since FINDING-09 (TEST_CHANGES TC-24).
+  expect(statuses).toEqual([200, 200, 200, 200]);
 });

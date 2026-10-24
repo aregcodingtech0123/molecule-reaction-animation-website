@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import { registerUnauthorizedHandler } from "@/lib/api/auth-interceptor";
+import { bumpSessionEpoch, registerUnauthorizedHandler } from "@/lib/api/auth-interceptor";
 import {
   fetchBalanceRequest,
   fetchProfileRequest,
@@ -73,6 +73,8 @@ interface AuthContextValue {
   /** Refetches the balance; resolves with the new value, or null if unavailable. */
   fetchBalance: () => Promise<number | null>;
   patchUser: (updates: Partial<AuthUser>) => void;
+  /** Adopt a session the server just set (e.g. after email verification) without a sign-in toast. */
+  completeSignIn: (user: AuthUser) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -110,18 +112,6 @@ function clearPersistedUser(): void {
   window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
-async function syncSessionCookie(token: string): Promise<void> {
-  const res = await fetch("/api/auth/set-cookie", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ token }),
-  });
-  if (!res.ok) {
-    throw new Error("Failed to establish session.");
-  }
-}
-
 async function clearSessionCookie(): Promise<void> {
   try {
     await fetch("/api/auth/clear-cookie", {
@@ -133,10 +123,8 @@ async function clearSessionCookie(): Promise<void> {
   }
 }
 
-function isAuthSuccess(
-  result: RegisterRequestResult,
-): result is { token: string; user: AuthUser; message: string } {
-  return "token" in result && "user" in result;
+function isAuthSuccess(result: RegisterRequestResult): result is { user: AuthUser; message: string } {
+  return "user" in result && Boolean(result.user);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -225,7 +213,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // never auto-open the login modal. Modal opens only on explicit gestures.
       const hadSession = Boolean(readStoredUser());
       clearPersistedUser();
-      void clearSessionCookie();
+      // Only a real (expired) session has a cookie worth clearing. A guest's probe 401 must not
+      // send clear-cookie: that request can land AFTER a sign-in that happens meanwhile (email
+      // verification) and delete the brand-new session cookie.
+      if (hadSession) void clearSessionCookie();
       setUser(null);
       setCredits(null);
       setSessionExpired(false);
@@ -282,9 +273,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  /**
+   * Adopt a session the BFF has already established in the httpOnly cookie (FINDING-24): the
+   * browser only ever receives the public profile.
+   */
   const applySession = useCallback(
-    async (nextToken: string, nextUser: AuthUser, mode: "login" | "register") => {
-      await syncSessionCookie(nextToken);
+    async (nextUser: AuthUser, mode: "login" | "register") => {
+      bumpSessionEpoch(); // 401s from requests started before this sign-in are stale
       persistUser(nextUser);
       setUser(nextUser);
       setSessionExpired(false);
@@ -343,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthLoading(true);
       try {
         const data = await loginRequest(email, password);
-        await applySession(data.token, data.user, "login");
+        await applySession(data.user, "login");
       } catch (err) {
         const message =
           err instanceof Error ? err.message : (t.toast_sign_in_failed ?? "Sign in failed. Check your credentials.");
@@ -370,7 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           toast.success(data.message ?? GENERIC_REGISTER_MESSAGE);
           return;
         }
-        await applySession(data.token, data.user, "register");
+        await applySession(data.user, "register");
       } catch (err) {
         const message =
           err instanceof Error
@@ -391,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const data = await googleLoginRequest(idToken);
         const mode = data.message.toLowerCase().includes("registered") ? "register" : "login";
-        await applySession(data.token, data.user, mode);
+        await applySession(data.user, mode);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : (t.toast_sign_in_failed ?? "Sign in failed. Check your credentials.");
@@ -446,6 +441,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBillingModalMessage(null);
   }, []);
 
+  const completeSignIn = useCallback(
+    async (nextUser: AuthUser) => {
+      bumpSessionEpoch(); // 401s from requests started before this sign-in are stale
+      persistUser(nextUser);
+      setUser(nextUser);
+      setSessionExpired(false);
+      setSessionExpiredMessage(null);
+      setAuthModalOpen(false);
+      try {
+        const data = await fetchBalanceRequest();
+        setCredits(data.balance);
+      } catch {
+        setCredits(null);
+      }
+    },
+    [],
+  );
+
   const patchUser = useCallback((updates: Partial<AuthUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
@@ -480,6 +493,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       fetchBalance,
       patchUser,
+      completeSignIn,
     }),
     [
       user,
@@ -503,6 +517,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       fetchBalance,
       patchUser,
+      completeSignIn,
     ],
   );
 

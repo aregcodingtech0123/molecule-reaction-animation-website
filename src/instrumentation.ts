@@ -14,7 +14,19 @@ export function assertServerSecrets(env: NodeJS.ProcessEnv = process.env): void 
   }
 }
 
+/** Loud (non-fatal) production warning: without it, every user shares one rate-limit bucket. */
+export function warnMissingClientIpHeader(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.NODE_ENV !== "production" || env.NEXT_PHASE === "phase-production-build") return false;
+  if (env.CLIENT_IP_HEADER?.trim()) return false;
+  console.warn(
+    "[startup] CLIENT_IP_HEADER is not set: the BFF cannot forward end-user IPs, so all users share one " +
+      "rate-limit bucket at the auth service (FINDING-04). See docs/ops/PRODUCTION_RUNBOOK.md.",
+  );
+  return true;
+}
+
 export function register(): void {
   if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
   assertServerSecrets();
+  warnMissingClientIpHeader();
 }

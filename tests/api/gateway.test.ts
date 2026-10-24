@@ -63,10 +63,11 @@ describe("contract with the real Express service", () => {
     expect(await res.json()).toEqual({ success: false, error: "Authentication required.", code: "UNAUTHORIZED" });
   });
 
-  it("POST body, method and status pass through (register 201, then login 200)", async () => {
+  it("POST body, method and status pass through (register 200, then login 200)", async () => {
+    // Register answers 200 for every email since FINDING-09 (TEST_CHANGES TC-24).
     const email = uniqueEmail("gw");
     const reg = await callGateway("auth", "register", json({ email, password: PASSWORD, ...profile }));
-    expect(reg.status).toBe(201);
+    expect(reg.status).toBe(200);
     const login = await callGateway("auth", "login", json({ email, password: PASSWORD }));
     expect(login.status).toBe(200);
     expect((await login.json()).data.user.email).toBe(email);
@@ -125,7 +126,10 @@ describe("header hygiene", () => {
       expect(seen.authorization).toBe("Bearer tok123");
       expect(seen.cookie).toBeUndefined();
       expect(seen["x-evil"]).toBeUndefined();
-      expect(seen["x-internal-service-key"]).toBeUndefined();
+      // The BFF sends ITS OWN key (so the service may trust X-Client-IP); a client-supplied value
+      // never passes through (TEST_CHANGES TC-25).
+      expect(seen["x-internal-service-key"]).toBe(process.env.INTERNAL_SERVICE_SECRET);
+      expect(seen["x-internal-service-key"]).not.toBe("attacker-supplied-value");
       expect(seen["x-request-id"]).toBe("rid-1");
       expect(seen["x-idempotency-key"]).toBe("idem-1");
       expect(seen["accept-language"]).toBe("tr");
@@ -263,6 +267,63 @@ describe("routing", () => {
   });
 });
 
+describe("no path may escape its service prefix — every service (TEST_CHANGES TC-19, strengthened)", () => {
+  it.each([
+    ["auth", "AUTH_SERVICE_URL", "/api/auth", ["..", "billing", "consume"]],
+    ["auth", "AUTH_SERVICE_URL", "/api/auth", ["..", "..", "health"]],
+    ["users", "USERS_SERVICE_URL", "/api/users", ["..", "auth", "me"]],
+    ["users", "USERS_SERVICE_URL", "/api/users", ["profile", "..", "..", "billing", "refund"]],
+    ["billing", "BILLING_SERVICE_URL", "/api/billing", ["..", "users", "profile"]],
+    ["billing", "BILLING_SERVICE_URL", "/api/billing", [".", "..", "auth", "login"]],
+  ] as const)("%s %j → 404, upstream never contacted", async (service, envVar, base, segments) => {
+    let hits = 0;
+    const fake = await startFakeUpstream((_req, _b, res) => {
+      hits += 1;
+      res.writeHead(200).end("{}");
+    });
+    try {
+      process.env[envVar] = `${fake.origin}${base}`;
+      const res = await proxyToService({ service, request: new Request("http://localhost:3000/x", { method: "POST" }), pathSegments: [...segments] });
+      expect(res.status).toBe(404);
+      expect(hits).toBe(0);
+    } finally {
+      await fake.close();
+    }
+  });
+
+  it("a single segment containing slashes (`../../health`, decoded by Next from %2F) stays encoded inside the prefix", async () => {
+    // URL-level %2E%2E is normalised by the URL parser / Next router before routing, so the handler
+    // never sees it as traversal; what it CAN see is one decoded segment with slashes in it.
+    const seen: string[] = [];
+    const fake = await startFakeUpstream((req, _b, res) => {
+      seen.push(req.url ?? "");
+      res.writeHead(200).end("{}");
+    });
+    try {
+      process.env.AUTH_SERVICE_URL = `${fake.origin}/api/auth`;
+      await proxyToService({ service: "auth", request: new Request("http://localhost:3000/x"), pathSegments: ["../../health"] });
+      expect(seen).toEqual(["/api/auth/..%2F..%2Fhealth"]);
+    } finally {
+      await fake.close();
+    }
+  });
+
+  it("paths that stay inside the prefix are proxied (including `..` that resolves inside it)", async () => {
+    const seen: string[] = [];
+    const fake = await startFakeUpstream((req, _b, res) => {
+      seen.push(req.url ?? "");
+      res.writeHead(200).end("{}");
+    });
+    try {
+      process.env.USERS_SERVICE_URL = `${fake.origin}/api/users`;
+      await proxyToService({ service: "users", request: new Request("http://localhost:3000/x"), pathSegments: ["a", "..", "profile"] });
+      expect(seen).toEqual(["/api/users/profile"]);
+    } finally {
+      await fake.close();
+    }
+  });
+});
+
 describe("internal-only billing routes are never proxied (FINDING-03 / FINDING-07)", () => {
   async function upstreamHits(run: () => Promise<Response>) {
     const seen: string[] = [];
@@ -328,7 +389,7 @@ describe("cross-cutting findings", () => {
   // X-Signature, so a Lemon webhook pointed at the public Next host (as .env.example suggests:
   // "https://YOUR_PUBLIC_HOST/api/billing/webhooks/lemonsqueezy") is always rejected with 401 and
   // no purchase is ever credited. The route should either forward the signature or refuse.
-  it.fails("a correctly signed webhook sent to the Next host is either accepted or refused explicitly (FINDING-23)", async () => {
+  it("a correctly signed webhook sent to the Next host is either accepted or refused explicitly (FINDING-23)", async () => {
     const { raw, signature } = signedBody(orderCreatedEvent({ eventName: "order_refunded" }));
     const res = await callGateway("billing", "webhooks/lemonsqueezy", {
       method: "POST",
@@ -341,7 +402,7 @@ describe("cross-cutting findings", () => {
   // FINDING-24 (Medium): login/register/google responses carry the JWT in the JSON body through
   // the BFF; the browser then POSTs it to /api/auth/set-cookie. Any XSS can read it from the
   // response, defeating the httpOnly cookie. The BFF should set the cookie and strip `token`.
-  it.fails("the BFF login response does not expose the JWT to page JavaScript (FINDING-24)", async () => {
+  it("the BFF login response does not expose the JWT to page JavaScript (FINDING-24)", async () => {
     const email = uniqueEmail("tok");
     await createUser(db, { email, passwordHash: await hashPassword(PASSWORD) });
     const login = await callGateway("auth", "login", json({ email, password: PASSWORD }));

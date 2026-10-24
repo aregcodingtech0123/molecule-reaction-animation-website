@@ -81,5 +81,6 @@ export function webEnv() {
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: "e2e-client.apps.googleusercontent.com",
     // Own build/lock directory: runs alongside a developer's `next dev` on the same checkout.
     NEXT_DIST_DIR: ".next-e2e",
+    CLIENT_IP_HEADER: "x-forwarded-for",
   };
 }
