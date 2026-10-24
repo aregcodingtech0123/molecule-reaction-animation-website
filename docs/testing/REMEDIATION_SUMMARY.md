@@ -7,7 +7,8 @@ test, TC-01…TC-39) · [I18N_REVIEW.md](./I18N_REVIEW.md) · [PRODUCTION_RUNBOO
 
 ## Outcome
 
-**34 of 34 findings fixed** (32 from Phase 1 plus FINDING-33 and the High FINDING-34 found during the work).
+**35 of 35 findings fixed** (32 from Phase 1 plus FINDING-33, the High FINDING-34 and FINDING-35 found during the
+work; FINDING-35 surfaced in CI on PostgreSQL 16).
 Nothing is deferred and nothing is marked won't-fix. The only exclusion is by your instruction: `middleware.ts` was not
 renamed to `proxy.ts`.
 
@@ -20,6 +21,7 @@ renamed to `proxy.ts`.
 | 4 Billing & webhook robustness | 10, 11, 14, 12, 08, 16, 15, 13, 17 | `b4d96da`, `fc403c2`, `3ae839d`, `f6273fc` |
 | 5 Frontend | 06, 28, 26, 31, 27 | `05352ba`, `a249a8c`, `ba12e97`, `2f2d975`, `aa563d4` |
 | Tests type-check | — | `d9d6251` |
+| CI follow-ups (PG 16) | TC-40 (FK SQLSTATE), 35 | `59155c3`, `941bd3f` |
 
 Money-path highlights: a user can no longer refund successful AI turns (03); AI turns are charged once, only after
 success, via reserve → capture/release (07, 22); the ledger cannot be truncated or bypassed, and `db:reconcile`
@@ -31,8 +33,8 @@ per-user rate limits that cannot be spoofed (04).
 
 | Suite | Result | Coverage |
 | --- | --- | --- |
-| Service (unit · api · db, real Postgres) | 487 pass · 0 expected-fail | lines 88.1 % (was 85.3), branches **73.5 %** (was 69.9) |
-| Root (BFF api + frontend unit) | 402 pass · 0 expected-fail | BFF lines 93.7 % (was 87.3); `src/` 49.6 % (was 46) |
+| Service (unit · api · db, PostgreSQL 16.15 as in CI) | 490 pass · 0 expected-fail | lines 89.2 % (was 85.3), branches **75.9 %** (was 69.9) |
+| Root (BFF api + frontend unit, PostgreSQL 16.15) | 403 pass · 0 expected-fail | BFF lines 93.7 % (was 87.3); `src/` 49.6 % (was 46) |
 | E2E, Chromium + Pixel 7 | **29/29, twice in a row** | — |
 | Type check (source + tests, both packages) | 0 errors; now enforced in CI | — |
 

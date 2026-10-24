@@ -15,6 +15,7 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 | 01 | Critical | DB | `db:setup` / `db:reset` never apply migrations 006–007 → AI metering fails on a fresh DB | **Fixed** `030a484` — tracked migration runner applies every file in `database/init` |
 | 02 | High | DB | Migrations are not re-runnable (001 fails after 003) | **Fixed** `030a484` — 001 creates the legacy overload only on an empty DB; 001–007 each re-runnable (tested) |
 | 34 | High | Auth / OAuth | Google sign-in links to and verifies an UNVERIFIED password account → pre-account takeover (found in Phase 1.5) | **Fixed** `ce43380` — Google user takes the account over: password invalidated, sessions revoked, pending tokens deleted |
+| 35 | Medium | Auth / OAuth | Concurrent first Google sign-in can answer 500 (aborted transaction after a duplicate link; found in Phase 1.5 CI) | **Fixed** `941bd3f` — link with `ON CONFLICT DO NOTHING`, then read the owner: same user → success, other user → 409 |
 | 04 | High | BFF / Auth | Client IP not forwarded → rate limits are site-wide buckets | **Fixed** `ce43380` `0b4a13c` — BFF forwards the platform client IP (`CLIENT_IP_HEADER`) with the internal key; service honours it only then; `TRUST_PROXY_HOPS` (default 0) stops X-Forwarded-For spoofing |
 | 31 | High | 3D / AI Lab | 3D pages throw — and the AI Lab crashes entirely — if the third-party HDR CDN is unreachable | **Fixed** `2f2d975` — HDRs self-hosted under `public/hdri/`; loaded outside React's throw path, so a missing map is a warning, never a page error; E2E stand-in removed |
 | 29 | High | Tooling | `db:reset` guard refuses only Supabase — a Neon URL is dropped | **Fixed** `030a484` — `db:reset` accepts local hosts only (shared `assertLocalDatabaseUrl`) |
@@ -53,7 +54,7 @@ radius; **Low** = edge-case / error-mapping; **Info** = cosmetic.
 Branch `fix/phase1-findings`. Test changes made while fixing are logged in
 [TEST_CHANGES.md](./TEST_CHANGES.md); production steps are in
 [docs/ops/PRODUCTION_RUNBOOK.md](../ops/PRODUCTION_RUNBOOK.md); every caller-visible change is in
-[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). All batches (0–5) are done: **34 of 34 findings fixed**, none deferred. The rename of `middleware.ts` → `proxy.ts`
+[docs/ops/BEHAVIOUR_CHANGES.md](../ops/BEHAVIOUR_CHANGES.md). All batches (0–5) are done: **35 of 35 findings fixed**, none deferred. The rename of `middleware.ts` → `proxy.ts`
 (FINDING-30) was intentionally not done, as instructed. Every caller-visible change is listed in the behaviour-changes
 document; the deploy owner's steps are in the runbook.
 
@@ -99,6 +100,25 @@ document; the deploy owner's steps are in the runbook.
   account and its data, and can set a password via "Forgot password". **Verified** accounts are linked
   without touching password or sessions. Rejected alternative: refusing the sign-in would lock genuine
   owners out of their own address.
+
+## FINDING-35 — Medium — Concurrent first Google sign-in answers 500 (found in Phase 1.5 CI)
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts` — `linkOAuthAccount()`, reached from
+  `loginWithGoogle()` step 2 ("existing account with this email").
+* **Reproduce:** two first sign-ins with the same Google account (double click, two tabs). Request B looks up the
+  Google subject (step 1, not linked yet); request A then commits the new user **and** its link; B finds the user by
+  email (step 2) and links the same subject again.
+* **Expected:** B signs in to the same account (200); exactly one user, one link, one signup bonus.
+* **Actual:** the duplicate link raised `23505` inside B's transaction; `linkOAuthAccount` caught it and queried again
+  on the aborted transaction → `25P02` → **500 INTERNAL_ERROR**. Timing-dependent: the existing concurrency test
+  passed 20/20 locally and failed intermittently in CI. The same path also answered 500 instead of `409
+  OAUTH_ALREADY_LINKED` when the subject belonged to a different user.
+* **Fix:** `INSERT … ON CONFLICT (provider, provider_account_id) DO NOTHING`, then read the subject's owner: same user →
+  success (idempotent); any other owner → `409 OAUTH_ALREADY_LINKED` (unchanged). The FINDING-34 takeover policy is
+  unchanged; a refused link rolls the takeover back entirely (password, `token_version`, verification untouched).
+* **Tests:** `tests/api/auth.google-race.test.ts` — deterministic (the service pool is intercepted so the competing
+  request runs to completion right after step 1); both cases answered 500 before the fix. The existing
+  "concurrent first sign-ins … create exactly one user" test is unchanged.
 
 ## FINDING-33 addendum (Batch 3)
 
@@ -342,8 +362,8 @@ Non-production files added/changed: `.gitignore` (test artefacts, `.env.test`, n
 
 | Suite | Files | Result | Coverage |
 | --- | --- | --- | --- |
-| **Service total** (unit · api · db) | 21 | **487 pass · 0 expected-fail** | **88.1 %** lines, 87.9 % statements, 92.2 % functions, **73.5 % branches** (Phase 1: 85.3 / 85.1 / 90.3 / 69.9) |
-| Root (BFF api + frontend unit) | 20 | **402 pass · 0 expected-fail** | BFF files **93.7 %** lines (Phase 1: 87.3 %); whole `src/` include-set 49.6 % (Phase 1: 46 %) |
+| **Service total** (unit · api · db), PostgreSQL 16.15 | 22 | **490 pass · 0 expected-fail** | **89.2 %** lines, 89.0 % statements, 92.2 % functions, **75.9 % branches** (Phase 1: 85.3 / 85.1 / 90.3 / 69.9) |
+| Root (BFF api + frontend unit), PostgreSQL 16.15 | 20 | **403 pass · 0 expected-fail** | BFF files **93.7 %** lines (Phase 1: 87.3 %); whole `src/` include-set 49.6 % (Phase 1: 46 %) |
 | E2E (Chromium + Pixel 7) | 3 | **29 / 29**, two consecutive runs, ~1.4 min each | paid journey desktop + mobile; guest, FINDING-26 and FINDING-31 checks |
 | Type check | — | `npm run typecheck:tests` (root) and `npm run typecheck` (service): **0 errors** | new CI steps |
 
