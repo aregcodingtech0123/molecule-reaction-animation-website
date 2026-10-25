@@ -24,8 +24,9 @@ function billingServiceBaseUrl(): string | null {
   return raw.replace(/\/+$/, "");
 }
 
-function retryDelays(): number[] {
-  const raw = process.env.BILLING_RETRY_DELAYS_MS?.trim();
+/** Backoff between capture/release attempts. Exported for `npm run check:config`. */
+export function retryDelays(source: NodeJS.ProcessEnv = process.env): number[] {
+  const raw = source.BILLING_RETRY_DELAYS_MS?.trim();
   if (!raw) return DEFAULT_RETRY_DELAYS_MS;
   const parsed = raw.split(",").map((v) => Number(v.trim()));
   return parsed.every((n) => Number.isFinite(n) && n >= 0) ? parsed : DEFAULT_RETRY_DELAYS_MS;

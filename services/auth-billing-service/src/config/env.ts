@@ -1,5 +1,6 @@
 import "../config/loadEnv.js";
 import { assertDatabaseEnv, resolveDatabaseEnv } from "./database.js";
+import { aiHoldTtlSeconds, isProductionNodeEnv } from "./productionConfig.js";
 
 const BCRYPT_ROUNDS = 10;
 
@@ -13,16 +14,6 @@ function parseIntEnv(name: string, fallback: number): number {
 
 function readEnv(name: string): string {
   return process.env[name]?.trim() ?? "";
-}
-
-/**
- * Production rules apply unless NODE_ENV is explicitly "development" or "test". An unset or
- * unexpected value ("staging", a typo) must fail closed — not quietly enable dev-only behaviour
- * such as logging verification / reset links instead of mailing them (SEC-08).
- */
-export function isProductionNodeEnv(value: string | undefined): boolean {
-  const mode = value?.trim().toLowerCase();
-  return mode !== "development" && mode !== "test";
 }
 
 export const env = {
@@ -97,8 +88,7 @@ export const env = {
   // ── AI credit reservations ────────────────────────────────────────────────
   /** How long a reservation may stay 'held' before it expires (never charged). */
   get aiHoldTtlSeconds() {
-    const v = Number(readEnv("AI_HOLD_TTL_SECONDS"));
-    return Number.isInteger(v) && v > 0 ? v : 600;
+    return aiHoldTtlSeconds(process.env);
   },
   /** How often the service settles expired reservations. 0 disables the timer. */
   get aiHoldSweepIntervalMs() {
@@ -135,41 +125,8 @@ export function assertEnv(): void {
   }
 }
 
-const LEMON_VARIANT_ENV = [
-  "LEMONSQUEEZY_VARIANT_STARTER",
-  "LEMONSQUEEZY_VARIANT_PRO",
-  "LEMONSQUEEZY_VARIANT_ENTERPRISE",
-] as const;
-
-/**
- * Why the Lemon variant → pack mapping is unusable, or null when it is fine.
- * The mapping comes from the environment only (FINDING-13): a missing,
- * non-numeric or shared variant id would credit the wrong pack or none.
- */
-export function lemonVariantConfigProblem(source: NodeJS.ProcessEnv = process.env): string | null {
-  const missing: string[] = [];
-  const invalid: string[] = [];
-  const seen = new Map<string, string>();
-  for (const name of LEMON_VARIANT_ENV) {
-    const value = source[name]?.trim() ?? "";
-    if (!value) {
-      missing.push(name);
-    } else if (!/^\d+$/.test(value)) {
-      invalid.push(name);
-    } else if (seen.has(value)) {
-      return `${name} and ${seen.get(value)} use the same variant id ${value}; each pack needs its own.`;
-    } else {
-      seen.set(value, name);
-    }
-  }
-  if (missing.length) {
-    return `${missing.join(", ")} not set — purchases of those packs cannot be mapped to credits.`;
-  }
-  if (invalid.length) {
-    return `${invalid.join(", ")} must be a numeric Lemon Squeezy variant id.`;
-  }
-  return null;
-}
+// Lives in productionConfig.ts (free of env-loading side effects, so check:config can use it).
+export { isProductionNodeEnv, lemonVariantConfigProblem } from "./productionConfig.js";
 
 export function lemonVariantForPackage(packageId: string): string {
   if (packageId === "starter") return env.lemonSqueezyVariantStarter;

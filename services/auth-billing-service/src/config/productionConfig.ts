@@ -1,5 +1,60 @@
-import { lemonVariantConfigProblem } from "./env.js";
+/**
+ * Pure checks over an env-like object. Deliberately imports nothing that loads `.env`
+ * (no ./env.js): `npm run check:config` reuses these on files it is pointed at.
+ */
 import { weakSecretReason } from "./secretStrength.js";
+
+/**
+ * Production rules apply unless NODE_ENV is explicitly "development" or "test". An unset or
+ * unexpected value ("staging", a typo) must fail closed — not quietly enable dev-only behaviour
+ * such as logging verification / reset links instead of mailing them (SEC-08).
+ */
+export function isProductionNodeEnv(value: string | undefined): boolean {
+  const mode = value?.trim().toLowerCase();
+  return mode !== "development" && mode !== "test";
+}
+
+const LEMON_VARIANT_ENV = [
+  "LEMONSQUEEZY_VARIANT_STARTER",
+  "LEMONSQUEEZY_VARIANT_PRO",
+  "LEMONSQUEEZY_VARIANT_ENTERPRISE",
+] as const;
+
+/**
+ * Why the Lemon variant → pack mapping is unusable, or null when it is fine.
+ * The mapping comes from the environment only (FINDING-13): a missing,
+ * non-numeric or shared variant id would credit the wrong pack or none.
+ */
+export function lemonVariantConfigProblem(source: NodeJS.ProcessEnv = process.env): string | null {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Map<string, string>();
+  for (const name of LEMON_VARIANT_ENV) {
+    const value = source[name]?.trim() ?? "";
+    if (!value) {
+      missing.push(name);
+    } else if (!/^\d+$/.test(value)) {
+      invalid.push(name);
+    } else if (seen.has(value)) {
+      return `${name} and ${seen.get(value)} use the same variant id ${value}; each pack needs its own.`;
+    } else {
+      seen.set(value, name);
+    }
+  }
+  if (missing.length) {
+    return `${missing.join(", ")} not set — purchases of those packs cannot be mapped to credits.`;
+  }
+  if (invalid.length) {
+    return `${invalid.join(", ")} must be a numeric Lemon Squeezy variant id.`;
+  }
+  return null;
+}
+
+/** AI reservation lifetime in seconds (default 600). Pure, so `npm run check:config` can use it. */
+export function aiHoldTtlSeconds(source: NodeJS.ProcessEnv = process.env): number {
+  const v = Number(source.AI_HOLD_TTL_SECONDS?.trim());
+  return Number.isInteger(v) && v > 0 ? v : 600;
+}
 
 /** Resend's shared sandbox sender: it only delivers to the Resend account owner. */
 const SANDBOX_SENDER = /@resend\.dev\b/i;

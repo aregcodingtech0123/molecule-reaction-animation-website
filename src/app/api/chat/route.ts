@@ -18,14 +18,9 @@ import {
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
 import { crossSiteRejection, isCrossSiteRequest } from "@/lib/security/csrf";
+import { geminiTimeoutMs } from "@/lib/ai/gemini-timeout";
 
 const MAX_MESSAGES = 24;
-const DEFAULT_GEMINI_TIMEOUT_MS = 30_000;
-
-function geminiTimeoutMs(): number {
-  const v = Number(process.env.GEMINI_TIMEOUT_MS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_GEMINI_TIMEOUT_MS;
-}
 
 function isAbortError(err: unknown): boolean {
   const name = err && typeof err === "object" && "name" in err ? String((err as { name: unknown }).name) : "";

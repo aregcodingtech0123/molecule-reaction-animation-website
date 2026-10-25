@@ -246,6 +246,20 @@ Also check: `JWT_SECRET` must still pass the (changed) strength check — ≥ 32
 placeholder, and **not low-variety** (e.g. `aaaa…` or a short repeated pattern is now refused). A
 randomly generated key passes. Test locally: `node -e "import('./dist/config/secretStrength.js').then(m=>console.log(m.weakSecretReason('JWT_SECRET', process.env.JWT_SECRET)))"` after `npm run build` (prints `null` when fine).
 
+**Check both sides together before deploying** (Part 2B): export each host's environment to a local
+file (never commit it) and run
+
+```bash
+npm run check:config -- --service ./express.env --web ./next.env   # or `env` to read the current shell
+```
+
+It prints variable **names** only, never values, and exits `1` when anything would fail or misbehave in
+production: every boot-time check of both services (SEC-08), `.env.example` placeholders still in place,
+`INTERNAL_SERVICE_SECRET` / `JWT_SECRET` / `FRONTEND_URL` / the Google client id differing between the two,
+and `AI_HOLD_TTL_SECONDS` below **2 ×** (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`) — with the
+defaults 600 s against 2 × 34.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
+Delete the exported files afterwards.
+
 **Rollback 5:** remove the variables (old code ignores them).
 
 ## 6. Deploy both services together (AI Lab maintenance window)
