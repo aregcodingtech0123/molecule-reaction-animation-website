@@ -16,6 +16,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-09 | Low | Express / errors | A compressed body that does not decode was answered 500 (logged with a stack) instead of 400 | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-10 | Medium | BFF / availability | The gateway buffered request bodies of any size (unauthenticated routes), /api/chat parsed any size for signed-in users | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
 
 ---
 
@@ -294,3 +295,29 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   reserved. Same-origin and server-to-server callers are unaffected (tested).
 * **Coverage check:** the BFF's non-GET routes are the three gateway catch-alls (`auth`, `billing`, `users`),
   `auth/clear-cookie` and `chat` — all guarded now.
+
+## SEC-12 — Low — Ledger functions and database privileges
+
+* **Where:** `database/init/*.sql` (functions), the service's single owner-level connection.
+* **Weakness:** the money invariants (append-only ledger, balance only via `post_credit_transaction()`) are
+  enforced by triggers that the connecting role owns and can disable, and the balance guard is a session flag any
+  role can set. A least-privilege role cannot be introduced as things stood: `post_credit_transaction()` ran with
+  the caller's rights (an app role without `UPDATE` on `user_balances` could not post credits), and making it
+  `SECURITY DEFINER` without pinning `search_path` would let a caller redirect its writes into look-alike tables.
+  `EXECUTE` was granted to `PUBLIC`. Low: exploiting it needs SQL execution as the service (no injection found —
+  every interpolated identifier is a constant or validated), so this is defence in depth for the money tables.
+* **Repro:** `services/auth-billing-service/tests/db/function-hardening.test.ts` — no function pinned
+  `search_path`; none was `SECURITY DEFINER`; with `SET search_path TO hijack, public` a call wrote into
+  `hijack.user_balances` (public balance stayed 0).
+* **Fix:** migration `012_function_search_path.sql`: `post_credit_transaction()` is `SECURITY DEFINER`,
+  `SET search_path = public, pg_temp`, `EXECUTE` revoked from `PUBLIC`; the other relation-touching functions pin
+  `search_path` as well. `database/roles/app-role.sql` + `docs/security/DB_ROLES.md`: an opt-in least-privilege
+  role (grants match the service's actual SQL), proven by `tests/api/app-role.test.ts` (21 tests: every direct
+  write / trigger / flag bypass refused with 42501, every real flow works as the app role). Runbook §4 / §10.1
+  cover 012 and its rollback (tested).
+* **Not changed:** `set_updated_at()` / `prevent_ledger_mutation()` (invoker-rights, no relation referenced;
+  001 is checksummed). Re-running 003 by hand resets the ledger writer's attributes — re-run 012 after it (TC-41).
+* **Open (owner decision):** switching the service's `DATABASE_URL` to the app role; residual `user_balances`
+  INSERT (see DB_ROLES.md).
+* **Behaviour change:** none while one role owns the schema and runs the app. Other database roles lose implicit
+  `EXECUTE` on `post_credit_transaction()`.

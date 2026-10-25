@@ -42,7 +42,8 @@ Express ──▶ Resend (verification / reset / receipt mails)
 3. **BFF → Express.** Authenticated by `X-Internal-Service-Key` (constant-time compare, 404 when wrong) for the
    metering endpoints and for trusting `X-Client-IP`.
 4. **Lemon → Express webhook.** Authenticated only by the HMAC-SHA256 `X-Signature` over the raw body.
-5. **Express → PostgreSQL.** One database role with owner-level rights (SEC-12 recommends a split).
+5. **Express → PostgreSQL.** Today one database role with owner-level rights; SEC-12 adds a least-privilege app
+   role (`database/roles/app-role.sql`, `DB_ROLES.md`) that the owner can switch to.
 6. **Google → BFF/Express.** Google ID tokens verified (signature, audience, issuer, expiry, `email_verified`).
 7. **Gemini → BFF → browser.** Model output is untrusted content (prompt injection, markup).
 8. **Operators / logs.** Logs must not carry tokens, links, passwords (SEC-08 removed the dev mail-logging path in
@@ -71,7 +72,7 @@ Express ──▶ Resend (verification / reset / receipt mails)
 | Pay for a cheap pack, get an expensive one | amount checked against the server-side package price; currency USD only; variant → pack mapping from env only (FINDING-13) |
 | Refund a successful AI turn / pick the ledger type | metering endpoints internal-only (404 without the key), reserve → capture / release (FINDING-03, -07) |
 | Overspend with parallel turns | holds count against the available balance under an advisory lock (FINDING-22 tests) |
-| Edit balances directly | ledger append-only triggers; balance writes only via `post_credit_transaction()`; reconciliation job (FINDING-05) — but the app role can bypass these by design today (SEC-12) |
+| Edit balances directly | ledger append-only triggers; balance writes only via `post_credit_transaction()`; reconciliation job (FINDING-05); with the SEC-12 app role the service cannot UPDATE/DELETE/TRUNCATE the money tables, disable triggers or set the guard flag usefully — the owner role still can (SEC-12) |
 
 ### 5.2 Account takeover
 

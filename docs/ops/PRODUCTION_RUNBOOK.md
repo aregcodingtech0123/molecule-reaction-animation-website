@@ -162,16 +162,18 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008`–`011` are backward compatible with the currently deployed code:
+`008`–`012` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
 never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
 (default 0), which the old code ignores. `011` only adds `expire_stale_checkout_orders()` and a partial
-index on `pending_checkout_orders`.
+index on `pending_checkout_orders`. `012` (SEC-12) pins `search_path` on the ledger functions, makes
+`post_credit_transaction()` `SECURITY DEFINER` and revokes its `EXECUTE` from `PUBLIC` — the owner role
+the services connect as keeps it, so nothing changes while one role owns the schema and runs the app.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–011)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–012)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -362,10 +364,15 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–011 (only if they cause a problem)
+### 10.1 Migrations 008–012 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 012
+ALTER FUNCTION post_credit_transaction(uuid, integer, credit_transaction_type, varchar, varchar)
+  SECURITY INVOKER RESET search_path;
+GRANT EXECUTE ON FUNCTION post_credit_transaction(uuid, integer, credit_transaction_type, varchar, varchar)
+  TO PUBLIC;
 -- 011
 DROP FUNCTION IF EXISTS expire_stale_checkout_orders(INTERVAL);
 DROP INDEX IF EXISTS idx_pending_checkout_pending_created;
@@ -382,7 +389,7 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 -- idempotent). Its tracking row must go too, otherwise a later roll-forward sees a gap.
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
-                   '011_checkout_order_expiry.sql');
+                   '011_checkout_order_expiry.sql', '012_function_search_path.sql');
 COMMIT;
 ```
 

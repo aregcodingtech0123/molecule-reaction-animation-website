@@ -254,8 +254,11 @@ describe("each legacy migration 001–007 is individually re-runnable after the 
         await migrate({ connectionString: db.url });
         const before = await schemaFingerprint(db.pool);
 
-        await applyMigrations(db.url, [file]);
-        await applyMigrations(db.url, [file]);
+        // 003 re-creates post_credit_transaction() from its frozen text, which resets the SEC-12
+        // attributes; the documented recovery is to re-run 012 right after it.
+        const rerun = path.basename(file).startsWith("003_") ? [file, ...migrationsByPrefix("012")] : [file];
+        await applyMigrations(db.url, rerun);
+        await applyMigrations(db.url, rerun);
 
         expect(await schemaFingerprint(db.pool)).toEqual(before);
         const u = await createUser(db.pool, { balance: 0 });
