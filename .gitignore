@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /.next-e2e/
+/.next-perf/
 /out/
 
 # production
@@ -56,3 +57,6 @@ node_modules/
 
 # build output at any level (the Express service compiles src/ → dist/)
 dist/
+
+# performance harness output (scripts/perf, docs/performance/README.md)
+/perf-results/
