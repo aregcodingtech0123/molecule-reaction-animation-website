@@ -9,11 +9,9 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { resolveClientIp } from "./middlewares/resolveClientIp.js";
 import { isDatabaseReady, getDatabaseError } from "./db/index.js";
 
-declare global {
-  namespace Express {
-    interface Request {
-      rawBody?: Buffer;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    rawBody?: Buffer;
   }
 }
 
