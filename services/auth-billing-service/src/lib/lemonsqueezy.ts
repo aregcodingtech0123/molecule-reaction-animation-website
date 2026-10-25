@@ -34,6 +34,8 @@ export interface LemonOrderCreatedEvent {
       subtotal: number;
       tax: number;
       refunded: boolean;
+      /** true for orders placed in Lemon's test mode (test cards — no money moves). */
+      test_mode?: boolean;
       user_email: string;
       first_order_item?: {
         variant_id: number;

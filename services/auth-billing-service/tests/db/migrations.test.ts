@@ -56,6 +56,7 @@ describe("migrations 001→007 on an empty database", () => {
       "009_ai_credit_holds.sql",
       "010_session_token_version.sql",
       "011_checkout_order_expiry.sql",
+      "012_function_search_path.sql",
     ]);
   });
 

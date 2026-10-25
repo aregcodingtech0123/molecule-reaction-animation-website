@@ -19,10 +19,20 @@ const BODY_PARSER_ERRORS: Record<string, { status: number; error: string; code: 
   "request.size.invalid": { status: 400, error: "Request size did not match Content-Length.", code: "BAD_REQUEST" },
 };
 
+/** zlib decoder error codes: gzip/deflate (Z_*), brotli (ERR__ERROR_*), zstd (ZSTD_error_*). */
+const ZLIB_ERROR_CODE = /^(Z_[A-Z_]+|ERR__ERROR_[A-Z0-9_]+|ZSTD_error_\w+)$/;
+
 function bodyParserError(err: unknown) {
-  if (!err || typeof err !== "object" || !("type" in err)) return null;
-  const type = (err as { type?: unknown }).type;
-  return typeof type === "string" && Object.hasOwn(BODY_PARSER_ERRORS, type) ? BODY_PARSER_ERRORS[type]! : null;
+  if (!err || typeof err !== "object") return null;
+  const e = err as { type?: unknown; status?: unknown; expose?: unknown; code?: unknown };
+  if (typeof e.type === "string" && Object.hasOwn(BODY_PARSER_ERRORS, e.type)) return BODY_PARSER_ERRORS[e.type]!;
+  // A compressed body that does not decode (bad gzip/deflate/br/zstd stream) reaches us as the
+  // zlib error wrapped by body-parser: status 400, exposed, no `type`. It is a client error, not a
+  // 500 with a stack in the logs (SEC-09). The zlib message is not echoed.
+  if (e.expose === true && e.status === 400 && typeof e.code === "string" && ZLIB_ERROR_CODE.test(e.code)) {
+    return { status: 400, error: "Request body could not be decoded.", code: "INVALID_CONTENT_ENCODING" };
+  }
+  return null;
 }
 
 export function errorHandler(

@@ -89,6 +89,27 @@ npm run dev                                                # 3. run Express (fro
 Wipe local data and re-migrate: `npm run docker:reset` then `npm run db:setup`  
 Or SQL-only reset (refuses production URLs): `npm run db:reset` from the service folder.
 
+#### Local Postgres 16 → 18
+
+`docker-compose.yml` now runs `postgres:18-alpine` (production is PostgreSQL 18.6) on a **new** volume,
+`molecule_studio_postgres18_data`. A PostgreSQL 16 data directory cannot be opened by 18, so your old volume
+(`molecule_studio_postgres_data`) is left as it is. Pick one:
+
+* **Start fresh** (local data is disposable): `npm run docker:up`, then `npm run db:setup` in the service folder.
+* **Keep your local data** — dump it with the old 16 container *before* switching, then restore into 18:
+  ```bash
+  # the previous compose file (postgres:16, old volume) is preserved in the tag legacy-services-final
+  git show legacy-services-final:docker-compose.yml > docker-compose.pg16.yml
+  docker compose -f docker-compose.pg16.yml up -d     # the old 16 container on the old volume
+  docker exec molecule_studio_postgres pg_dumpall -U postgres > local-dev-backup.sql
+  docker compose -f docker-compose.pg16.yml down      # stops it; the old volume is kept
+  rm docker-compose.pg16.yml
+  docker compose up -d                                # the 18 container on the new, empty volume
+  docker exec -i molecule_studio_postgres psql -U postgres < local-dev-backup.sql
+  ```
+  Keep `local-dev-backup.sql` out of git. Once you are happy, remove the old volume yourself:
+  `docker volume rm molecule_studio_postgres_data`.
+
 ### 3. Run the full local stack (recommended)
 
 From the repository root:
@@ -231,7 +252,7 @@ Package resolution prefers the Lemon **variant id** map, then falls back to `cus
 │   └── auth-billing-service/   # Auth + billing microservice (checkout + webhooks on :4000)
 ├── database/
 │   └── init/                   # NNN_*.sql migrations (001–007 legacy, 008+ wrapped by the runner)
-├── docker-compose.yml          # Local Postgres 16
+├── docker-compose.yml          # Local Postgres 18 (matches production)
 └── .env.example
 ```
 
@@ -239,7 +260,7 @@ Package resolution prefers the Lemon **variant id** map, then falls back to `cus
 
 | Command | Location | Description |
 |---------|----------|-------------|
-| `npm run docker:up` | root | Start local Postgres (`postgres:16-alpine`) |
+| `npm run docker:up` | root | Start local Postgres (`postgres:18-alpine`) |
 | `npm run docker:down` | root | Stop local Postgres (keeps volume) |
 | `npm run docker:reset` | root | Wipe volume + recreate container |
 | `npm run db:setup` | root or service | Create the DB if missing, then apply pending migrations (`001`→latest) via the tracked runner |

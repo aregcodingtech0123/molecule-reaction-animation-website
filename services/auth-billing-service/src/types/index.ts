@@ -10,18 +10,16 @@ export interface JwtPayload {
   tv: number;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-      /** Authenticated user's UUID — mirrors `req.user.sub`. */
-      userId?: string;
-      /**
-       * Client IP used for rate limiting and signup_ip: the BFF-supplied X-Client-IP when the
-       * request carries the internal service key, otherwise req.ip (TRUST_PROXY_HOPS-aware).
-       */
-      clientIp?: string | null;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: JwtPayload;
+    /** Authenticated user's UUID — mirrors `req.user.sub`. */
+    userId?: string;
+    /**
+     * Client IP used for rate limiting and signup_ip: the BFF-supplied X-Client-IP when the
+     * request carries the internal service key, otherwise req.ip (TRUST_PROXY_HOPS-aware).
+     */
+    clientIp?: string | null;
   }
 }
 

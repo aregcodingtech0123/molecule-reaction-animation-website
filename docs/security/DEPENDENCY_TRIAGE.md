@@ -54,7 +54,11 @@ two versions: lines 1–95 are identical; 4.22.1 only appends `scroll-fade-*` / 
 only when a class uses them), `@property` declarations and one `.shimmer` rule under `prefers-reduced-motion`. No file
 in `src/` uses `shimmer` or `scroll-fade`, so rendering is unchanged.
 
-## Root package — KaTeX chain (4 low) — **not changed, your decision**
+## Root package — KaTeX chain (4 low) — **accepted and tracked** (owner decision, 2026-10-25)
+
+> **Re-check trigger:** any new release of `rehype-katex` or `micromark-extension-math` (check whether its
+> `katex` dependency range reaches ≥ 0.18.2), or a new KaTeX advisory. Until then the advisory stays accepted:
+> not reachable without a separate prototype-pollution bug, and every available change breaks chat math styling.
 
 | Advisory | GHSA-238p-pmpm-9mq7 (Low): "Existing prototype pollution can bypass trust restrictions", `katex` ≥ 0.11.0 < 0.18.2 |
 | --- | --- |

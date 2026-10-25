@@ -9,6 +9,15 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-02 | High | Dependencies / Express | body-parser < 2.4.0 can crash the public Express process from a compressed request body; proxy-addr and qs advisories | **Fixed** (branch `security/deps-and-ci`) — body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1 (lockfile) |
 | SEC-03 | Low | Dependencies / root | 25 root advisories (3 critical); none reachable at runtime (dev tooling, or unused parts of runtime libraries) | **Fixed** (branch `security/deps-and-ci`) except the KaTeX chain (4 low) — deferred, see DEPENDENCY_TRIAGE.md |
 | SEC-04 | Low | CI / supply chain | Workflow used mutable action tags, default token permissions, `ubuntu-latest`, and persisted checkout credentials | **Fixed** (branch `security/deps-and-ci`) |
+| SEC-05 | Low | Auth / OAuth | A password registration racing a first Google sign-in got linked without the FINDING-34 takeover (registrant's password stayed valid) | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-06 | Medium | Express / rate limits | Login and forgot-password limits bypassed with whitespace/case variants of the email | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-07 | Medium | Auth / enumeration | Register, forgot-password and resend revealed whether an account exists through mail-send timing (and resend through a 502) | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-08 | Medium | Config / operations | Express ran with dev rules when NODE_ENV was unset; neither service validated the webhook secret, URLs, mail sender or bcrypt cost at startup | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-09 | Low | Express / errors | A compressed body that does not decode was answered 500 (logged with a stack) instead of 400 | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-10 | Medium | BFF / availability | The gateway buffered request bodies of any size (unauthenticated routes), /api/chat parsed any size for signed-in users | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
+| SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -69,7 +78,19 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   lockfile (verified) and passes now. `tests/api/body-parser-compressed.test.ts` is a resilience smoke check (gzip body
   with trailing bytes on the global JSON parser, an unmatched route and the webhook parser; the service keeps serving).
   It did **not** reproduce the crash on 2.3.0, so it is not counted as the regression proof.
-* **Optional hardening (Part 2):** `inflate: false` on the parsers if no client needs compressed request bodies.
+* **Behavioural verification (Part 2A)** — `tests/api/compressed-bodies.test.ts`, raw HTTP (byte-exact) against the
+  public app on both parsers (global JSON 32 kb; webhook raw 256 kb, read before HMAC):
+  * valid gzip, deflate, br, zstd (Node 24 + body-parser 2.4 decode zstd) and identity bodies → decoded and handled;
+  * `compress`, an unknown encoding, `gzip, gzip` → 415 `UNSUPPORTED_MEDIA_TYPE`;
+  * malformed / truncated gzip, deflate, br, zstd streams → 400 `INVALID_CONTENT_ENCODING` after SEC-09 (500 before);
+  * a body under the limit compressed but over it decompressed → 413 `PAYLOAD_TOO_LARGE`; on the webhook this happens
+    **before HMAC verification and with zero database calls** (the limit is measured after decompression);
+  * decompression bomb, ~200 MB of zeros in a 199 kB gzip → 413 in 53–71 ms, RSS +0.3–0.6 MB: inflation stops at the
+    limit;
+  * no uncaught exception, no unhandled rejection, no hang (15 s request timeout) in any case.
+  The advisory's crash could not be reproduced on 2.3.0 with these inputs either; the fix stays the version floor.
+* **Decision:** decompression stays enabled (`inflate` default). With the limits applied after decompression it showed
+  no crash, hang or memory risk; disabling it would only reject clients that compress.
 
 ## SEC-03 — Low — Root-package advisories (tooling and unused runtime paths)
 
@@ -122,3 +143,240 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   * `services/auth-billing-service/tests/api/client-ip.test.ts:55` — the deliberately wrong internal key in the
     negative test "X-Client-IP with a WRONG internal key is ignored".
 * **No rotation needed.**
+
+## SEC-05 — Low — Google first sign-in: the user-creation race skipped the FINDING-34 takeover
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts`, `loginWithGoogle()` step 3 fallback.
+* **Found by:** investigating the one-off coverage dip (88.8 % / 75.1 %). Five identical coverage runs gave
+  89.17 % / 75.97 % with no line or branch differing; the only code reached by **timing** alone is the step-3
+  fallback (insert hits `23505` → re-resolve), entered only when two of the five requests in the existing
+  concurrency test interleave in a particular way. A run without that interleaving leaves 5 statements and their
+  branch arms uncovered — the size of the dip. The by-email branch of the same fallback was never covered at all.
+* **Weakness:** if a **password registration** for the same email committed between the Google request's email lookup
+  (step 2, no account yet) and its insert (step 3), the fallback linked the Google subject to that account and signed
+  the Google user in **without** the FINDING-34 takeover: the registrant's password stayed valid, the account stayed
+  unverified, its sessions were not revoked. Exploitation needs the attacker's registration to land inside that
+  window during the victim's very first Google sign-in (once the account exists, step 2 applies the takeover), hence Low.
+* **Repro (deterministic, no sleeps):** `tests/api/auth.google-race.test.ts` — the service pool is intercepted so a
+  complete registration runs right after step 2 missed; before the fix: no signup bonus (never verified), password
+  still accepted.
+* **Fix:** the step-2 logic (link + takeover of an unverified account) moved into `linkGoogleToExistingAccount()`,
+  used by step 2 **and** by the step-3 fallback.
+* **Tests:** the takeover race (attacker password → 401, verified, `token_version` bumped, verification tokens
+  deleted, one user / link / bonus) and a competing-Google-sign-in race that now covers the subject fallback
+  deterministically (coverage no longer depends on timing).
+
+## SEC-06 — Medium — Email-keyed rate limits bypassed by whitespace / case variants
+
+* **Where:** `services/auth-billing-service/src/lib/rateLimiters.ts` (`loginRateLimiter`, `emailActionRateLimiter`).
+* **Weakness:** both limiters keyed on `ip + email.toLowerCase()` of the raw body value, while the service looks the
+  account up with `normalizeEmail()` (trim + lower-case). `" victim@x"`, `"victim@x "`, `"	victim@x"`, `"VICTIM@X "` …
+  therefore each got a fresh 5-attempt bucket for the **same** account: unlimited password guesses per IP against one
+  account, and unlimited reset / verification mails to one victim from one IP (mail flooding, sender reputation).
+  Express is publicly reachable, so the BFF is not in the way.
+* **Repro:** `tests/api/rate-limit-email-key.test.ts` — 8 spellings of one address from one IP: before the fix all 8
+  login attempts were answered 401 (all 8 forgot-password requests 200); after: 5 answered, then 429.
+* **Fix:** the key uses the email normalised exactly like `normalizeEmail()`; non-string values map to an empty key
+  (validation still answers 400). Different accounts from one IP keep separate buckets (tested).
+* **Open — decision needed (not changed):** there is no per-account limit **across** IPs, so a distributed guesser
+  gets 5 attempts per IP per 15 minutes per account. A per-account failed-attempt limit (e.g. 20 failures / 15 min,
+  `skipSuccessfulRequests`) would stop that but lets anyone lock a victim's *password* sign-in for the window (Google
+  sign-in and password reset would still work). Also: all limiters are in-memory, i.e. per instance and reset on
+  restart; a shared store (Redis) is needed before running several Express instances.
+
+## SEC-07 — Medium — Account existence revealed by mail-delivery timing and status
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts` — `registerUser`, `forgotPassword`,
+  `resendVerificationEmail`, `loginUser`.
+* **Weakness:** the generic answers of FINDING-09 hid existence in the **body** only. The branch that sends mail
+  awaited the mail provider (Resend, a network round trip in production) before answering, the other branch did not:
+  * register: a **new** email waited for the verification mail, an existing one answered after a `SELECT`;
+  * forgot-password: an **existing** account waited for the reset mail, an unknown one answered immediately;
+  * resend-verification: an **unverified** account waited, and answered **502 `EMAIL_SEND_FAILED`** when the provider
+    failed — a direct existence oracle whenever mail had trouble;
+  * login: the unknown-email path compared against a hard-coded **cost-10** bcrypt hash, so with any other
+    `BCRYPT_ROUNDS` unknown emails were measurably faster or slower than wrong passwords.
+* **Repro:** `tests/api/auth.enumeration-timing.test.ts` with the mail provider stubbed at the network boundary to
+  never answer (or to fail): before the fix the account-dependent requests did not answer within 3 s (they waited on
+  the provider), resend answered 502, the dummy hash had cost 10 instead of the configured 4.
+* **Fix:** account mails are sent in the background (`sendInBackground`, failures logged, never surfaced); the dummy
+  hash is computed once from the configured cost (`dummyPasswordHash()`). Mails are still sent (tested against a
+  provider stub that answers).
+* **Behaviour change:** `POST /api/auth/resend-verification` no longer answers `502 EMAIL_SEND_FAILED`; it always
+  answers the generic 200. A delivery failure is only logged (`[auth] Failed to send … email`).
+* **Residual (accepted):** the account-dependent branches still do a little more database work (a token insert in one
+  transaction) than the others — single-digit milliseconds, far below network jitter; bcrypt dominates both.
+
+## SEC-08 — Medium — Production configuration failed open (NODE_ENV, unvalidated secrets and URLs)
+
+* **Where:** `services/auth-billing-service/src/config/env.ts`, `src/index.ts`; `src/instrumentation.ts` (Next.js).
+* **Weaknesses (each reproduced by booting the real process):**
+  * Express decided "production" with `(NODE_ENV ?? "development") === "production"`. Many hosts do not set
+    `NODE_ENV`; the service then ran with **dev rules**: verification / reset links are logged instead of mailed when
+    `RESEND_API_KEY` is unset (anyone with log access can take over accounts), the dev CORS allowance is on, the
+    Lemon-variant check is only a warning. `NODE_ENV=staging` (or a typo) behaved the same.
+  * No startup validation of `LEMONSQUEEZY_WEBHOOK_SECRET` — a weak or placeholder value makes purchase webhooks
+    **forgeable (credits minted)** — nor of `FRONTEND_URL` (defaulted to `http://localhost:3000` for mail links and
+    the Lemon redirect), the Lemon API key / store, `RESEND_API_KEY`, the sender (defaulted to Resend's sandbox
+    `onboarding@resend.dev`, which only delivers to the account owner) or `BCRYPT_ROUNDS` (`4` accepted; an empty
+    value even gave cost **0**, because `Number("")` is 0).
+  * Next.js checked only `INTERNAL_SERVICE_SECRET`: a production server started without `JWT_SECRET`, without
+    `FRONTEND_URL` (the CSRF guard then falls back to localhost and refuses every real browser) and without the
+    service URLs.
+* **Repro:** `services/auth-billing-service/tests/api/production-startup.test.ts` spawns the real service
+  (`node --import tsx src/index.ts`) with only the given environment — `scripts/test/no-dotenv.mjs` keeps the
+  developer's `.env` out, the network guard blocks real Resend / Lemon calls. Before the fix the service **started**
+  with NODE_ENV unset / `staging`, a placeholder webhook secret, an http `FRONTEND_URL`, the sandbox sender and bcrypt
+  cost 4. `tests/e2e/production-config.spec.mts` (production mode) starts a real `next start` without `JWT_SECRET`.
+* **Fix:**
+  * Express: production rules unless `NODE_ENV` is explicitly `development` or `test` (`isProductionNodeEnv`).
+    In production, `productionConfigProblems()` validates `FRONTEND_URL` (absolute origin, https except localhost),
+    `LEMONSQUEEZY_WEBHOOK_SECRET` (same strength rules as `JWT_SECRET`: ≥ 32 chars, not a placeholder, entropy floor),
+    `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID` (numeric), the three variants, `RESEND_API_KEY`, `SENDER_EMAIL` /
+    `EMAIL_FROM` (set, not `@resend.dev`), `BCRYPT_ROUNDS` (10–15 when set); the whole list is printed as `FATAL:`
+    lines and the process exits 1. Empty numeric env values fall back to their defaults.
+  * Next.js: `assertProductionConfig()` in `register()` (production start only, never during `next build`):
+    `JWT_SECRET` (strength), `FRONTEND_URL` (origin, https except localhost), `AUTH_SERVICE_URL`,
+    `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` (absolute http(s)).
+* **Verified in production mode:** the real service starts with a complete configuration, serves helmet headers (HSTS,
+  nosniff), no dev CORS, no `databaseError` in `/health`, generic error bodies without stack traces, no dev mail
+  logging; the real `next start` refuses without `JWT_SECRET`; the session cookie is `HttpOnly; SameSite=Strict;
+  Path=/; Max-Age=…; Secure` in production (not `Secure` in dev).
+* **Env / behaviour changes (deploy):**
+  * Express hosts **must** set `NODE_ENV=production` explicitly **or** accept production rules when it is unset.
+    With production rules and no `HOST`, Express binds `127.0.0.1` (existing behaviour of production mode): hosted
+    platforms need `HOST=0.0.0.0` (or the platform's bind address).
+  * Newly required in production (Express): `FRONTEND_URL` (https), a strong `LEMONSQUEEZY_WEBHOOK_SECRET`
+    (≥ 32 random chars; Lemon allows up to 40), `LEMONSQUEEZY_API_KEY`, numeric `LEMONSQUEEZY_STORE_ID`,
+    `RESEND_API_KEY`, `SENDER_EMAIL` on a verified domain; `BCRYPT_ROUNDS`, if set, 10–15.
+  * Newly required in production (Next.js): `JWT_SECRET` (same value as Express), `FRONTEND_URL`,
+    `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`.
+
+## SEC-09 — Low — Undecodable compressed bodies answered 500
+
+* **Where:** `services/auth-billing-service/src/middlewares/errorHandler.ts`.
+* **Weakness:** body-parser wraps a zlib decoder error (bad gzip / deflate / br / zstd stream) as `status 400,
+  expose: true` but without a body-parser `type`, so the FINDING-12 mapping missed it: the public service answered
+  **500 INTERNAL_ERROR** and logged a stack trace for every such request — a cheap way to flood error logs and alerts,
+  and a misleading signal (client error reported as server fault).
+* **Repro:** `tests/api/compressed-bodies.test.ts` — five malformed streams (garbage behind a gzip header, truncated
+  gzip, random bytes as deflate / br, gzip bytes declared as zstd) on both parsers: 500 before, 400 after.
+* **Fix:** an exposed 400 whose `code` is a zlib decoder code (`Z_*`, `ERR__ERROR_*` for brotli, `ZSTD_error_*`) is
+  answered `400 { code: "INVALID_CONTENT_ENCODING", error: "Request body could not be decoded." }`; the zlib message
+  is not echoed.
+
+## SEC-10 — Medium — Unbounded request bodies in the BFF
+
+* **Where:** `src/lib/gateway/proxy.ts` (`readRequestBody`), `src/app/api/chat/route.ts`.
+* **Weakness:** the gateway read the whole request body with `request.arrayBuffer()` before forwarding it. Express
+  rejects more than 32 kB — but only after the BFF had held the complete body in memory and sent it on. The gateway
+  serves unauthenticated routes (`/api/auth/login`, `/register`, …), so any anonymous client could make the BFF buffer
+  arbitrarily large bodies: memory exhaustion / DoS of the web tier. `/api/chat` parsed any size with
+  `request.json()` for a signed-in user (anonymous requests are refused with 401 before the body is read).
+* **Repro:** `tests/api/bff-body-limit.test.ts` with counting stream bodies: a 20 MB gateway body was read completely
+  and forwarded (the upstream answered 200); a signed-in user's 50 MB chat body was read completely (400 after parsing).
+* **Fix:** `src/lib/http/limited-body.ts` — a declared `Content-Length` over the limit is refused without reading; a
+  streamed body is cancelled as soon as it passes the limit. Gateway limit 64 kB (Express accepts 32 kB) →
+  `413 { code: "PAYLOAD_TOO_LARGE" }`, nothing forwarded; chat limit 1 MB (24 messages × 8,000 characters, up to 4
+  bytes each in UTF-8) → `413 { error: "PAYLOAD_TOO_LARGE" }`, the model is never called. Normal bodies are forwarded
+  unchanged (tested).
+* **Behaviour change:** BFF answers 413 for bodies over these limits (previously Express answered 413 for gateway
+  routes after full buffering, and chat answered 400 or processed the body).
+
+## SEC-11 — Low — `/api/chat` without the cross-site guard
+
+* **Where:** `src/app/api/chat/route.ts`.
+* **Weakness:** every state-changing BFF route refuses cross-site requests (`Origin` foreign / `null`, `Sec-Fetch-Site:
+  cross-site`) — the gateway catch-alls and `clear-cookie` — except `/api/chat`, which reserves and charges credits.
+  It relied on `SameSite=Strict` alone. Low: SameSite=Strict already keeps the cookie off ordinary cross-site requests;
+  this is defence in depth against SameSite bypasses and embedded or misconfigured clients.
+* **Repro:** `tests/api/chat.csrf.test.ts` — a foreign `Origin`, `Origin: null` or `Sec-Fetch-Site: cross-site` with a
+  valid session cookie went on to reserve credits and call the model (502 in the test network).
+* **Fix:** the same `isCrossSiteRequest` guard as the gateway, as the first check: `403 CSRF_REJECTED`, nothing
+  reserved. Same-origin and server-to-server callers are unaffected (tested).
+* **Coverage check:** the BFF's non-GET routes are the three gateway catch-alls (`auth`, `billing`, `users`),
+  `auth/clear-cookie` and `chat` — all guarded now.
+
+## SEC-12 — Low — Ledger functions and database privileges
+
+* **Where:** `database/init/*.sql` (functions), the service's single owner-level connection.
+* **Weakness:** the money invariants (append-only ledger, balance only via `post_credit_transaction()`) are
+  enforced by triggers that the connecting role owns and can disable, and the balance guard is a session flag any
+  role can set. A least-privilege role cannot be introduced as things stood: `post_credit_transaction()` ran with
+  the caller's rights (an app role without `UPDATE` on `user_balances` could not post credits), and making it
+  `SECURITY DEFINER` without pinning `search_path` would let a caller redirect its writes into look-alike tables.
+  `EXECUTE` was granted to `PUBLIC`. Low: exploiting it needs SQL execution as the service (no injection found —
+  every interpolated identifier is a constant or validated), so this is defence in depth for the money tables.
+* **Repro:** `services/auth-billing-service/tests/db/function-hardening.test.ts` — no function pinned
+  `search_path`; none was `SECURITY DEFINER`; with `SET search_path TO hijack, public` a call wrote into
+  `hijack.user_balances` (public balance stayed 0).
+* **Fix:** migration `012_function_search_path.sql`: `post_credit_transaction()` is `SECURITY DEFINER`,
+  `SET search_path = public, pg_temp`, `EXECUTE` revoked from `PUBLIC`; the other relation-touching functions pin
+  `search_path` as well. `database/roles/app-role.sql` + `docs/security/DB_ROLES.md`: an opt-in least-privilege
+  role (grants match the service's actual SQL), proven by `tests/api/app-role.test.ts` (21 tests: every direct
+  write / trigger / flag bypass refused with 42501, every real flow works as the app role). Runbook §4 / §10.1
+  cover 012 and its rollback (tested).
+* **Not changed:** `set_updated_at()` / `prevent_ledger_mutation()` (invoker-rights, no relation referenced;
+  001 is checksummed). Re-running 003 by hand resets the ledger writer's attributes — re-run 012 after it (TC-41).
+* **Open (owner decision):** switching the service's `DATABASE_URL` to the app role; residual `user_balances`
+  INSERT (see DB_ROLES.md).
+* **Behaviour change:** none while one role owns the schema and runs the app. Other database roles lose implicit
+  `EXECUTE` on `post_credit_transaction()`.
+
+## SEC-13 — Low — Webhook trusted the signature for where the order came from
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts` (`processLemonSqueezyEvent`).
+* **Weakness:** after the HMAC check the order was credited if it was `paid`, not refunded, matched a pack price
+  and its currency was not something other than USD. Not checked: `test_mode` (Lemon test-mode orders are paid
+  with test cards, so a test-mode webhook pointed at production — same URL and secret, a common setup while
+  integrating — turns free test purchases into real credits), `store_id` (a second store or webhook sharing the
+  secret), and a missing `currency` (accepted). Low: every case needs an event signed with our secret.
+* **Repro:** `tests/api/webhook.order-origin.test.ts` — in production a `test_mode: true` order, an order with
+  another or no `store_id`, and an order without `currency` were all credited (+50).
+* **Fix:** in production a test-mode order is ignored (`test_mode_order`, logged "Ignoring test-mode order")
+  unless `LEMONSQUEEZY_ALLOW_TEST_MODE=true`; outside production test mode keeps working for local checkout
+  testing. When `LEMONSQUEEZY_STORE_ID` is set (required in production, SEC-08) `store_id` must equal it
+  (`store_mismatch`). The currency must be present and USD. The webhook still answers 200 for all of these, as for
+  every other non-credited order, so Lemon does not retry.
+* **Behaviour change (Lemon / env):** new optional `LEMONSQUEEZY_ALLOW_TEST_MODE`. A test-mode webhook on the
+  production service no longer credits — if you test purchases on production with test cards, set the flag for
+  that period only.
+* **Reviewed, no change:** replay — signatures carry no timestamp, so a captured event can be re-sent forever,
+  but fulfilment is idempotent on `ls_order_<id>` (unique ledger index, FINDING-11; concurrent replays tested),
+  and only `order_created` is acted on. Amount — must equal the pack's list price in `total`, `subtotal` or the
+  line price; a buyer who sets `custom_data.package_id` to a dearer pack fails the amount check. `subtotal` is
+  before discounts, so an owner-issued discount code (even 100 %) still credits the full pack: intended, noted.
+* **Open (owner decision, Info):** refunds and chargebacks are not handled — `order_refunded` is not subscribed,
+  so credits stay after Lemon refunds an order. Needs a product decision (claw back unspent credits, allow a
+  negative balance, or flag for review).
+
+## Part 2A — areas reviewed without a further finding
+
+Evidence is the named test, or the code reference where a test would only restate the code.
+
+* **Sessions.** Both services verify HS256 only, with issuer and audience (`src/lib/auth/verify-jwt.ts`,
+  `services/auth-billing-service/src/utils/jwt.ts`). Express rejects a revoked `jti` and a stale `tv`
+  (`users.token_version`) on every authenticated request (`requireAuth.ts`). The BFF's own check is signature-only,
+  but every credit-spending path calls Express first: `/api/chat` resolves verification through `/me` before it
+  reserves. The page middleware only redirects, so a revoked-but-unexpired token can open a protected page shell,
+  and every data call on it gets 401.
+* **Open redirects (gateway / frontend).** None found. The only server redirect is `middleware.ts` → `/login`
+  (same origin, built from `nextUrl`). Browser navigations go to fixed paths or to the `checkoutUrl` the service
+  received from Lemon's API. The post-checkout `returnPath` is a path appended to the fixed `FRONTEND_URL`
+  (`sanitizeReturnPath`: must start with one `/`, no query or fragment, ≤ 200 chars). `?redirect_checkout=` only
+  toggles a label.
+* **Methods.** The gateway exports GET/POST/PUT/PATCH/DELETE/OPTIONS. Every non-GET/HEAD/OPTIONS method passes the
+  cross-site guard (SEC-11 completed the list). No Express GET or OPTIONS route changes state, and there is no
+  method-override middleware.
+* **SQL injection.** Every query uses `$n` parameters. The interpolations are constant column lists, the migration
+  runner's own file text, and test-only database names validated by `db-guard`.
+* **Hold races and expiry.** Capture, release and reserve serialise on the per-user advisory lock and the hold's
+  row lock. The sweeper (`release_expired_ai_holds()`) updates only `status = 'held' AND expires_at <= NOW()` rows
+  and re-checks the row after a lock wait. `tests/api/hold-expiry-race.test.ts` forces both orders: a capture that
+  started before expiry is charged exactly once and the sweeper skips it; a sweep that wins makes the capture
+  `409 NOT_CAPTURABLE`, never charged. An expired, unswept hold no longer counts against the available balance.
+  The existing FINDING-22 suites cover reserve races and the expired-capture path.
+* **Configuration constraint (Info, documented, not enforced).** `AI_HOLD_TTL_SECONDS` (Express, default 600)
+  must exceed the BFF's `GEMINI_TIMEOUT_MS` (default 30 s) plus `BILLING_RETRY_DELAYS_MS` (default ≈ 4.25 s).
+  Otherwise a slow but successful turn finds its hold expired, capture answers `HOLD_EXPIRED`, and the answer is
+  delivered uncharged. The services cannot check this pair at boot because each knows only its own half.

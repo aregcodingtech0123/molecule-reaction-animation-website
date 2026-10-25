@@ -3,6 +3,7 @@ import { assertEnv, env, lemonVariantConfigProblem } from "./config/env.js";
 import { createApp } from "./app.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
 import { weakSecretReason } from "./config/secretStrength.js";
+import { productionConfigProblems } from "./config/productionConfig.js";
 import { releaseExpiredHolds } from "./services/aiCredits.service.js";
 
 const PORT = env.port;
@@ -16,12 +17,24 @@ function enforceProductionSecurityGuards(): void {
     }
   }
 
-  // Variant ids come from the environment only (FINDING-13); production fails closed.
-  const variantProblem = lemonVariantConfigProblem();
-  if (variantProblem && env.isProduction) {
-    console.error(`FATAL: ${variantProblem} Exiting.`);
-    process.exit(1);
+  // Production rules apply unless NODE_ENV is explicitly development/test (SEC-08): every secret
+  // and URL is validated up front and the whole list is reported, so a misconfigured deploy fails
+  // closed instead of serving with forgeable webhooks, localhost links or a sandbox mail sender.
+  if (env.isProduction) {
+    const problems = productionConfigProblems();
+    if (problems.length > 0) {
+      for (const problem of problems) console.error(`FATAL: ${problem}`);
+      console.error(
+        `FATAL: refusing to start with production rules (NODE_ENV=${env.nodeEnv || "<unset>"}; ` +
+          "only NODE_ENV=development or test relaxes them). Exiting.",
+      );
+      process.exit(1);
+    }
+    return;
   }
+
+  // Variant ids come from the environment only (FINDING-13); outside production a warning.
+  const variantProblem = lemonVariantConfigProblem();
   if (variantProblem) {
     console.warn(`[auth-billing-service] ${variantProblem}`);
   }

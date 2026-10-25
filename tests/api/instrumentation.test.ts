@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { assertServerSecrets, register } from "@/instrumentation";
+import { assertProductionConfig, assertServerSecrets, register } from "@/instrumentation";
 import { weakSecretReason as bffCheck } from "@/lib/security/secret-strength";
 import { weakSecretReason as serviceCheck } from "../../services/auth-billing-service/src/config/secretStrength";
 
@@ -65,5 +65,60 @@ describe("BFF and service secret checks agree (they are separate copies)", () =>
   ];
   it.each(vectors.map((v) => [v]))("same verdict for %j", (v) => {
     expect(bffCheck("X", v)).toBe(serviceCheck("X", v));
+  });
+});
+
+describe("Next.js production startup validation (SEC-08)", () => {
+  const production = {
+    NODE_ENV: "production",
+    INTERNAL_SERVICE_SECRET: strong,
+    JWT_SECRET: randomBytes(48).toString("base64"),
+    FRONTEND_URL: "https://studio.example",
+    AUTH_SERVICE_URL: "https://api.studio.example/api/auth",
+    BILLING_SERVICE_URL: "https://api.studio.example/api/billing",
+    USERS_SERVICE_URL: "https://api.studio.example/api/users",
+  };
+
+  it("accepts a complete production configuration", () => {
+    expect(() => assertProductionConfig(env(production))).not.toThrow();
+  });
+
+  it.each([
+    ["JWT_SECRET missing (protected pages could not verify sessions)", { JWT_SECRET: undefined }, /JWT_SECRET is not set/],
+    ["JWT_SECRET placeholder", { JWT_SECRET: "replace-with-at-least-32-characters-secret-key" }, /JWT_SECRET is a documented placeholder/],
+    ["JWT_SECRET short", { JWT_SECRET: "short" }, /JWT_SECRET must be at least 32/],
+    ["FRONTEND_URL missing (CSRF origin)", { FRONTEND_URL: undefined }, /FRONTEND_URL is not set/],
+    ["FRONTEND_URL plain http", { FRONTEND_URL: "http://studio.example" }, /FRONTEND_URL must use https/],
+    ["FRONTEND_URL with a path", { FRONTEND_URL: "https://studio.example/app" }, /FRONTEND_URL must be an origin/],
+    ["AUTH_SERVICE_URL missing", { AUTH_SERVICE_URL: undefined }, /AUTH_SERVICE_URL is not set/],
+    ["BILLING_SERVICE_URL not a URL", { BILLING_SERVICE_URL: "api.studio.example" }, /BILLING_SERVICE_URL must be an absolute http\(s\) URL/],
+    ["USERS_SERVICE_URL with another scheme", { USERS_SERVICE_URL: "ftp://api.studio.example/api/users" }, /USERS_SERVICE_URL must be an absolute http\(s\) URL/],
+  ])("%s → refuses to start", (_label, overrides, message) => {
+    expect(() => assertProductionConfig(env({ ...production, ...overrides }))).toThrow(message);
+  });
+
+  it("lists every problem in one error", () => {
+    expect(() => assertProductionConfig(env({ NODE_ENV: "production" }))).toThrow(/JWT_SECRET[\s\S]*FRONTEND_URL[\s\S]*AUTH_SERVICE_URL/);
+  });
+
+  it("http on localhost is accepted (local production-mode runs)", () => {
+    expect(() => assertProductionConfig(env({ ...production, FRONTEND_URL: "http://localhost:3100" }))).not.toThrow();
+  });
+
+  it("does not apply to `next dev` / tests or during `next build`", () => {
+    expect(() => assertProductionConfig(env({ NODE_ENV: "development" }))).not.toThrow();
+    expect(() => assertProductionConfig(env({ NODE_ENV: "test" }))).not.toThrow();
+    expect(() => assertProductionConfig(env({ NODE_ENV: "production", NEXT_PHASE: "phase-production-build" }))).not.toThrow();
+  });
+
+  it("register() runs it: a production server with a missing JWT_SECRET refuses to start", () => {
+    const saved = { ...process.env };
+    try {
+      Object.assign(process.env, { ...production, NEXT_RUNTIME: "nodejs", JWT_SECRET: "" });
+      expect(() => register()).toThrow(/JWT_SECRET/);
+    } finally {
+      for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+      Object.assign(process.env, saved);
+    }
   });
 });

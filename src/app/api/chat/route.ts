@@ -16,6 +16,8 @@ import {
   refundOperationCredits,
 } from "@/lib/billing/server-billing";
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
+import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
+import { crossSiteRejection, isCrossSiteRequest } from "@/lib/security/csrf";
 
 const MAX_MESSAGES = 24;
 const DEFAULT_GEMINI_TIMEOUT_MS = 30_000;
@@ -67,6 +69,10 @@ function checkInMemoryRateLimit(userId: string): { allowed: boolean; retryAfter:
 }
 
 export async function POST(request: Request) {
+  // Spends credits: same cross-site guard as every other state-changing BFF route (SEC-11);
+  // SameSite=Strict on the cookie is the first line, this is the second.
+  if (isCrossSiteRequest(request)) return crossSiteRejection();
+
   const bearer = resolveSessionTokenFromRequest(request);
   if (!bearer) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -115,8 +121,13 @@ export async function POST(request: Request) {
 
   let body: ChatRequestBody;
   try {
-    body = (await request.json()) as ChatRequestBody;
-  } catch {
+    // Bounded read (SEC-10): request.json() would buffer any size a signed-in user sends.
+    const raw = await readBodyWithLimit(request, CHAT_MAX_BODY_BYTES);
+    body = JSON.parse(new TextDecoder().decode(raw ?? new Uint8Array())) as ChatRequestBody;
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      return Response.json({ error: "PAYLOAD_TOO_LARGE" }, { status: 413 });
+    }
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 

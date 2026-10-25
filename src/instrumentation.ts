@@ -14,6 +14,58 @@ export function assertServerSecrets(env: NodeJS.ProcessEnv = process.env): void 
   }
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+function frontendUrlProblem(raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return "FRONTEND_URL is not set (the public origin; every state-changing request is checked against it).";
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "FRONTEND_URL must be an absolute URL such as https://studio.example.";
+  }
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname))) {
+    return "FRONTEND_URL must use https (http is accepted for localhost only).";
+  }
+  if (url.pathname !== "/" || url.search || url.hash) {
+    return "FRONTEND_URL must be an origin only (scheme://host[:port]), without a path, query or fragment.";
+  }
+  return null;
+}
+
+function serviceUrlProblem(name: string, raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return `${name} is not set.`;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") return null;
+  } catch {
+    /* fall through */
+  }
+  return `${name} must be an absolute http(s) URL.`;
+}
+
+/**
+ * Production start (`next start`): every secret and URL the BFF relies on must be present and
+ * sane, reported as one list (SEC-08). Without JWT_SECRET no session can be verified; without
+ * FRONTEND_URL the CSRF guard falls back to localhost and refuses every real browser; without
+ * the service URLs every API call fails. Skipped in development/test and during `next build`.
+ */
+export function assertProductionConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production" || env.NEXT_PHASE === "phase-production-build") return;
+  const problems = [
+    weakSecretReason("JWT_SECRET", env.JWT_SECRET),
+    frontendUrlProblem(env.FRONTEND_URL),
+    serviceUrlProblem("AUTH_SERVICE_URL", env.AUTH_SERVICE_URL),
+    serviceUrlProblem("BILLING_SERVICE_URL", env.BILLING_SERVICE_URL),
+    serviceUrlProblem("USERS_SERVICE_URL", env.USERS_SERVICE_URL),
+  ].filter((p): p is string => p !== null);
+  if (problems.length > 0) {
+    throw new Error(`FATAL: refusing to start in production:\n- ${problems.join("\n- ")}`);
+  }
+}
+
 /** Loud (non-fatal) production warning: without it, every user shares one rate-limit bucket. */
 export function warnMissingClientIpHeader(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.NODE_ENV !== "production" || env.NEXT_PHASE === "phase-production-build") return false;
@@ -28,5 +80,6 @@ export function warnMissingClientIpHeader(env: NodeJS.ProcessEnv = process.env):
 export function register(): void {
   if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
   assertServerSecrets();
+  assertProductionConfig();
   warnMissingClientIpHeader();
 }

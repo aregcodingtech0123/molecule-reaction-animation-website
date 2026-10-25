@@ -37,9 +37,27 @@ const GENERIC_REGISTER_MESSAGE =
 const GENERIC_FORGOT_MESSAGE =
   "If an account exists for that email, a password reset link has been sent.";
 
-/** bcrypt hash of a random string — used to equalize login timing when user is not found. */
-const DUMMY_BCRYPT_HASH =
-  "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+let dummyHash: Promise<string> | null = null;
+
+/**
+ * bcrypt hash of a random string, at the configured cost — compared against when the user is not
+ * found so an unknown email takes as long as a wrong password (SEC-07: a hard-coded cost-10 hash
+ * made unknown emails measurably faster or slower whenever BCRYPT_ROUNDS was not 10).
+ */
+export function dummyPasswordHash(): Promise<string> {
+  dummyHash ??= hashPassword(randomBytes(32).toString("base64url"));
+  return dummyHash;
+}
+
+/**
+ * Send an account email without awaiting it: the response's timing and status must not depend on
+ * the mail provider, because only some branches (account exists / unverified) send mail (SEC-07).
+ */
+function sendInBackground(kind: string, send: () => Promise<void>): void {
+  void send().catch((err: unknown) => {
+    console.error(`[auth] Failed to send ${kind} email:`, err instanceof Error ? err.message : err);
+  });
+}
 
 const USER_PUBLIC_COLUMNS =
   "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, token_version";
@@ -186,12 +204,8 @@ export async function registerUser(
     throw err;
   }
 
-  try {
-    await sendVerificationLink(user, rawToken);
-  } catch (err) {
-    console.error("[auth] Failed to send verification email:", err);
-    // Account exists; the user can request a resend.
-  }
+  // Not awaited (SEC-07); on failure the user can request a resend.
+  sendInBackground("verification", () => sendVerificationLink(user, rawToken));
 
   // No session here: the verification link signs the user in. Issuing a token only for new
   // emails would reveal which addresses already have an account (FINDING-09).
@@ -274,12 +288,9 @@ export async function resendVerificationEmail(emailInput: unknown): Promise<{ me
     return replaceVerificationToken(client, user.id);
   });
 
-  try {
-    await sendVerificationLink(user, rawToken);
-  } catch (err) {
-    console.error("[auth] Failed to resend verification email:", err);
-    throw new AppError(502, "Unable to send verification email.", "EMAIL_SEND_FAILED");
-  }
+  // Not awaited, and a delivery failure is not reported: a 502 only for unverified accounts
+  // revealed that the account exists (SEC-07).
+  sendInBackground("verification (resend)", () => sendVerificationLink(user, rawToken));
 
   return generic;
 }
@@ -298,7 +309,7 @@ export async function loginUser(emailInput: unknown, passwordInput: unknown) {
 
   const user = result.rows[0];
   if (!user) {
-    await verifyPassword(password, DUMMY_BCRYPT_HASH);
+    await verifyPassword(password, await dummyPasswordHash());
     throw new AppError(401, "Invalid email or password.", "INVALID_CREDENTIALS");
   }
 
@@ -376,6 +387,57 @@ async function ensureVerifiedWithSignupBonus(user: UserRow): Promise<UserRow> {
   return user;
 }
 
+/**
+ * First Google sign-in for an email that already has an account: link the Google subject to it.
+ *
+ * Pre-account takeover guard (FINDING-34): an UNVERIFIED password account with this email may have
+ * been registered by someone else before the real owner arrived. Google has just proven ownership
+ * of the address, so the Google user takes the account over: the old password is replaced with an
+ * unguessable one, every existing session is revoked, and outstanding verification / reset tokens
+ * are deleted. Verified accounts are linked as before.
+ */
+async function linkGoogleToExistingAccount(existingEmailUser: UserRow, googleSub: string) {
+  const takeoverPasswordHash = existingEmailUser.is_verified ? null : await createOAuthPasswordHash();
+  try {
+    await withTransaction(async (client) => {
+      await linkOAuthAccount(client, existingEmailUser.id, GOOGLE_PROVIDER, googleSub);
+      if (!existingEmailUser.is_verified) {
+        const updated = await client.query<{ token_version: number }>(
+          `UPDATE users
+           SET is_verified = true, password_hash = $2, token_version = token_version + 1, updated_at = NOW()
+           WHERE id = $1 AND is_verified = false
+           RETURNING token_version`,
+          [existingEmailUser.id, takeoverPasswordHash],
+        );
+        if (updated.rows[0]) {
+          await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+          await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+          existingEmailUser.token_version = updated.rows[0].token_version;
+          console.warn(
+            "[auth] Google sign-in took over an unverified password account; password invalidated, sessions revoked",
+            { userId: existingEmailUser.id },
+          );
+        }
+        await grantSignupBonus(client, existingEmailUser.id);
+        existingEmailUser.is_verified = true;
+      }
+    });
+  } catch (err: unknown) {
+    const pgCode =
+      err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
+    // Concurrent link won the unique (provider, provider_account_id) race — re-resolve by sub.
+    if (pgCode === "23505") {
+      const raced = await findUserByOAuth(GOOGLE_PROVIDER, googleSub);
+      if (raced) {
+        return authResponse(raced, "Google sign-in successful.");
+      }
+    }
+    throw err;
+  }
+
+  return authResponse(existingEmailUser, "Google account linked.");
+}
+
 export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | null = null) {
   const idToken = validateGoogleIdToken(idTokenInput);
   const identity = await verifyGoogleIdToken(idToken);
@@ -400,50 +462,7 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
   const existingEmailUser = byEmail.rows[0];
 
   if (existingEmailUser) {
-    // Pre-account takeover guard (FINDING-34): an UNVERIFIED password account with this email
-    // may have been registered by someone else before the real owner arrived. Google has just
-    // proven ownership of the address, so the Google user takes the account over: the old
-    // password is replaced with an unguessable one, every existing session is revoked, and
-    // outstanding verification / reset tokens are deleted. Verified accounts are linked as before.
-    const takeoverPasswordHash = existingEmailUser.is_verified ? null : await createOAuthPasswordHash();
-    try {
-      await withTransaction(async (client) => {
-        await linkOAuthAccount(client, existingEmailUser.id, GOOGLE_PROVIDER, googleSub);
-        if (!existingEmailUser.is_verified) {
-          const updated = await client.query<{ token_version: number }>(
-            `UPDATE users
-             SET is_verified = true, password_hash = $2, token_version = token_version + 1, updated_at = NOW()
-             WHERE id = $1 AND is_verified = false
-             RETURNING token_version`,
-            [existingEmailUser.id, takeoverPasswordHash],
-          );
-          if (updated.rows[0]) {
-            await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [existingEmailUser.id]);
-            await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [existingEmailUser.id]);
-            existingEmailUser.token_version = updated.rows[0].token_version;
-            console.warn(
-              "[auth] Google sign-in took over an unverified password account; password invalidated, sessions revoked",
-              { userId: existingEmailUser.id },
-            );
-          }
-          await grantSignupBonus(client, existingEmailUser.id);
-          existingEmailUser.is_verified = true;
-        }
-      });
-    } catch (err: unknown) {
-      const pgCode =
-        err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
-      // Concurrent link won the unique (provider, provider_account_id) race — re-resolve by sub.
-      if (pgCode === "23505") {
-        const raced = await findUserByOAuth(GOOGLE_PROVIDER, googleSub);
-        if (raced) {
-          return authResponse(raced, "Google sign-in successful.");
-        }
-      }
-      throw err;
-    }
-
-    return authResponse(existingEmailUser, "Google account linked.");
+    return linkGoogleToExistingAccount(existingEmailUser, googleSub);
   }
 
   // 3) Brand-new user: create users + oauth_accounts atomically.
@@ -478,10 +497,9 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
       );
       const raced = again.rows[0];
       if (raced) {
-        await withTransaction(async (client) => {
-          await linkOAuthAccount(client, raced.id, GOOGLE_PROVIDER, googleSub);
-        });
-        return authResponse(raced, "Google sign-in successful.");
+        // A password registration for this email committed after step 2 looked: same policy as
+        // step 2, including the FINDING-34 takeover of an unverified account (SEC-05).
+        return linkGoogleToExistingAccount(raced, googleSub);
       }
     }
     throw err;
@@ -532,12 +550,9 @@ export async function forgotPassword(emailInput: unknown): Promise<{ message: st
   });
 
   const resetUrl = `${env.frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-  try {
-    await sendEmail(buildPasswordResetEmail({ email: user.email, resetUrl }));
-  } catch (err) {
-    console.error("[auth] Failed to send password reset email:", err);
-    // Still return generic message to avoid enumeration / probing via error differentials.
-  }
+  // Not awaited (SEC-07): the unknown-email branch sends nothing, so waiting here would reveal
+  // that the account exists through response time.
+  sendInBackground("password reset", () => sendEmail(buildPasswordResetEmail({ email: user.email, resetUrl })));
 
   return { message: GENERIC_FORGOT_MESSAGE };
 }

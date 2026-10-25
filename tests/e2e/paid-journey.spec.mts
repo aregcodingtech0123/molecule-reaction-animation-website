@@ -48,7 +48,8 @@ test("register → verify → dashboard → checkout → signed webhook → cred
   // Session set by the BFF (FINDING-24): httpOnly cookie only — never in web storage, never in a body.
   await expect.poll(async () => (await context.cookies()).some((c) => c.name === "session_token")).toBe(true);
   const session = (await context.cookies()).find((c) => c.name === "session_token");
-  expect(session).toMatchObject({ httpOnly: true, sameSite: "Strict", secure: false, path: "/" });
+  // Secure exactly when Next runs in production mode (E2E_NEXT_MODE=production); plain http in dev.
+  expect(session).toMatchObject({ httpOnly: true, sameSite: "Strict", secure: process.env.E2E_NEXT_MODE === "production", path: "/" });
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
   expect(storage).not.toContain(session!.value);
   await expect.poll(() => balanceVia(page.request)).toBe(10);

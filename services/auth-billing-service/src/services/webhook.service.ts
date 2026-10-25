@@ -1,3 +1,4 @@
+import { env } from "../config/env.js";
 import { ACTIVE_PAYMENT_PROVIDER, resolveCreditPackage } from "../config/packages.js";
 import {
   packageIdForLemonVariant,
@@ -212,6 +213,19 @@ export async function processLemonSqueezyEvent(
     return { processed: false, reason: "order_refunded", orderId: order.id };
   }
 
+  // A valid signature proves the event came from a webhook holding our secret, not that the order is
+  // a real purchase in this store (SEC-13): test-mode orders are paid with test cards.
+  if (attrs.test_mode === true && env.isProduction && !env.lemonSqueezyAllowTestMode) {
+    console.warn("[Webhook] Ignoring test-mode order", { orderId: order.id });
+    return { processed: false, reason: "test_mode_order", orderId: order.id };
+  }
+
+  const storeId = env.lemonSqueezyStoreId;
+  if (storeId && String(attrs.store_id ?? "") !== storeId) {
+    console.error("[Webhook] Order from another store", { orderId: order.id, storeId: attrs.store_id ?? null });
+    return { processed: false, reason: "store_mismatch", orderId: order.id };
+  }
+
   const custom = event.meta?.custom_data ?? {};
   const customUserId = readCustomDataString(custom, "user_id");
   const customPackageId = readCustomDataString(custom, "package_id");
@@ -275,7 +289,7 @@ export async function processLemonSqueezyEvent(
     return { processed: false, reason: "missing_user", orderId: order.id };
   }
 
-  if (attrs.currency && attrs.currency.toLowerCase() !== "usd") {
+  if (String(attrs.currency ?? "").toLowerCase() !== "usd") {
     console.error("[Webhook] Unexpected currency", { orderId: order.id, currency: attrs.currency });
     return { processed: false, reason: "currency_mismatch", orderId: order.id };
   }
