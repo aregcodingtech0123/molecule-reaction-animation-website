@@ -12,11 +12,11 @@ servers run behind the same fail-closed network guard as the E2E suite.
 | Runner | `scripts/perf/run.mjs` | One command: checks the build, seeds, starts the stack, runs a scenario (1 discarded warm-up run + `--runs` measured runs per measurement), writes `perf-results/<timestamp>-<scenario>/result.json`, stops the stack |
 | Stack | `scripts/perf/stack.mjs` | Mock Gemini, Express `node dist/index.js` (**NODE_ENV=production**), Next `next start` on the `.next-perf` build; logs to the run folder; kills process trees on exit |
 | Config | `scripts/perf/config.mjs` | Ports (Next **3200**, Express **4200**, mock Gemini **4290**), the guarded DB `moleculestudio_perf_test`, every env variable both servers read (process env wins over `.env` files), random secrets per run (never written to disk) |
-| Preload | `scripts/perf/preload.mjs` | Loaded into both servers: network guard (`scripts/test/network-guard.mjs`); Gemini **forwarded to the mock** with the caller's abort signal; Lemon checkout and Resend stubbed; optional instrumentation (below) |
+| Preload | `scripts/perf/preload.mjs` | Loaded into both servers: network guard (`scripts/test/network-guard.mjs`); Gemini **redirected to the mock** by rewriting the URL only, so the caller's `init` and abort signal are untouched (`lib/gemini-redirect.mjs`, PERF-21); `PERF_FORCE_GC_MS` forces GCs for PERF-21 checks only; Lemon checkout and Resend stubbed; optional instrumentation (below) |
 | Mock Gemini | `scripts/perf/mock-gemini.mjs` | Gemini REST shape; latency `fixed` / `uniform` / `lognormal(median, p95)`; failure rate and mode `500`/`503`/`hang`/`empty`/`reset`; seeded RNG; reconfigured at runtime (`POST /__config`) |
 | Seed | `scripts/perf/seed.mjs` | Recreates the DB with the production migration runner, then a deterministic dataset in SQL (below); checks `ledger_reconciliation()` is empty |
 | Load driver | `scripts/perf/lib/load.mjs` | Dependency-free closed-loop HTTP driver: N virtual users on keep-alive sockets, warm-up discarded, latency to the end of the body |
-| Scenarios | `scripts/perf/scenarios/*.mjs` | `smoke`, `balance`, `history`, `chat` (Part 0); Parts 1–3 add theirs here |
+| Scenarios | `scripts/perf/scenarios/*.mjs` | `smoke`, `balance`, `history`, `chat` (Part 0); `gemini-timeout` (PERF-21); Parts 1–3 add theirs here |
 | Tests | `tests/api/perf-harness.test.ts` | Statistics, seeded randomness (lognormal hits its median/p95), argument parsing, the DB guard, mock failure modes |
 
 Guards that stay in force: `scripts/test/db-guard.mjs` (the perf DB URL is built from `TEST_DATABASE_URL` and must
@@ -50,7 +50,7 @@ Sessions are minted by the runner with the service's exact claim set (`scripts/p
 
 * **Per-hop log** (`hopLog: true`): the Next process records each upstream fetch (`auth/me`, `billing/consume`,
   `gemini`, `billing/capture`, …) with its time to response headers. The runner joins it with each run's window, so
-  `/api/chat` is broken down per hop. The Gemini hop includes the in-process forward to the mock (~3–12 ms locally);
+  `/api/chat` is broken down per hop. The Gemini hop includes the SDK's own work and the loopback call to the mock;
   "overhead excluding Gemini" = end-to-end − Gemini hop, which therefore slightly **under**-states overhead.
 * **Process log** (`procLog: true`, default): both servers sample RSS, heap, event-loop utilisation and event-loop
   delay (p50/p99/max) every second. Only samples inside measured windows are summarised (startup excluded).

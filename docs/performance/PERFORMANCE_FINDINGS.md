@@ -32,10 +32,50 @@ measured) · `refuted` (the code does not do it) · `measured` · `fixed` · `re
 | PERF-18 | Express | — (found in Part 0) | Every capture logs with `console.log`. Depending on the stream type (file, pipe, TTY) Node writes stdout synchronously, i.e. on the event loop. The first chat check showed Express event-loop lag p99 up to 615 ms at c = 50. Cause not yet known; logging is one candidate among GC and `pg` parsing. | lead | Part 1 |
 | PERF-19 | Next memory | — (found in Part 0) | In the first chat check the Next process heap reached 610 MiB (RSS 772 MiB) at c = 50 and its event loop was saturated. Growth vs lazy GC to be told apart by a 10-minute run. | lead | Parts 1, 3 |
 | PERF-20 | Login | bcrypt cost and event-loop blocking | `bcrypt` (native), cost 10 by default (production allows 10–15). Hashing runs on the libuv pool (4 threads by default), not on the event loop, so concurrent logins queue on 4 threads and share them with other pool work. | verified-code | Part 1 |
-| PERF-21 | `/api/chat` | — (observed once, unconfirmed) | While the mock was broken (never answering), the first turn after start waited **306 s** and failed with a `TypeError`, while the next turn was aborted at the expected 30 s. That points at `GEMINI_TIMEOUT_MS` not covering the first call in some path (FINDING-21's guarantee). Seen once, under a faulty mock; to reproduce deliberately with the mock's `hang` mode before drawing any conclusion. | lead | Part 1 (first) |
+| PERF-21 | `/api/chat` | — (observed once in Part 0) | **Reproduced, then traced to the harness, not the app** (§ PERF-21 below). The Part 0 preload forwarded Gemini calls by rebuilding them as `new Request(input, init)` and passing `request.signal` on; undici links that signal to its source weakly, so a GC during the wait broke the timeout. Production (`next start`, SDK, Next's fetch, no preload) aborts at `GEMINI_TIMEOUT_MS` even with a forced full GC every second. Harness fixed, regression-tested. | refuted (harness defect, fixed) | Part 1 ✔ |
+
+## PERF-21 — first chat turn not bounded by `GEMINI_TIMEOUT_MS` (Part 1, first item)
+
+Setup: `node scripts/perf/run.mjs gemini-timeout --gemini-failure 1:hang` — fresh production stack, every Gemini
+call hangs, three turns one after another, `GEMINI_TIMEOUT_MS=30000` unless stated. `PERF_REPRO_FORCE_GC_MS=1000`
+forces a full GC in the Next process every second (`--expose-gc`, harness only), so a weakly reachable signal is
+collected deterministically instead of by luck.
+
+| # | Path to the mock | Forced GC | Timeout | Turn 1 | Turn 2 | Turn 3 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Part 0 forward (`new Request` + `request.signal`) | no | 30 s | **no answer, connection dropped at 306.5 s** (undici's 300 s headers timeout) | 504 at 30.1 s | 504 at 30.0 s |
+| 2 | URL-only redirect (production's call shape) | no | 30 s | 504 at 30.3 s | 504 at 30.0 s | 504 at 30.1 s |
+| 3 | same, repeated | no | 30 s | 504 at 30.1 s | 504 at 30.1 s | 504 at 30.0 s |
+| 4 | URL-only redirect | every 1 s | 30 s | 504 at 30.1 s | 504 at 30.0 s | 504 at 30.0 s |
+| 5 | **control:** Part 0 forward | every 1 s | 5 s | **502 at 305.6 s** | **502 at 305.4 s** | **502 at 305.8 s** |
+
+Isolation outside Next (SDK + hanging mock, 3 s timeout, forced GCs at 0.3 / 0.8 / 1.5 s): plain `fetch` with
+`AbortSignal.timeout` aborts at 3.0 s; the SDK pointed at the mock by `baseUrl` aborts at 3.0 s with and without the
+caller keeping a reference to the signal; the SDK through the Part 0 forward **hangs** (> 8 s); through the URL-only
+redirect it aborts at 3.0 s. Without forced GC the Part 0 forward also aborts on time, which is why only some turns
+hung: it depended on whether a GC ran during the wait (the first request after start allocates the most).
+
+Conclusion: not an application bug. `@google/genai` 2.5.0 copies `config.abortSignal` onto its own controller and
+passes that controller's signal straight to `fetch`; the route and Next keep it reachable. The weak link existed only
+in the harness's forward. No production code rebuilds a `Request` to forward a signal: the gateway holds its
+`AbortController` in the timer closure, and the billing calls pass `AbortSignal.timeout()` directly to `fetch`.
+Money: in run 1 the hung turn's reservation was released after the failure (never charged). The hold-TTL margin in
+`check:config` is unaffected (the model call is bounded as designed; `/auth/me` runs before the reservation exists).
+
+Fix (harness only): `scripts/perf/lib/gemini-redirect.mjs` rewrites the URL and passes the caller's `init` through.
+Regression tests (`tests/api/perf-harness.test.ts`): the redirect hands over the identical `init` object; a child
+process with `--expose-gc` and the preload must abort a hanging SDK call at its 1.5 s timeout while GCs run every
+200 ms. Mutation check: with the Part 0 forward restored, that test fails (the child hangs past the 30 s cap).
+
+Process note: one isolation run was started without the network-guard preload; the SDK then sent one request to the
+real Gemini endpoint with the dummy key `x` and the prompt "hi" (rejected 400, "API key not valid"). No secret or user
+data was involved. Every later experiment ran behind the guard, with the SDK pointed at the local mock.
+
+PERF-03 (no timeout on `/auth/me`) is handled with PERF-01 below.
 
 ## Findings log
 
 | ID | Area | Baseline | After | Method | Commit | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | — | — | — | — | Part 0 builds the harness only; nothing is optimised | — | — |
+| PERF-21 | harness | first turn after start hung ~306 s (1 of 3 runs); every turn under forced GC | 504 at 30.0–30.3 s on every turn, with and without forced GC | reproduction table above | see git log | refuted (harness defect, fixed) |

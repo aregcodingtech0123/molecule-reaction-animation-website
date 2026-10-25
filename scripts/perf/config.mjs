@@ -107,7 +107,8 @@ export function apiEnv(secrets, files = {}, overrides = {}) {
 export function webEnv(secrets, files = {}, overrides = {}) {
   return {
     ...shared(secrets, { hopLog: files.hopLog, procLog: files.webProcLog }),
-    NODE_OPTIONS: `--import ${preload}`,
+    // --expose-gc only for the PERF-21 forced-GC check (PERF_FORCE_GC_MS); never in a normal run.
+    NODE_OPTIONS: `${overrides.PERF_FORCE_GC_MS ? "--expose-gc " : ""}--import ${preload}`,
     PERF_PROC_NAME: "web",
     AUTH_SERVICE_URL: `${API_ORIGIN}/api/auth`,
     BILLING_SERVICE_URL: `${API_ORIGIN}/api/billing`,

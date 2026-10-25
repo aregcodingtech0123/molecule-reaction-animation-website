@@ -2,9 +2,10 @@
  * Preloaded into BOTH perf servers (NODE_OPTIONS=--import). Same fail-closed network guard as E2E
  * (scripts/test/network-guard.mjs): every non-loopback host is blocked unless stubbed here.
  *
- *  - Gemini (generativelanguage.googleapis.com) is FORWARDED to the local mock server
- *    (scripts/perf/mock-gemini.mjs, PERF_GEMINI_ORIGIN) with the caller's abort signal, so
- *    GEMINI_TIMEOUT_MS and latency/failure injection behave as against a real remote.
+ *  - Gemini (generativelanguage.googleapis.com) is REDIRECTED to the local mock server
+ *    (scripts/perf/mock-gemini.mjs, PERF_GEMINI_ORIGIN): only the URL changes, the caller's `init` —
+ *    and so its abort signal — reaches the real fetch untouched, exactly as in production (PERF-21,
+ *    scripts/perf/lib/gemini-redirect.mjs).
  *  - Lemon checkout and Resend answer canned responses in-process (no latency modelled).
  *
  * Optional instrumentation (off unless the variable is set; the runner sets it per scenario):
@@ -16,24 +17,14 @@
 import fs from "node:fs";
 import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import { installNetworkGuard, jsonResponse, stubExternal } from "../test/network-guard.mjs";
+import { GEMINI_HOST, geminiRedirect } from "./lib/gemini-redirect.mjs";
 
 // Build only (`next build` self-hosts next/font files): the same two font hosts E2E allows. Never at runtime.
 installNetworkGuard(
   process.env.PERF_ALLOW_FONT_HOSTS === "1" ? { allowHosts: ["fonts.googleapis.com", "fonts.gstatic.com"] } : {},
 );
 
-const geminiOrigin = process.env.PERF_GEMINI_ORIGIN;
-
-stubExternal("generativelanguage.googleapis.com", async (url, _init, request) => {
-  if (!geminiOrigin) throw new Error("[perf-preload] PERF_GEMINI_ORIGIN is not set");
-  // Loopback: the guard passes it to the real fetch.
-  return fetch(`${geminiOrigin}${url.pathname}${url.search}`, {
-    method: request.method,
-    headers: { "content-type": "application/json" },
-    body: await request.text(),
-    signal: request.signal,
-  });
-});
+globalThis.fetch = geminiRedirect(globalThis.fetch, process.env.PERF_GEMINI_ORIGIN);
 
 stubExternal("api.lemonsqueezy.com", () =>
   jsonResponse(
@@ -62,7 +53,7 @@ function lineWriter(file) {
 }
 
 function hopName(url) {
-  if (url.hostname === "generativelanguage.googleapis.com") return "gemini";
+  if (url.hostname === GEMINI_HOST) return "gemini";
   const m = url.pathname.match(/^\/api\/(auth|billing|users)\/(.+)$/);
   return m ? `${m[1]}/${m[2]}` : url.pathname;
 }
@@ -72,8 +63,6 @@ if (process.env.PERF_HOP_LOG) {
   const inner = globalThis.fetch;
   globalThis.fetch = async function timedFetch(input, init) {
     const url = input instanceof URL ? input : new URL(typeof input === "string" ? input : input.url);
-    // The Gemini forward re-enters fetch for the mock: time only the outer call.
-    if (url.origin === geminiOrigin) return inner(input, init);
     const t = Date.now();
     const start = performance.now();
     try {
@@ -86,6 +75,11 @@ if (process.env.PERF_HOP_LOG) {
       throw err;
     }
   };
+}
+
+// PERF-21 evidence: force a full GC every N ms (needs --expose-gc; config.mjs adds it when this is set).
+if (process.env.PERF_FORCE_GC_MS && typeof globalThis.gc === "function") {
+  setInterval(() => globalThis.gc(), Number(process.env.PERF_FORCE_GC_MS)).unref();
 }
 
 if (process.env.PERF_PROC_LOG) {

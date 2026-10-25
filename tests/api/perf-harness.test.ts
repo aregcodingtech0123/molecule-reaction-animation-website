@@ -3,8 +3,12 @@
  * statistics, randomness, argument parsing and mock Gemini must be right before any number it
  * produces is trusted. Pure parts and the in-process mock only — no stack is started here.
  */
+import { spawnSync } from "node:child_process";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { GEMINI_HOST, geminiRedirect } from "../../scripts/perf/lib/gemini-redirect.mjs";
 import { acrossRuns, percentile, summarize } from "../../scripts/perf/lib/stats.mjs";
 import { latencySampler, seededRandom } from "../../scripts/perf/lib/random.mjs";
 import { clientIp, rotatingUser } from "../../scripts/perf/lib/requests.mjs";
@@ -144,5 +148,44 @@ describe("mock Gemini", () => {
     await close?.();
     const hang = await start({ failureRate: 1, failureMode: "hang" });
     await expect(hang(AbortSignal.timeout(200))).rejects.toThrow(/abort|timeout/i);
+  });
+});
+
+describe("Gemini redirect (PERF-21)", () => {
+  it("rewrites only the URL: the caller's init object (and its abort signal) is passed on as is", async () => {
+    const calls: Array<[unknown, unknown]> = [];
+    const inner = (async (input: unknown, init: unknown) => {
+      calls.push([input, init]);
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+    const redirect = geminiRedirect(inner, "http://127.0.0.1:4290");
+    const init = { method: "POST", body: "{}", signal: AbortSignal.timeout(1000) };
+    await redirect(`https://${GEMINI_HOST}/v1beta/models/m:generateContent?alt=x`, init);
+    expect(calls[0]![0]).toBe("http://127.0.0.1:4290/v1beta/models/m:generateContent?alt=x");
+    expect(calls[0]![1]).toBe(init);
+    await redirect("http://127.0.0.1:4200/health", undefined);
+    expect(calls[1]![0]).toBe("http://127.0.0.1:4200/health");
+    expect(() => geminiRedirect(inner, undefined)(`https://${GEMINI_HOST}/x`, {})).toThrow(/PERF_GEMINI_ORIGIN/);
+  });
+
+  it("a hanging model call still aborts at its timeout while full GCs run (child process, --expose-gc)", () => {
+    const root = path.resolve(__dirname, "../..");
+    const port = 43_000 + Math.floor(Math.random() * 1000);
+    const res = spawnSync(
+      process.execPath,
+      ["--expose-gc", "--import", pathToFileURL(path.join(root, "scripts/perf/preload.mjs")).href, path.join(root, "tests/support/perf-gemini-abort.mjs")],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 30_000,
+        env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, PERF_GEMINI_ORIGIN: `http://127.0.0.1:${port}`, MOCK_PORT: String(port) } as unknown as NodeJS.ProcessEnv,
+      },
+    );
+    const line = res.stdout.trim().split(/\r?\n/).at(-1) ?? "";
+    expect(line, res.stderr).toMatch(/^\{/);
+    const out = JSON.parse(line) as { name: string; ms: number };
+    expect(out.name).toBe("AbortError");
+    expect(out.ms).toBeGreaterThanOrEqual(1400);
+    expect(out.ms).toBeLessThan(5000);
   });
 });

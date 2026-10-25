@@ -21,7 +21,7 @@ import { mintSession } from "./lib/tokens.mjs";
 import { loadPerfUsers, parseSeedArgs, seedPerfDatabase } from "./seed.mjs";
 import { assertFreshBuild, buildAll, configureMock, startStack } from "./stack.mjs";
 
-export const SCENARIOS = ["smoke", "balance", "history", "chat"];
+export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout"];
 
 export function parseRunArgs(argv) {
   const [scenario, ...rest] = argv;
@@ -193,6 +193,10 @@ async function main() {
       apiOrigin: API_ORIGIN,
       configureMock,
       note: (text) => result.notes.push(text),
+      /** Scenario-specific data that is not a closed-loop measurement. */
+      record: (key, value) => {
+        (result.records ??= {})[key] = value;
+      },
       /** One discarded warm-up run (≤ 5 s), then `runs` measured runs, with the per-hop breakdown when on. */
       async measure(name, load) {
         console.log(`[perf] ${name}: warm-up + ${opts.runs} run(s)`);
