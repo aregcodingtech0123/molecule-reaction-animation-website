@@ -37,9 +37,27 @@ const GENERIC_REGISTER_MESSAGE =
 const GENERIC_FORGOT_MESSAGE =
   "If an account exists for that email, a password reset link has been sent.";
 
-/** bcrypt hash of a random string — used to equalize login timing when user is not found. */
-const DUMMY_BCRYPT_HASH =
-  "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+let dummyHash: Promise<string> | null = null;
+
+/**
+ * bcrypt hash of a random string, at the configured cost — compared against when the user is not
+ * found so an unknown email takes as long as a wrong password (SEC-07: a hard-coded cost-10 hash
+ * made unknown emails measurably faster or slower whenever BCRYPT_ROUNDS was not 10).
+ */
+export function dummyPasswordHash(): Promise<string> {
+  dummyHash ??= hashPassword(randomBytes(32).toString("base64url"));
+  return dummyHash;
+}
+
+/**
+ * Send an account email without awaiting it: the response's timing and status must not depend on
+ * the mail provider, because only some branches (account exists / unverified) send mail (SEC-07).
+ */
+function sendInBackground(kind: string, send: () => Promise<void>): void {
+  void send().catch((err: unknown) => {
+    console.error(`[auth] Failed to send ${kind} email:`, err instanceof Error ? err.message : err);
+  });
+}
 
 const USER_PUBLIC_COLUMNS =
   "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, token_version";
@@ -186,12 +204,8 @@ export async function registerUser(
     throw err;
   }
 
-  try {
-    await sendVerificationLink(user, rawToken);
-  } catch (err) {
-    console.error("[auth] Failed to send verification email:", err);
-    // Account exists; the user can request a resend.
-  }
+  // Not awaited (SEC-07); on failure the user can request a resend.
+  sendInBackground("verification", () => sendVerificationLink(user, rawToken));
 
   // No session here: the verification link signs the user in. Issuing a token only for new
   // emails would reveal which addresses already have an account (FINDING-09).
@@ -274,12 +288,9 @@ export async function resendVerificationEmail(emailInput: unknown): Promise<{ me
     return replaceVerificationToken(client, user.id);
   });
 
-  try {
-    await sendVerificationLink(user, rawToken);
-  } catch (err) {
-    console.error("[auth] Failed to resend verification email:", err);
-    throw new AppError(502, "Unable to send verification email.", "EMAIL_SEND_FAILED");
-  }
+  // Not awaited, and a delivery failure is not reported: a 502 only for unverified accounts
+  // revealed that the account exists (SEC-07).
+  sendInBackground("verification (resend)", () => sendVerificationLink(user, rawToken));
 
   return generic;
 }
@@ -298,7 +309,7 @@ export async function loginUser(emailInput: unknown, passwordInput: unknown) {
 
   const user = result.rows[0];
   if (!user) {
-    await verifyPassword(password, DUMMY_BCRYPT_HASH);
+    await verifyPassword(password, await dummyPasswordHash());
     throw new AppError(401, "Invalid email or password.", "INVALID_CREDENTIALS");
   }
 
@@ -539,12 +550,9 @@ export async function forgotPassword(emailInput: unknown): Promise<{ message: st
   });
 
   const resetUrl = `${env.frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-  try {
-    await sendEmail(buildPasswordResetEmail({ email: user.email, resetUrl }));
-  } catch (err) {
-    console.error("[auth] Failed to send password reset email:", err);
-    // Still return generic message to avoid enumeration / probing via error differentials.
-  }
+  // Not awaited (SEC-07): the unknown-email branch sends nothing, so waiting here would reveal
+  // that the account exists through response time.
+  sendInBackground("password reset", () => sendEmail(buildPasswordResetEmail({ email: user.email, resetUrl })));
 
   return { message: GENERIC_FORGOT_MESSAGE };
 }

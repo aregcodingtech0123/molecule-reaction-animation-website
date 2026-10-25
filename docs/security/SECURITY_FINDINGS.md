@@ -11,6 +11,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-04 | Low | CI / supply chain | Workflow used mutable action tags, default token permissions, `ubuntu-latest`, and persisted checkout credentials | **Fixed** (branch `security/deps-and-ci`) |
 | SEC-05 | Low | Auth / OAuth | A password registration racing a first Google sign-in got linked without the FINDING-34 takeover (registrant's password stayed valid) | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-06 | Medium | Express / rate limits | Login and forgot-password limits bypassed with whitespace/case variants of the email | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-07 | Medium | Auth / enumeration | Register, forgot-password and resend revealed whether an account exists through mail-send timing (and resend through a 502) | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -164,3 +165,26 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   `skipSuccessfulRequests`) would stop that but lets anyone lock a victim's *password* sign-in for the window (Google
   sign-in and password reset would still work). Also: all limiters are in-memory, i.e. per instance and reset on
   restart; a shared store (Redis) is needed before running several Express instances.
+
+## SEC-07 — Medium — Account existence revealed by mail-delivery timing and status
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts` — `registerUser`, `forgotPassword`,
+  `resendVerificationEmail`, `loginUser`.
+* **Weakness:** the generic answers of FINDING-09 hid existence in the **body** only. The branch that sends mail
+  awaited the mail provider (Resend, a network round trip in production) before answering, the other branch did not:
+  * register: a **new** email waited for the verification mail, an existing one answered after a `SELECT`;
+  * forgot-password: an **existing** account waited for the reset mail, an unknown one answered immediately;
+  * resend-verification: an **unverified** account waited, and answered **502 `EMAIL_SEND_FAILED`** when the provider
+    failed — a direct existence oracle whenever mail had trouble;
+  * login: the unknown-email path compared against a hard-coded **cost-10** bcrypt hash, so with any other
+    `BCRYPT_ROUNDS` unknown emails were measurably faster or slower than wrong passwords.
+* **Repro:** `tests/api/auth.enumeration-timing.test.ts` with the mail provider stubbed at the network boundary to
+  never answer (or to fail): before the fix the account-dependent requests did not answer within 3 s (they waited on
+  the provider), resend answered 502, the dummy hash had cost 10 instead of the configured 4.
+* **Fix:** account mails are sent in the background (`sendInBackground`, failures logged, never surfaced); the dummy
+  hash is computed once from the configured cost (`dummyPasswordHash()`). Mails are still sent (tested against a
+  provider stub that answers).
+* **Behaviour change:** `POST /api/auth/resend-verification` no longer answers `502 EMAIL_SEND_FAILED`; it always
+  answers the generic 200. A delivery failure is only logged (`[auth] Failed to send … email`).
+* **Residual (accepted):** the account-dependent branches still do a little more database work (a token insert in one
+  transaction) than the others — single-digit milliseconds, far below network jitter; bcrypt dominates both.
