@@ -39,6 +39,7 @@ describe("function hardening (SEC-12)", () => {
       "ledger_reconciliation()",
       "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
       "prevent_ledger_mutation()",
+      "refunded_orders_to_review()",
       "release_expired_ai_holds()",
       "set_updated_at()",
     ]);
@@ -117,7 +118,7 @@ describe("a fresh 001→012 apply leaves the ledger functions hardened (TC-41 co
     try {
       if (how === "runner") {
         const result = await migrate({ connectionString: scratch.url });
-        expect(result.applied.at(-1)).toBe("012_function_search_path.sql");
+        expect(result.applied).toContain("012_function_search_path.sql");
       } else {
         await applyMigrations(scratch.url);
       }
@@ -129,6 +130,7 @@ describe("a fresh 001→012 apply leaves the ledger functions hardened (TC-41 co
         "guard_user_balance_write()",
         "ledger_reconciliation()",
         "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
+        "refunded_orders_to_review()",
         "release_expired_ai_holds()",
       ]);
       expect(fns.filter((f) => f.definer).map((f) => f.fn)).toEqual([

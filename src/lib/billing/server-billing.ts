@@ -24,11 +24,22 @@ function billingServiceBaseUrl(): string | null {
   return raw.replace(/\/+$/, "");
 }
 
-function retryDelays(): number[] {
-  const raw = process.env.BILLING_RETRY_DELAYS_MS?.trim();
+/** Backoff between capture/release attempts. Exported for `npm run check:config`. */
+export function retryDelays(source: NodeJS.ProcessEnv = process.env): number[] {
+  const raw = source.BILLING_RETRY_DELAYS_MS?.trim();
   if (!raw) return DEFAULT_RETRY_DELAYS_MS;
   const parsed = raw.split(",").map((v) => Number(v.trim()));
   return parsed.every((n) => Number.isFinite(n) && n >= 0) ? parsed : DEFAULT_RETRY_DELAYS_MS;
+}
+
+/**
+ * Upper bound for one BFF → billing call (SEC-17). Without it a billing service that accepts the
+ * connection and never answers holds the AI turn for undici's ~300 s per attempt. A timed-out call is
+ * treated like an unreachable service (503, retried for capture/release — both are idempotent).
+ */
+export function billingCallTimeoutMs(source: NodeJS.ProcessEnv = process.env): number {
+  const v = Number(source.BILLING_CALL_TIMEOUT_MS);
+  return Number.isInteger(v) && v > 0 ? v : 10_000;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -60,12 +71,15 @@ async function callInternal(path: string, bearerToken: string, payload: unknown)
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: AbortSignal.timeout(billingCallTimeoutMs()),
     });
   } catch (err) {
     console.error("[billing] Billing service unreachable", { path, error: err instanceof Error ? err.message : String(err) });
     return { ok: false, status: 503, body: {}, unreachable: true };
   }
 
+  // The body read is under the same deadline. A body that stalls after the status line keeps that
+  // status (the service has decided) with an empty body.
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.status === 404) {
     // The billing service answers 404 to a wrong/missing internal key on purpose.
@@ -119,6 +133,10 @@ export interface ConsumeCreditsResult {
   cost?: number;
   /** Present on a 402 — how many credits the operation needed. */
   requiredCredits?: number;
+  /** The billing service's error code (e.g. AI_DAILY_LIMIT, AI_CAPACITY_REACHED — SEC-16). */
+  code?: string;
+  /** Seconds until a per-user daily cap frees up (429 AI_DAILY_LIMIT). */
+  retryAfter?: number;
 }
 
 /**
@@ -140,6 +158,8 @@ export async function consumeCreditsForOperation(params: {
       ok: false,
       status: r.status,
       requiredCredits: typeof r.body.requiredCredits === "number" ? r.body.requiredCredits : undefined,
+      code: typeof r.body.code === "string" ? r.body.code : undefined,
+      retryAfter: typeof r.body.retryAfter === "number" ? r.body.retryAfter : undefined,
     };
   }
   const data = (r.body.data ?? {}) as { balance?: number; cost?: number };

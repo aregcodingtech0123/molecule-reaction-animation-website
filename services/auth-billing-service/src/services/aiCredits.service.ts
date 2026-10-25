@@ -107,6 +107,31 @@ async function availableBalance(client: PoolClient | typeof pool, userId: string
   return Number(rows[0]?.available ?? 0);
 }
 
+/**
+ * SEC-16: rolling-24 h turn caps, checked while the user's advisory lock is held (so one user's
+ * concurrent turns cannot overshoot their cap). The global count is not serialised: under a burst
+ * it may overshoot by the number of in-flight reservations — a soft circuit breaker for spend.
+ */
+async function assertWithinDailyTurnLimits(client: PoolClient, userId: string): Promise<void> {
+  const limits = env.aiDailyTurnLimits;
+  const { rows } = await client.query<{ mine: number; oldest_mine: Date | null; total: number }>(
+    `SELECT
+       (SELECT count(*)::int FROM ai_credit_holds WHERE user_id = $1 AND created_at > NOW() - interval '24 hours') AS mine,
+       (SELECT min(created_at) FROM ai_credit_holds WHERE user_id = $1 AND created_at > NOW() - interval '24 hours') AS oldest_mine,
+       (SELECT count(*)::int FROM ai_credit_holds WHERE created_at > NOW() - interval '24 hours') AS total`,
+    [userId],
+  );
+  const { mine, oldest_mine: oldest, total } = rows[0]!;
+  if (mine >= limits.perUser) {
+    const retryAfter = oldest ? Math.max(1, Math.ceil((oldest.getTime() + 24 * 3600 * 1000 - Date.now()) / 1000)) : 3600;
+    throw new AppError(429, "Daily AI limit reached. Try again later.", "AI_DAILY_LIMIT", { limit: limits.perUser, retryAfter });
+  }
+  if (total >= limits.global) {
+    console.error("[credits] AI_CAPACITY_REACHED — global daily turn cap hit", { limit: limits.global });
+    throw new AppError(503, "The AI Lab has reached its daily capacity. Please try again later.", "AI_CAPACITY_REACHED");
+  }
+}
+
 async function cachedBalance(client: PoolClient, userId: string): Promise<number> {
   const { rows } = await client.query<{ balance: number }>(
     `SELECT balance FROM user_balances WHERE user_id = $1`,
@@ -143,6 +168,8 @@ export async function reserveCreditsForOperation(
         status: existing.status,
       });
     }
+
+    await assertWithinDailyTurnLimits(client, userId);
 
     const available = await availableBalance(client, userId);
     if (available < cost) {

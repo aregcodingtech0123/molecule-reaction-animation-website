@@ -18,14 +18,9 @@ import {
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
 import { crossSiteRejection, isCrossSiteRequest } from "@/lib/security/csrf";
+import { boundConversation, geminiMaxOutputTokens, geminiTimeoutMs } from "@/lib/ai/gemini-limits";
 
 const MAX_MESSAGES = 24;
-const DEFAULT_GEMINI_TIMEOUT_MS = 30_000;
-
-function geminiTimeoutMs(): number {
-  const v = Number(process.env.GEMINI_TIMEOUT_MS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_GEMINI_TIMEOUT_MS;
-}
 
 function isAbortError(err: unknown): boolean {
   const name = err && typeof err === "object" && "name" in err ? String((err as { name: unknown }).name) : "";
@@ -173,6 +168,14 @@ export async function POST(request: Request) {
     if (charge.status === 403) {
       return Response.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
+    // Daily caps (SEC-16): nothing reserved, the model is not called.
+    if (charge.status === 429 && charge.code === "AI_DAILY_LIMIT") {
+      const retryAfter = charge.retryAfter ?? 3600;
+      return Response.json({ error: "AI_DAILY_LIMIT", retryAfter }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+    }
+    if (charge.status === 503 && charge.code === "AI_CAPACITY_REACHED") {
+      return Response.json({ error: "AI_CAPACITY_REACHED" }, { status: 503 });
+    }
     if (charge.status === 402) {
       return Response.json(
         {
@@ -201,7 +204,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "AI service unavailable. Please try again." }, { status: 503 });
   }
 
-  const contents = messages.map((m) => ({
+  // Bounded prompt and answer (SEC-16): the history is the user's to send, its cost is ours.
+  const contents = boundConversation(messages).map((m) => ({
     role: m.role === "assistant" ? ("model" as const) : ("user" as const),
     parts: [{ text: m.content.trim() }],
   }));
@@ -217,6 +221,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: LAB_ASSISTANT_SYSTEM_INSTRUCTION,
         temperature: 0.7,
+        maxOutputTokens: geminiMaxOutputTokens(),
         // FINDING-21: a hung model call must not hold a reserved turn open forever.
         abortSignal: AbortSignal.timeout(geminiTimeoutMs()),
       },

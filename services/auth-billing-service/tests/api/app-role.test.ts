@@ -87,6 +87,8 @@ describe("app role is refused every write around the ledger (SEC-12)", () => {
       `INSERT INTO credit_ledger_transactions (user_id, amount, transaction_type) VALUES ($1, 999, 'ADMIN_ADJUSTMENT')`,
     ],
     ["DELETE a user", `DELETE FROM users WHERE id = $1`],
+    ["mark a refund reviewed (owner-only, SEC-14)", `UPDATE lemon_order_refunds SET reviewed_at = NOW() WHERE provider_order_id = $1::text`],
+    ["delete refund records", `DELETE FROM lemon_order_refunds WHERE provider_order_id = $1::text`],
   ])("%s → 42501", async (_label, sql) => {
     const id = await ownerUser(5);
     await expectPgError(asApp.query(sql, [id]), "42501");
@@ -221,6 +223,25 @@ describe("the service runs its real flows connected as the app role", () => {
     expect(await balance(id)).toBe(50);
     const history = await request(app).get("/api/billing/history").set("Authorization", bearer(user));
     expect(history.status).toBe(200);
+  });
+
+  it("a signed order_refunded is recorded (credits untouched) and listed for the owner's review", async () => {
+    const id = await ownerUser(0);
+    const orderId = newOrderId();
+    await owner.query(`SELECT post_credit_transaction($1, 50, 'CREDIT_PURCHASE', $2, 'lemonsqueezy')`, [id, `ls_order_${orderId}`]);
+    const base = orderCreatedEvent({ orderId, eventName: "order_refunded", status: "refunded", refunded: true });
+    const event = { ...base, data: { ...base.data, attributes: { ...base.data.attributes, refunded_amount: 500 } } };
+    const { raw, signature } = signedBody(event);
+    const hook = await request(app)
+      .post("/api/billing/webhooks/lemonsqueezy")
+      .set("Content-Type", "application/json")
+      .set("X-Signature", signature)
+      .send(raw);
+    expect(hook.status).toBe(200);
+    await logs.waitForLine(new RegExp(`Recorded refund .*"orderId":"${orderId}"`));
+    expect(await balance(id)).toBe(50);
+    const { rows } = await owner.query(`SELECT user_id::text FROM refunded_orders_to_review() WHERE provider_order_id = $1`, [orderId]);
+    expect(rows).toEqual([{ user_id: id }]);
   });
 
   it("AI reservation: consume → capture, consume → refund, and the expiry sweep", async () => {

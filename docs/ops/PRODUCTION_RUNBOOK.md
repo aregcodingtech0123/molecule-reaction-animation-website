@@ -162,7 +162,7 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008`–`012` are backward compatible with the currently deployed code:
+`008`–`014` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
 never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
@@ -170,10 +170,12 @@ never does either. `009` only adds a table and two functions. `010` adds `users.
 index on `pending_checkout_orders`. `012` (SEC-12) pins `search_path` on the ledger functions, makes
 `post_credit_transaction()` `SECURITY DEFINER` and revokes its `EXECUTE` from `PUBLIC` — the owner role
 the services connect as keeps it, so nothing changes while one role owns the schema and runs the app.
+`013` (SEC-14) only adds the `lemon_order_refunds` table and the read-only `refunded_orders_to_review()`.
+`014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–012)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–014)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -221,6 +223,10 @@ openssl rand -base64 48
 | `NODE_ENV` | `production` | **`production`** (Phase 2, SEC-08) | Express now applies production rules unless `NODE_ENV` is exactly `development` or `test`. Production rules without `HOST` bind `127.0.0.1`: hosted platforms need `HOST=0.0.0.0` |
 | `FRONTEND_URL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `RESEND_API_KEY`, `SENDER_EMAIL` / `EMAIL_FROM`, `BCRYPT_ROUNDS` | — | **validated at boot** (SEC-08) | https origin; webhook secret ≥ 32 random chars, not a placeholder (Lemon allows up to 40 — rotate it in the dashboard and here together); store id numeric; sender on a verified domain, not `@resend.dev`; bcrypt cost 10–15 if set. Any problem → `FATAL:` line, exit 1 |
 | `JWT_SECRET`, `FRONTEND_URL`, `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` | **validated at start** (SEC-08) | — | `next start` refuses to start without them (not checked during `next build`) |
+| `AI_DAILY_TURNS_PER_USER` / `AI_DAILY_TURNS_GLOBAL` | — | optional (`200` / `3000`) | SEC-16: AI turns per rolling 24 h per user (`429 AI_DAILY_LIMIT`) and for the whole service (`503 AI_CAPACITY_REACHED`, logged as an error — alert on it). Size the global cap from your model budget |
+| `CSP_MODE` | optional (enforce) | — | SEC-18: `report-only` sends the strict nonce CSP as `Content-Security-Policy-Report-Only` — only as a temporary escape hatch if a third party (e.g. Google sign-in) breaks; anything else enforces |
+| `BILLING_CALL_TIMEOUT_MS` | optional (`10000`) | — | SEC-17: upper bound of one BFF → billing call; a timed-out reservation answers `503 BILLING_UNAVAILABLE`, a timed-out capture/release is retried |
+| `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
 
@@ -244,6 +250,20 @@ users never call Express directly).
 Also check: `JWT_SECRET` must still pass the (changed) strength check — ≥ 32 chars, not a documented
 placeholder, and **not low-variety** (e.g. `aaaa…` or a short repeated pattern is now refused). A
 randomly generated key passes. Test locally: `node -e "import('./dist/config/secretStrength.js').then(m=>console.log(m.weakSecretReason('JWT_SECRET', process.env.JWT_SECRET)))"` after `npm run build` (prints `null` when fine).
+
+**Check both sides together before deploying** (Part 2B): export each host's environment to a local
+file (never commit it) and run
+
+```bash
+npm run check:config -- --service ./express.env --web ./next.env   # or `env` to read the current shell
+```
+
+It prints variable **names** only, never values, and exits `1` when anything would fail or misbehave in
+production: every boot-time check of both services (SEC-08), `.env.example` placeholders still in place,
+`INTERNAL_SERVICE_SECRET` / `JWT_SECRET` / `FRONTEND_URL` / the Google client id differing between the two,
+and `AI_HOLD_TTL_SECONDS` below **2 ×** the longest turn (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`
++ capture attempts × `BILLING_CALL_TIMEOUT_MS`) — with the defaults 600 s against 2 × 74.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
+Delete the exported files afterwards.
 
 **Rollback 5:** remove the variables (old code ignores them).
 
@@ -347,7 +367,10 @@ In the Lemon dashboard → Settings → Webhooks:
 
 - URL is `https://<express-host>/api/billing/webhooks/lemonsqueezy` — the **Express** host, **not** the
   Next.js site. (The BFF drops `X-Signature`; deliveries to the Next host are always rejected.)
-- Event `order_created` is subscribed; signing secret equals `LEMONSQUEEZY_WEBHOOK_SECRET`.
+- Events `order_created` **and `order_refunded`** are subscribed (SEC-14); signing secret equals
+  `LEMONSQUEEZY_WEBHOOK_SECRET`. Lemon documents no dispute/chargeback event: when Lemon refunds a
+  disputed order on your behalf, whether that also sends `order_refunded` is not documented — check the
+  Lemon dashboard for disputes during the weekly review.
 - Use "Send test" → expect `200 {"received":true}` and an Express log `[Webhook] Acknowledged 200 OK`.
 - If the URL pointed at the Next host until now, every purchase since then was rejected (401) and **not
   credited**: re-deliver those orders from Lemon's "Recent deliveries" after fixing the URL (fulfilment is
@@ -372,6 +395,19 @@ In the Lemon dashboard → Settings → Webhooks:
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
   two are revenue loss, not customer harm.
+- **Refunded orders still credited** (same job, SEC-14): `refunded_order_credited` lists every Lemon
+  order refunded (fully or partly) whose purchase credits are in the ledger and that nobody has reviewed —
+  user, credits granted, current balance, refunded amount. **Credits are never clawed back
+  automatically.** Decide per order (keep as goodwill, or post a correction with an `ADMIN_ADJUSTMENT`
+  through `post_credit_transaction()` — it refuses to take the balance below zero), then mark it reviewed:
+
+  ```text
+  UPDATE lemon_order_refunds SET reviewed_at = NOW(), review_note = '<decision, your initials>'
+  WHERE provider_order_id = '<order id>' AND reviewed_at IS NULL;
+  ```
+
+  The job exits `2` until every listed order is reviewed. A later, larger partial refund of the same order
+  is a new row and is listed again.
 - **Stale checkouts** (hourly or daily — FINDING-15): `SELECT expire_stale_checkout_orders();` marks
   `pending_checkout_orders` rows older than 24 h as `expired` (pass an interval for another threshold;
   under 1 hour is refused). Bookkeeping only: it never touches credits, and a late payment for an
@@ -383,10 +419,16 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–012 (only if they cause a problem)
+### 10.1 Migrations 008–014 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 014 (indexes only; the caps are code — roll the code back too, or they just get slower)
+DROP INDEX IF EXISTS idx_ai_credit_holds_user_created;
+DROP INDEX IF EXISTS idx_ai_credit_holds_created;
+-- 013 (export lemon_order_refunds first if you need the refund history)
+DROP FUNCTION IF EXISTS refunded_orders_to_review();
+DROP TABLE IF EXISTS lemon_order_refunds;
 -- 012
 ALTER FUNCTION post_credit_transaction(uuid, integer, credit_transaction_type, varchar, varchar)
   SECURITY INVOKER RESET search_path;
@@ -408,7 +450,8 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 -- idempotent). Its tracking row must go too, otherwise a later roll-forward sees a gap.
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
-                   '011_checkout_order_expiry.sql', '012_function_search_path.sql');
+                   '011_checkout_order_expiry.sql', '012_function_search_path.sql',
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql');
 COMMIT;
 ```
 

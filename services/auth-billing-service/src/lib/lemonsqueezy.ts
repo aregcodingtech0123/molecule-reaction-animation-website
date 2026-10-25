@@ -36,6 +36,10 @@ export interface LemonOrderCreatedEvent {
       refunded: boolean;
       /** true for orders placed in Lemon's test mode (test cards — no money moves). */
       test_mode?: boolean;
+      /** Refund state (order_refunded): cumulative refunded cents in the order currency / in USD. */
+      refunded_amount?: number;
+      refunded_amount_usd?: number;
+      refunded_at?: string | null;
       user_email: string;
       first_order_item?: {
         variant_id: number;

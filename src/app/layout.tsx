@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter, Syne } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
@@ -18,16 +19,19 @@ export const metadata: Metadata = {
   description: "A premium interactive chemistry platform to explore molecules in 3D.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The proxy's per-request CSP nonce (Part 2B). Reading request headers renders every page per request,
+  // which a nonce-based CSP requires: Next puts the same nonce on its own scripts.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className="dark" data-theme="night-lab" suppressHydrationWarning>
       <head>
         {/* Applies the stored theme before first paint (FINDING-26). Key = THEME_STORAGE_KEY. */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript("moleculestudio-theme") }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript("moleculestudio-theme") }} />
       </head>
       <body
         className={`${inter.variable} ${syne.variable} font-sans antialiased transition-colors duration-500`}

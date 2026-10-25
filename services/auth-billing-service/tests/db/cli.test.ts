@@ -114,6 +114,34 @@ describe("db CLIs", () => {
     }
   });
 
+  it("reconcile exits 2 and lists a refunded order whose credits are still in the ledger, until it is reviewed (SEC-14)", async () => {
+    const db = await ScratchDb.create();
+    try {
+      const env = { DATABASE_URL: db.url };
+      run("migrate.mjs", [], env);
+      const u = await createUser(db.pool, { balance: 0 });
+      await db.pool.query(`SELECT post_credit_transaction($1, 50, 'CREDIT_PURCHASE', 'ls_order_777', 'lemonsqueezy')`, [u.id]);
+      expect(run("reconcile.mjs", [], env).code).toBe(0);
+
+      await db.pool.query(
+        `INSERT INTO lemon_order_refunds (provider_order_id, order_status, fully_refunded, refunded_amount, currency)
+         VALUES ('777', 'refunded', true, 500, 'USD')`,
+      );
+      const res = run("reconcile.mjs", [], env);
+      expect(res.code).toBe(2);
+      expect(res.out).toMatch(/refunded_order_credited/);
+      expect(res.out).toMatch(/777/);
+      expect(res.out).toContain(u.id);
+
+      await db.pool.query(`UPDATE lemon_order_refunds SET reviewed_at = NOW(), review_note = 'ok' WHERE provider_order_id = '777'`);
+      const after = run("reconcile.mjs", [], env);
+      expect(after.code).toBe(0);
+      expect(after.out).toMatch(/no unreviewed refunded orders/);
+    } finally {
+      await db.destroy();
+    }
+  });
+
   it("reconcile exits non-zero (1) when the database cannot be queried — a broken job never looks green", () => {
     const res = run("reconcile.mjs", [], { DATABASE_URL: "postgresql://postgres@127.0.0.1:1/unreachable_test" });
     expect(res.code).toBe(1);

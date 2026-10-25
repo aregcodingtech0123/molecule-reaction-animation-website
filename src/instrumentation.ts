@@ -46,6 +46,17 @@ function serviceUrlProblem(name: string, raw: string | undefined): string | null
   return `${name} must be an absolute http(s) URL.`;
 }
 
+/** The checks behind assertProductionConfig, as a list (also used by `npm run check:config`). */
+export function bffProductionConfigProblems(env: NodeJS.ProcessEnv): string[] {
+  return [
+    weakSecretReason("JWT_SECRET", env.JWT_SECRET),
+    frontendUrlProblem(env.FRONTEND_URL),
+    serviceUrlProblem("AUTH_SERVICE_URL", env.AUTH_SERVICE_URL),
+    serviceUrlProblem("BILLING_SERVICE_URL", env.BILLING_SERVICE_URL),
+    serviceUrlProblem("USERS_SERVICE_URL", env.USERS_SERVICE_URL),
+  ].filter((p): p is string => p !== null);
+}
+
 /**
  * Production start (`next start`): every secret and URL the BFF relies on must be present and
  * sane, reported as one list (SEC-08). Without JWT_SECRET no session can be verified; without
@@ -54,13 +65,7 @@ function serviceUrlProblem(name: string, raw: string | undefined): string | null
  */
 export function assertProductionConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== "production" || env.NEXT_PHASE === "phase-production-build") return;
-  const problems = [
-    weakSecretReason("JWT_SECRET", env.JWT_SECRET),
-    frontendUrlProblem(env.FRONTEND_URL),
-    serviceUrlProblem("AUTH_SERVICE_URL", env.AUTH_SERVICE_URL),
-    serviceUrlProblem("BILLING_SERVICE_URL", env.BILLING_SERVICE_URL),
-    serviceUrlProblem("USERS_SERVICE_URL", env.USERS_SERVICE_URL),
-  ].filter((p): p is string => p !== null);
+  const problems = bffProductionConfigProblems(env);
   if (problems.length > 0) {
     throw new Error(`FATAL: refusing to start in production:\n- ${problems.join("\n- ")}`);
   }

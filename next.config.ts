@@ -1,67 +1,44 @@
 import type { NextConfig } from "next";
 
-const isDev = process.env.NODE_ENV === "development";
+const isProduction = process.env.NODE_ENV === "production";
 
-/** HDR environment maps from @react-three/drei Environment presets */
-const DREI_HDRI_ORIGINS = [
-  "https://raw.githack.com",
-  "https://raw.githubusercontent.com",
+/**
+ * Security headers for every response. The Content-Security-Policy is NOT here: it carries a fresh
+ * nonce per request and is set by src/proxy.ts (see src/lib/security/csp.ts).
+ */
+const securityHeaders = [
+  // Legacy twin of CSP frame-ancestors 'none'.
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  // Google Identity Services' recommendation for production.
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+  // Isolates the window from cross-origin openers; keeps Google sign-in popups working (Google's guidance).
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  // HTTPS-only for two years once served over TLS (browsers ignore it over plain http). No `preload`: an
+  // owner decision, hard to undo.
+  ...(isProduction ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
 ];
 
-function buildContentSecurityPolicy(): string {
-  const scriptSrc = [
-    "'self'",
-    "'unsafe-inline'",
-    "https://accounts.google.com",
-    // React / Next.js dev tooling uses eval for stack traces and HMR
-    ...(isDev ? ["'unsafe-eval'"] : []),
-  ];
-
-  // Google Identity Services injects a stylesheet from accounts.google.com/gsi/style.
-  // Without the origin here, GSI renders unstyled or the button fails to mount.
-  const styleSrc = ["'self'", "'unsafe-inline'", "https://accounts.google.com"];
-
-  const frameSrc = ["'self'", "https://accounts.google.com"];
-
-  const connectSrc = [
-    "'self'",
-    "https://pubchem.ncbi.nlm.nih.gov",
-    "https://en.wikipedia.org",
-    "https://accounts.google.com",
-    ...DREI_HDRI_ORIGINS,
-  ];
-
-  return [
-    "default-src 'self'",
-    `script-src ${scriptSrc.join(" ")}`,
-    `style-src ${styleSrc.join(" ")}`,
-    "img-src 'self' data: https: blob:",
-    `connect-src ${connectSrc.join(" ")}`,
-    `frame-src ${frameSrc.join(" ")}`,
-    "object-src 'none'",
-    "base-uri 'self'",
-  ].join("; ");
-}
+/** API routes answer JSON: nothing may load, frame it or be submitted to it (pages get the nonce CSP). */
+const API_CSP = "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
 const nextConfig: NextConfig = {
   // Testability: the E2E suite runs its own `next dev` in `.next-e2e` so it never
   // collides with a developer's dev server (Next allows one dev server per distDir).
   // Unset → Next's default `.next`.
   distDir: process.env.NEXT_DIST_DIR?.trim() || ".next",
+  // No `X-Powered-By: Next.js` (fingerprinting).
+  poweredByHeader: false,
   async headers() {
     return [
       {
         source: "/(.*)",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          {
-            key: "Content-Security-Policy",
-            value: buildContentSecurityPolicy(),
-          },
-        ],
+        headers: securityHeaders,
+      },
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Content-Security-Policy", value: API_CSP }],
       },
     ];
   },

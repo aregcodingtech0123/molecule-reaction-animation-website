@@ -57,6 +57,8 @@ describe("migrations 001→007 on an empty database", () => {
       "010_session_token_version.sql",
       "011_checkout_order_expiry.sql",
       "012_function_search_path.sql",
+      "013_lemon_order_refunds.sql",
+      "014_ai_daily_caps.sql",
     ]);
   });
 
@@ -71,6 +73,7 @@ describe("migrations 001→007 on an empty database", () => {
     expect(rows.map((r) => r.table_name)).toEqual([
       "ai_credit_holds",
       "credit_ledger_transactions",
+      "lemon_order_refunds",
       "oauth_accounts",
       "password_reset_tokens",
       "pending_checkout_orders",

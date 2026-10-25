@@ -68,6 +68,7 @@ Express ──▶ Resend (verification / reset / receipt mails)
 | Abuse case | Controls (and where verified) |
 | --- | --- |
 | Forge a purchase webhook | HMAC over raw body, 401 before any DB access; strong webhook secret enforced at startup in production (SEC-08) |
+| Buy, spend, then get refunded | `order_refunded` recorded; `db:reconcile` lists refunded orders still credited for manual review — no automatic claw-back (SEC-14) |
 | Replay a genuine webhook | ledger idempotency on `(provider, ls_order_<id>)` (FINDING-11); concurrent replays → `already_processed` |
 | Pay for a cheap pack, get an expensive one | amount checked against the server-side package price; currency USD only; variant → pack mapping from env only (FINDING-13) |
 | Refund a successful AI turn / pick the ledger type | metering endpoints internal-only (404 without the key), reserve → capture / release (FINDING-03, -07) |
@@ -87,17 +88,21 @@ Express ──▶ Resend (verification / reset / receipt mails)
 ### 5.3 AI cost abuse (Part 2B covers the AI Lab in depth)
 
 Each turn reserves credits before Gemini is called; per-user rate limit (Upstash or in-memory); timeout releases the
-hold. Open for 2B: input size per credit (24 messages × 8,000 chars), global/daily caps, content-policy bypass.
+hold. Part 2B: daily turn caps per user and service-wide, `maxOutputTokens`, a 32 000-character prompt budget
+(SEC-16); bounded billing calls (SEC-17). Model output is rendered inert (sanitised markdown, no auto-loaded images —
+SEC-15) under a strict nonce CSP (SEC-18). The output content filter is a heuristic, not a control (Part 2B notes).
 
 ### 5.4 Webhook forgery and abuse
 
 Signature first, then parsing; body limit (256 kb) applied after decompression and before HMAC (SEC-02 verification);
-unknown events acknowledged and ignored; malformed payloads logged without credit.
+unknown events acknowledged and ignored; malformed payloads logged without credit; refunds recorded for review
+(SEC-14); test-mode / other-store / non-USD orders never credited (SEC-13).
 
 ### 5.5 Availability
 
-Body limits on Express (32 kb / 256 kb, verified against decompression bombs); unbounded request buffering in the BFF
-(SEC-10); in-memory rate limiters are per instance.
+Body limits on Express (32 kb / 256 kb, verified against decompression bombs) and in the BFF (SEC-10); every BFF →
+billing call bounded (SEC-17); in-memory rate limiters are per instance (single-instance launch, LAUNCH_NOTES).
+Pages are server-rendered per request since the nonce CSP (SEC-18) — size the Next host accordingly.
 
 ## 6. Assumptions and out of scope
 

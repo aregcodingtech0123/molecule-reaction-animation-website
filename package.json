@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
+    "check:config": "node services/auth-billing-service/node_modules/tsx/dist/cli.mjs scripts/check-config.mts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",

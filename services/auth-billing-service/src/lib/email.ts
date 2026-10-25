@@ -45,7 +45,8 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error("[email] Resend API error:", res.status, body);
+    // Status and Resend's short message only: the raw body can echo request fields (SEC-19).
+    console.error("[email] Resend API error:", res.status, body.slice(0, 200).replace(/[^\s@<>"]+@[^\s@<>"]+/g, "<email>"));
     throw new Error("Failed to send email.");
   }
 }

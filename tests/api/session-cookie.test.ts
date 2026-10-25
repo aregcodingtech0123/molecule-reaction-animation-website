@@ -24,7 +24,8 @@ const jar = vi.hoisted(() => ({
 vi.mock("next/headers", () => ({ cookies: async () => jar }));
 
 import { POST as clearCookie } from "@/app/api/auth/clear-cookie/route";
-import { config as middlewareConfig, middleware } from "@/middleware";
+// Next 16 renamed `middleware` to `proxy`; the same function now also sets the CSP (TC-46).
+import { config as middlewareConfig, proxy as middleware, PROTECTED_PREFIXES } from "@/proxy";
 
 let service: RunningService;
 let db: pg.Pool;
@@ -206,8 +207,16 @@ describe("middleware route protection", () => {
   const req = (path: string, token?: string) =>
     new NextRequest(`http://localhost:3000${path}`, token ? { headers: { cookie: `session_token=${token}` } } : undefined);
 
-  it("matches exactly the protected sections", () => {
-    expect(middlewareConfig.matcher).toEqual(["/dashboard/:path*", "/ai-lab/:path*", "/profile/:path*"]);
+  it("gates exactly the protected sections; the proxy itself runs on every page (CSP nonce), not on API or assets", () => {
+    expect(PROTECTED_PREFIXES).toEqual(["/dashboard", "/ai-lab", "/profile"]);
+    const runsOn = (path: string) => middlewareConfig.matcher.some((m) => new RegExp(`^${m}$`).test(path));
+    // Also 404 pages for dotted paths: they are HTML and need the CSP too (ZAP baseline lead, reproduced).
+    for (const path of ["/dashboard", "/dashboard/billing", "/ai-lab", "/profile", "/", "/explore", "/login", "/robots.txt", "/anything.php"]) {
+      expect(runsOn(path), path).toBe(true);
+    }
+    for (const path of ["/api/chat", "/api/auth/login", "/_next/static/chunks/main.js", "/_next/image", "/favicon.ico", "/hdri/studio.hdr"]) {
+      expect(runsOn(path), path).toBe(false);
+    }
   });
 
   it.each(["/dashboard", "/ai-lab", "/profile", "/dashboard/billing"])("%s without a session → redirect to /login", async (path) => {
