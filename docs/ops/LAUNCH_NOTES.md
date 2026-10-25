@@ -1,8 +1,10 @@
 # Launch notes — constraints accepted for launch
 
 Owner decisions from the security audit (Phase 2) that limit how the product may be operated at launch.
-Each line says what must stay true and what would have to change first. The launch checklist (Part 3)
-links here.
+Each line says what must stay true and what would have to change first. The step-by-step launch is
+[`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md); its §7 lists **all** known limitations (these constraints plus the KaTeX
+rendering loss, the heuristic content filter, machine-translated i18n, the lint backlog and the missing account-disable
+flag).
 
 ## Payments (Lemon Squeezy)
 

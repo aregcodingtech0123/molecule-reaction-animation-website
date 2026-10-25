@@ -437,7 +437,8 @@ Evidence is the named test, or the code reference where a test would only restat
   `javascript:` images, KaTeX `\href` / `\url` / `\htmlStyle` / `\htmlClass`, HTML inside code fences. Raw HTML
   is never parsed (no `rehype-raw`); sanitize runs last, so even KaTeX's output is sanitized. User messages are
   plain text.
-* **Info (owner decision, not changed):** because sanitize runs after KaTeX with the default schema, KaTeX's
+* **Info (owner decision: accepted for now, listed under known limitations in `docs/ops/LAUNCH_CHECKLIST.md` §7):**
+  because sanitize runs after KaTeX with the default schema, KaTeX's
   classes and MathML are stripped and maths in answers renders as garbled plain text. Making it render needs either
   sanitize-before-KaTeX (KaTeX's own output then becomes trusted; `trust` stays off) or a schema that allows
   KaTeX's classes, inline `style` and MathML. Both widen what model output can produce — a deliberate choice.

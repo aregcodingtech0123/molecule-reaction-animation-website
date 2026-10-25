@@ -128,13 +128,16 @@ npm run dev:all     # tries docker:up, then Next (:3000) + Express (:4000)
 1. In `services/auth-billing-service/.env`, set `DATABASE_URL` to your hosted URI (`?sslmode=require`).
 2. Migrations run through a tracked runner (`schema_migrations` table). Use a **direct** (non-pooled)
    connection for it — set `MIGRATION_DATABASE_URL` if `DATABASE_URL` points at a pooler; pooled URLs are refused.
-3. A database created before the runner existed must be adopted once with `npm run db:migrate:baseline`
-   (preview with `node scripts/migrate.mjs --baseline --dry-run`). See `docs/ops/PRODUCTION_RUNBOOK.md`.
+3. An **empty** hosted database needs no baseline: `npm run db:migrate` (from `services/auth-billing-service`) applies
+   everything (`mode=fresh`). A database created **before** the runner existed must be adopted once with
+   `npm run db:migrate:baseline` (preview with `node scripts/migrate.mjs --baseline --dry-run`). Going live for the
+   first time: [`docs/ops/LAUNCH_CHECKLIST.md`](docs/ops/LAUNCH_CHECKLIST.md); upgrading an existing deployment:
+   [`docs/ops/PRODUCTION_RUNBOOK.md`](docs/ops/PRODUCTION_RUNBOOK.md).
 4. `db:reset` refuses every non-local host; never run `docker:reset` against production.
 
 #### Neon cold starts
 
-Neon (and similar serverless Postgres) may **auto-suspend** idle databases. The first query after wake can take several seconds. The Lemon webhook **fast-acknowledge** design (below) returns `200 OK` *before* any DB work, so Neon cold-start latency does **not** cause Lemon deliveries to sit in “Pending” or time out. Credit allocation still runs in the background once the pool connects.
+Neon (and similar serverless Postgres) may **auto-suspend** idle databases (after 5 minutes by default; the Free plan's setting is fixed, paid plans can turn it off). Neon documents reactivation as "a few hundred milliseconds"; the service's connection pool times out after 2 s, so a slower wake shows up as one `503 DATABASE_UNAVAILABLE` that the next request recovers from. The Lemon webhook **fast-acknowledge** design (below) returns `200 OK` *before* any DB work, so Neon cold-start latency does **not** cause Lemon deliveries to sit in “Pending” or time out. Credit allocation still runs in the background once the pool connects.
 
 ## Environment Variables
 
