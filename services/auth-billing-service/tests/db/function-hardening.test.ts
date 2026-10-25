@@ -7,6 +7,7 @@ import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, createUser } from "../support/db";
 import { applyMigrations } from "../../../../scripts/test/prepare-test-db.mjs";
+import { migrate } from "../../scripts/lib/migrator.mjs";
 import { ScratchDb, migrationsByPrefix } from "../support/scratch-db";
 
 let db: pg.Pool;
@@ -102,6 +103,50 @@ describe("function hardening (SEC-12)", () => {
       expect(real.rows[0].balance).toBe(7);
     } finally {
       client.release();
+      await scratch.destroy();
+    }
+  });
+});
+
+describe("a fresh 001→012 apply leaves the ledger functions hardened (TC-41 condition)", () => {
+  it.each([
+    ["the tracked runner (db:setup / migrate.mjs)", "runner"],
+    ["the raw files in order (what the test databases and a manual bootstrap do)", "raw"],
+  ] as const)("via %s", async (_label, how) => {
+    const scratch = await ScratchDb.create();
+    try {
+      if (how === "runner") {
+        const result = await migrate({ connectionString: scratch.url });
+        expect(result.applied.at(-1)).toBe("012_function_search_path.sql");
+      } else {
+        await applyMigrations(scratch.url);
+      }
+
+      const fns = await projectFunctions(scratch.pool);
+      const pinned = (f: { config: string[] }) => f.config.includes("search_path=public, pg_temp");
+      expect(fns.filter(pinned).map((f) => f.fn)).toEqual([
+        "expire_stale_checkout_orders(interval)",
+        "guard_user_balance_write()",
+        "ledger_reconciliation()",
+        "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
+        "release_expired_ai_holds()",
+      ]);
+      expect(fns.filter((f) => f.definer).map((f) => f.fn)).toEqual([
+        "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
+      ]);
+      // Exactly what the runbook's §4 check expects.
+      const { rows } = await scratch.pool.query(
+        `SELECT prosecdef, proconfig, has_function_privilege('public', oid, 'EXECUTE') AS public_exec
+         FROM pg_proc WHERE proname = 'post_credit_transaction'`,
+      );
+      expect(rows).toEqual([{ prosecdef: true, proconfig: ["search_path=public, pg_temp"], public_exec: false }]);
+
+      // And it still works: credits post, the guard holds.
+      const user = await createUser(scratch.pool, { balance: 0 });
+      await scratch.pool.query(`SELECT post_credit_transaction($1, 3, 'SIGNUP_BONUS', 'fresh')`, [user.id]);
+      const bal = await scratch.pool.query(`SELECT balance FROM user_balances WHERE user_id = $1`, [user.id]);
+      expect(bal.rows[0].balance).toBe(3);
+    } finally {
       await scratch.destroy();
     }
   });

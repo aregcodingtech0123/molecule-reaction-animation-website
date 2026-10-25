@@ -178,7 +178,21 @@ node scripts/migrate.mjs --status                 # every file: applied or basel
 ```
 
 Each pending file runs in its own transaction; a failure stops the run with nothing half-applied
-for that file. Re-running is safe (applied files are skipped).
+for that file. Re-running **the runner** is safe (applied files are skipped).
+
+> **Never re-run an already-applied migration file by hand** (`psql -f database/init/00x_….sql`, a SQL
+> console paste, a "fix-up" script). Only `node scripts/migrate.mjs` applies migrations. The old files are
+> frozen (checksummed) and recreate functions with `CREATE OR REPLACE`, which silently undoes later
+> hardening: re-running `003_dual_payment_providers.sql` rebuilds `post_credit_transaction()` **without**
+> 012's `SECURITY DEFINER` and pinned `search_path` (EXECUTE stays revoked from PUBLIC, so with the SEC-12
+> app role the service could no longer post credits at all). If it has happened anyway, re-apply 012 by hand
+> right away (`psql "$OWNER_DATABASE_URL" -1 -f database/init/012_function_search_path.sql`; it is idempotent)
+> and check with:
+>
+> ```text
+> SELECT prosecdef, proconfig FROM pg_proc WHERE proname = 'post_credit_transaction';
+> -- expected: t | {"search_path=public, pg_temp"}
+> ```
 
 **Rollback 4:** see §10.1 (the migrations are additive; old code keeps working with them applied,
 so rolling them back is normally unnecessary).
