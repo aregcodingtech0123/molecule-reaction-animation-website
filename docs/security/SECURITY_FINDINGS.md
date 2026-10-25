@@ -7,6 +7,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | --- | --- | --- | --- | --- |
 | SEC-01 | Critical | Dependencies / Next.js | `next` 16.2.6 affected by 20 published advisories (6 critical RCE, SSRF, cache poisoning, DoS, middleware bypass) | **Fixed** (branch `security/next-upgrade`) — `next` / `eslint-config-next` 16.4.3 |
 | SEC-02 | High | Dependencies / Express | body-parser < 2.4.0 can crash the public Express process from a compressed request body; proxy-addr and qs advisories | **Fixed** (branch `security/deps-and-ci`) — body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1 (lockfile) |
+| SEC-03 | Low | Dependencies / root | 25 root advisories (3 critical); none reachable at runtime (dev tooling, or unused parts of runtime libraries) | **Fixed** (branch `security/deps-and-ci`) except the KaTeX chain (4 low) — deferred, see DEPENDENCY_TRIAGE.md |
 
 ---
 
@@ -68,3 +69,16 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   with trailing bytes on the global JSON parser, an unmatched route and the webhook parser; the service keeps serving).
   It did **not** reproduce the crash on 2.3.0, so it is not counted as the regression proof.
 * **Optional hardening (Part 2):** `inflate: false` on the parsers if no client needs compressed request bodies.
+
+## SEC-03 — Low — Root-package advisories (tooling and unused runtime paths)
+
+* **Evidence:** after SEC-01, `npm audit` reported 25 advisories in the root package (3 critical, 12 high, 5 moderate,
+  5 low). Each was traced to its chain and its precondition checked against the code — `docs/security/DEPENDENCY_TRIAGE.md`.
+* **Severity rationale:** the critical ones are `shell-quote` via the dev-only `concurrently` (fixed literal commands)
+  and `proxy-addr` inside the MCP SDK's Express transport under `@google/genai`, which this app never starts. No
+  advisory had a reachable path at runtime, hence Low (hygiene) rather than the advisories' own ratings.
+* **Fix:** `npm update` of the affected packages within their declared ranges (lockfile only). Root audit: 25 → 4 low.
+  `shadcn` 4.7.0 → 4.22.1 ships additional CSS utilities only; none is used by `src/` (diffed).
+* **Deferred:** the KaTeX chain (4 low, GHSA-238p-pmpm-9mq7) — no plugin release uses a patched KaTeX yet; every
+  available change breaks chat math rendering. Options and impact in DEPENDENCY_TRIAGE.md; decision pending.
+* **Verification:** root suite 403/403, `tsc` 0 errors, `next build` passes on the updated lockfile.
