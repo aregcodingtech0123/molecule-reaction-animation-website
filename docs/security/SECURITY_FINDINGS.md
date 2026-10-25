@@ -9,6 +9,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-02 | High | Dependencies / Express | body-parser < 2.4.0 can crash the public Express process from a compressed request body; proxy-addr and qs advisories | **Fixed** (branch `security/deps-and-ci`) — body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1 (lockfile) |
 | SEC-03 | Low | Dependencies / root | 25 root advisories (3 critical); none reachable at runtime (dev tooling, or unused parts of runtime libraries) | **Fixed** (branch `security/deps-and-ci`) except the KaTeX chain (4 low) — deferred, see DEPENDENCY_TRIAGE.md |
 | SEC-04 | Low | CI / supply chain | Workflow used mutable action tags, default token permissions, `ubuntu-latest`, and persisted checkout credentials | **Fixed** (branch `security/deps-and-ci`) |
+| SEC-05 | Low | Auth / OAuth | A password registration racing a first Google sign-in got linked without the FINDING-34 takeover (registrant's password stayed valid) | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -122,3 +123,25 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   * `services/auth-billing-service/tests/api/client-ip.test.ts:55` — the deliberately wrong internal key in the
     negative test "X-Client-IP with a WRONG internal key is ignored".
 * **No rotation needed.**
+
+## SEC-05 — Low — Google first sign-in: the user-creation race skipped the FINDING-34 takeover
+
+* **Where:** `services/auth-billing-service/src/services/auth.service.ts`, `loginWithGoogle()` step 3 fallback.
+* **Found by:** investigating the one-off coverage dip (88.8 % / 75.1 %). Five identical coverage runs gave
+  89.17 % / 75.97 % with no line or branch differing; the only code reached by **timing** alone is the step-3
+  fallback (insert hits `23505` → re-resolve), entered only when two of the five requests in the existing
+  concurrency test interleave in a particular way. A run without that interleaving leaves 5 statements and their
+  branch arms uncovered — the size of the dip. The by-email branch of the same fallback was never covered at all.
+* **Weakness:** if a **password registration** for the same email committed between the Google request's email lookup
+  (step 2, no account yet) and its insert (step 3), the fallback linked the Google subject to that account and signed
+  the Google user in **without** the FINDING-34 takeover: the registrant's password stayed valid, the account stayed
+  unverified, its sessions were not revoked. Exploitation needs the attacker's registration to land inside that
+  window during the victim's very first Google sign-in (once the account exists, step 2 applies the takeover), hence Low.
+* **Repro (deterministic, no sleeps):** `tests/api/auth.google-race.test.ts` — the service pool is intercepted so a
+  complete registration runs right after step 2 missed; before the fix: no signup bonus (never verified), password
+  still accepted.
+* **Fix:** the step-2 logic (link + takeover of an unverified account) moved into `linkGoogleToExistingAccount()`,
+  used by step 2 **and** by the step-3 fallback.
+* **Tests:** the takeover race (attacker password → 401, verified, `token_version` bumped, verification tokens
+  deleted, one user / link / bonus) and a competing-Google-sign-in race that now covers the subject fallback
+  deterministically (coverage no longer depends on timing).

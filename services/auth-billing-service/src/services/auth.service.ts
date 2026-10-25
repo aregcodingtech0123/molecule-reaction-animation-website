@@ -376,6 +376,57 @@ async function ensureVerifiedWithSignupBonus(user: UserRow): Promise<UserRow> {
   return user;
 }
 
+/**
+ * First Google sign-in for an email that already has an account: link the Google subject to it.
+ *
+ * Pre-account takeover guard (FINDING-34): an UNVERIFIED password account with this email may have
+ * been registered by someone else before the real owner arrived. Google has just proven ownership
+ * of the address, so the Google user takes the account over: the old password is replaced with an
+ * unguessable one, every existing session is revoked, and outstanding verification / reset tokens
+ * are deleted. Verified accounts are linked as before.
+ */
+async function linkGoogleToExistingAccount(existingEmailUser: UserRow, googleSub: string) {
+  const takeoverPasswordHash = existingEmailUser.is_verified ? null : await createOAuthPasswordHash();
+  try {
+    await withTransaction(async (client) => {
+      await linkOAuthAccount(client, existingEmailUser.id, GOOGLE_PROVIDER, googleSub);
+      if (!existingEmailUser.is_verified) {
+        const updated = await client.query<{ token_version: number }>(
+          `UPDATE users
+           SET is_verified = true, password_hash = $2, token_version = token_version + 1, updated_at = NOW()
+           WHERE id = $1 AND is_verified = false
+           RETURNING token_version`,
+          [existingEmailUser.id, takeoverPasswordHash],
+        );
+        if (updated.rows[0]) {
+          await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+          await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [existingEmailUser.id]);
+          existingEmailUser.token_version = updated.rows[0].token_version;
+          console.warn(
+            "[auth] Google sign-in took over an unverified password account; password invalidated, sessions revoked",
+            { userId: existingEmailUser.id },
+          );
+        }
+        await grantSignupBonus(client, existingEmailUser.id);
+        existingEmailUser.is_verified = true;
+      }
+    });
+  } catch (err: unknown) {
+    const pgCode =
+      err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
+    // Concurrent link won the unique (provider, provider_account_id) race — re-resolve by sub.
+    if (pgCode === "23505") {
+      const raced = await findUserByOAuth(GOOGLE_PROVIDER, googleSub);
+      if (raced) {
+        return authResponse(raced, "Google sign-in successful.");
+      }
+    }
+    throw err;
+  }
+
+  return authResponse(existingEmailUser, "Google account linked.");
+}
+
 export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | null = null) {
   const idToken = validateGoogleIdToken(idTokenInput);
   const identity = await verifyGoogleIdToken(idToken);
@@ -400,50 +451,7 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
   const existingEmailUser = byEmail.rows[0];
 
   if (existingEmailUser) {
-    // Pre-account takeover guard (FINDING-34): an UNVERIFIED password account with this email
-    // may have been registered by someone else before the real owner arrived. Google has just
-    // proven ownership of the address, so the Google user takes the account over: the old
-    // password is replaced with an unguessable one, every existing session is revoked, and
-    // outstanding verification / reset tokens are deleted. Verified accounts are linked as before.
-    const takeoverPasswordHash = existingEmailUser.is_verified ? null : await createOAuthPasswordHash();
-    try {
-      await withTransaction(async (client) => {
-        await linkOAuthAccount(client, existingEmailUser.id, GOOGLE_PROVIDER, googleSub);
-        if (!existingEmailUser.is_verified) {
-          const updated = await client.query<{ token_version: number }>(
-            `UPDATE users
-             SET is_verified = true, password_hash = $2, token_version = token_version + 1, updated_at = NOW()
-             WHERE id = $1 AND is_verified = false
-             RETURNING token_version`,
-            [existingEmailUser.id, takeoverPasswordHash],
-          );
-          if (updated.rows[0]) {
-            await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [existingEmailUser.id]);
-            await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [existingEmailUser.id]);
-            existingEmailUser.token_version = updated.rows[0].token_version;
-            console.warn(
-              "[auth] Google sign-in took over an unverified password account; password invalidated, sessions revoked",
-              { userId: existingEmailUser.id },
-            );
-          }
-          await grantSignupBonus(client, existingEmailUser.id);
-          existingEmailUser.is_verified = true;
-        }
-      });
-    } catch (err: unknown) {
-      const pgCode =
-        err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : null;
-      // Concurrent link won the unique (provider, provider_account_id) race — re-resolve by sub.
-      if (pgCode === "23505") {
-        const raced = await findUserByOAuth(GOOGLE_PROVIDER, googleSub);
-        if (raced) {
-          return authResponse(raced, "Google sign-in successful.");
-        }
-      }
-      throw err;
-    }
-
-    return authResponse(existingEmailUser, "Google account linked.");
+    return linkGoogleToExistingAccount(existingEmailUser, googleSub);
   }
 
   // 3) Brand-new user: create users + oauth_accounts atomically.
@@ -478,10 +486,9 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
       );
       const raced = again.rows[0];
       if (raced) {
-        await withTransaction(async (client) => {
-          await linkOAuthAccount(client, raced.id, GOOGLE_PROVIDER, googleSub);
-        });
-        return authResponse(raced, "Google sign-in successful.");
+        // A password registration for this email committed after step 2 looked: same policy as
+        // step 2, including the FINDING-34 takeover of an unverified account (SEC-05).
+        return linkGoogleToExistingAccount(raced, googleSub);
       }
     }
     throw err;

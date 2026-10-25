@@ -60,6 +60,25 @@ function afterFirstSubjectLookup(competitor: () => Promise<unknown>) {
   return state;
 }
 
+/**
+ * Run `competitor` exactly once, right after the service's first "user by email" lookup has
+ * returned NO row (i.e. step 2 of loginWithGoogle missed, so the request goes on to create a user).
+ */
+function afterFirstEmailLookupMiss(competitor: () => Promise<unknown>) {
+  const state = { fired: false };
+  pg.Pool.prototype.query = async function (this: pg.Pool, ...args: unknown[]) {
+    const result = (await (originalQuery as (...a: unknown[]) => Promise<unknown>).apply(this, args)) as pg.QueryResult;
+    const first = args[0] as string | { text?: string } | undefined;
+    const text = typeof first === "string" ? first : first?.text;
+    if (!state.fired && this !== db && /FROM users\s+WHERE lower\(trim\(email\)\)/.test(String(text)) && result.rows.length === 0) {
+      state.fired = true;
+      await competitor();
+    }
+    return result;
+  } as typeof pg.Pool.prototype.query;
+  return state;
+}
+
 async function counts(email: string, sub: string) {
   const { rows } = await db.query(
     `SELECT (SELECT count(*) FROM users WHERE lower(email) = lower($1))::int AS users,
@@ -126,5 +145,59 @@ describe("concurrent first Google sign-in (FINDING-35)", () => {
       [emailOwner.id],
     );
     expect(bonus.rows[0].n).toBe(0);
+  });
+});
+
+describe("concurrent first Google sign-in — the user-creation step races (SEC-05; also makes the timing-only coverage deterministic)", () => {
+  it("a competing Google sign-in creates the account between step 2 and step 3 → both 200, one user, one link, one bonus", async () => {
+    const sub = `g-${randomUUID()}`;
+    const email = uniqueEmail("race-step3");
+    const token = googleIdToken({ sub, email });
+    let competing: request.Response | undefined;
+    const hook = afterFirstEmailLookupMiss(async () => {
+      competing = await google(token);
+    });
+
+    const res = await google(token);
+
+    expect(hook.fired).toBe(true);
+    expect(competing!.status).toBe(200);
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.id).toBe(competing!.body.data.user.id);
+    expect(await counts(email, sub)).toEqual({ users: 1, links: 1, bonuses: 1 });
+  });
+
+  it("a competing PASSWORD registration for the same email lands between step 2 and step 3 → the FINDING-34 takeover still applies", async () => {
+    const sub = `g-${randomUUID()}`;
+    const email = uniqueEmail("race-takeover");
+    const attackerPassword = "Attacker-pass-1";
+    let registered: request.Response | undefined;
+    const hook = afterFirstEmailLookupMiss(async () => {
+      registered = await request(app)
+        .post("/api/auth/register")
+        .set("X-Forwarded-For", freshIp())
+        .send({ email, password: attackerPassword, firstName: "Mal", lastName: "Lory", dateOfBirth: "1990-01-01" });
+    });
+
+    const res = await google(googleIdToken({ sub, email }));
+
+    expect(hook.fired).toBe(true);
+    expect(registered!.status).toBe(200);
+    expect(res.status).toBe(200);
+    expect(await counts(email, sub)).toEqual({ users: 1, links: 1, bonuses: 1 });
+    // The pre-registered password must be dead, exactly as in the non-racing takeover (FINDING-34).
+    const attackerLogin = await request(app)
+      .post("/api/auth/login")
+      .set("X-Forwarded-For", freshIp())
+      .send({ email, password: attackerPassword });
+    expect(attackerLogin.status).toBe(401);
+    const { rows } = await db.query(
+      `SELECT is_verified, token_version,
+              (SELECT count(*) FROM verification_tokens v WHERE v.user_id = u.id)::int AS pending_verifications
+       FROM users u WHERE lower(email) = lower($1)`,
+      [email],
+    );
+    expect(rows[0]).toMatchObject({ is_verified: true, pending_verifications: 0 });
+    expect(rows[0].token_version).toBeGreaterThanOrEqual(1);
   });
 });
