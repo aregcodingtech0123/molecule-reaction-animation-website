@@ -33,6 +33,14 @@ links here.
   `AI_DAILY_TURNS_GLOBAL` from the model budget before launch and alert on `AI_CAPACITY_REACHED` in the Express
   logs. Keep Upstash configured for the chat limiter if Next runs on more than one instance.
 
+## Frontend
+
+* Every page is rendered per request (strict nonce CSP, SEC-18): no static/CDN caching of HTML. Size the Next host
+  for it. Confirm one real Google sign-in on staging under the enforced CSP; if a third party breaks, set
+  `CSP_MODE=report-only` temporarily and report the violation.
+* HSTS (`max-age` 2 years, `includeSubDomains`, no `preload`) is sent once the site runs in production: make sure
+  every subdomain serves https before the first deploy.
+
 ## Database role
 
 * The service may keep using the owner role at launch. The least-privilege role (SEC-12,

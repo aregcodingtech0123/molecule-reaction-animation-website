@@ -571,3 +571,46 @@ Evidence is the named test, or the code reference where a test would only restat
 | 10049 Non-storable content | pages | Expected: pages are rendered per request (nonce CSP) |
 
 * Raw reports (HTML / JSON / Markdown) stay local in `test-results/zap/` (gitignored), not committed.
+
+## Part 2B — areas reviewed without a further finding
+
+* **AI Lab — Gemini key:** read only in `src/app/api/chat/route.ts` (server); no `NEXT_PUBLIC_` variable carries a
+  secret (the only ones are the Google client id and the Lemon variant ids, public by nature). The E2E test "client
+  bundles carry no server secret" fetches every client chunk of every public page and finds none of `JWT_SECRET`,
+  `INTERNAL_SERVICE_SECRET`, `GEMINI_API_KEY`; production serves no source maps (`.map` → 404).
+* **AI Lab — 402 / 409 paths:** a reservation happens before the model is called, so neither path yields a free
+  generation; the reference is server-generated (`randomUUID`), so a client cannot provoke or replay a 409; a 402
+  reveals only the price of the operation. Both are behind the per-user rate limit and, now, the daily caps.
+* **AI Lab — concurrency:** reservations serialise on the per-user advisory lock (FINDING-22 suites); the per-user
+  daily cap is checked under the same lock (8 parallel requests → exactly the cap reserved, SEC-16 test).
+* **AI Lab — content-policy heuristic (`validateAiOutput`):** four regexes over the *output* (e.g. "ignore previous
+  instructions", "system prompt"). Trivially bypassed (paraphrase, spacing, another language), and it can misfire
+  on an innocent answer that mentions a "system prompt"; a blocked answer is charged (422, deliberate since
+  FINDING-03 so probing is not free). Bypassing it gains nothing beyond what the user could already obtain: there
+  are no tools, no other users' data and no secrets in the prompt (the system prompt is not confidential), and the
+  output is rendered inert (SEC-15) under the CSP. Treat it as a weak quality filter, not a security control; a
+  moderation API / Gemini safety settings are the upgrade path (already a TODO in the code).
+* **AI Lab — prompt injection:** the client sends the whole history, including "assistant" turns, so a user can
+  forge context — only for their own session. Output side-effects are limited to rendering (inert) and the SMILES
+  tag, which fetches `pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/<encoded>/SDF` (fixed host, path-encoded
+  value; Info: the molecule string is sent to PubChem, a third party).
+* **Frontend — XSS sinks:** `dangerouslySetInnerHTML` only for the theme pre-hydration script (constant input,
+  tested to be a self-contained expression, now nonced); `innerHTML = ""` only to clear the Google button container;
+  markdown only through `ChatMessageContent` (SEC-15 matrix); links in AI output are http(s) only with
+  `rel="noopener noreferrer"`.
+* **Frontend — browser storage:** no token anywhere (TC-27). `localStorage` keeps the theme, locale, onboarding
+  flags and the signed-in profile (id, email, names, date of birth, flags) for instant UI; it is refreshed from the
+  server on every load and cleared on logout and on a 401. Info: on a shared device the profile stays readable until
+  the app next runs; dropping `dateOfBirth` from the cached copy is possible but risks the profile form initialising
+  empty — not changed. `sessionStorage` holds only checkout intent / scroll position.
+* **Third-party scripts:** only Google Identity Services, loaded on demand by `GoogleSignInButton` from
+  `accounts.google.com/gsi/client` (Google publishes no SRI hash for it; it is trusted through `'strict-dynamic'`
+  because our nonced code inserts it). No analytics, no CDN script.
+* **Startup validation recap:** both services' production checks (SEC-08) plus `npm run check:config` for the pair
+  (placeholders, values that must match, hold TTL vs the longest turn). Not checked at boot by design: `GEMINI_API_KEY`
+  (the site still works without the AI Lab; `check:config` reports it).
+* **Dev-only behaviour cannot reach production:** dev mail logging (refused under production rules, SEC-08), dev CORS
+  (production gate, fail-closed), DB error details in responses and `/health` (only for exactly
+  `NODE_ENV=development`), CSP `'unsafe-eval'` (only under `next dev`), `MOLECULESTUDIO_SKIP_DOTENV` (refused with
+  `NODE_ENV=production`), Lemon test mode (SEC-13 gate).
+
