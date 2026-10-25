@@ -71,6 +71,10 @@ Most relevant:
 
 ## Decision needed: legacy services (not deleted)
 
+> **Resolved.** Phase 1.5: option (b) — vendored artifacts untracked (`040ff8b`). Phase 2: the three services were
+> removed (`chore: remove unused legacy services`); their last version is preserved in the git tag
+> `legacy-services-final`.
+
 `services/auth-service`, `services/billing-service` (Prisma/Stripe) and `services/ai-engine` (Python) are **referenced
 nowhere** outside documentation:
 * no compose file, workflow, script, `package.json`, Dockerfile, README section or import;

@@ -11,7 +11,7 @@ phases; anything noticed in those areas is recorded under "Out-of-scope observat
 | Next.js 16 BFF + UI | `src/` | Catch-all proxies `/api/{auth,billing,users}/*`; `/api/chat` (Gemini); `/api/auth/{set,clear}-cookie`; `src/middleware.ts` gates `/dashboard`, `/ai-lab`, `/profile` |
 | Express 5 service | `services/auth-billing-service/src` | Auth, JWT revocation, checkout, Lemon webhook, AI credit metering (`/consume`, `/refund`, `/deduct`) |
 | PostgreSQL | `database/init/001…007` | **Seven** migrations (README says five). Ledger function `post_credit_transaction()`, append-only triggers |
-| Legacy (not tested) | `services/auth-service`, `services/billing-service`, `services/ai-engine` | Not wired into the running stack; excluded from scope |
+| Legacy (not tested; removed in Phase 2) | `services/auth-service`, `services/billing-service`, `services/ai-engine` | Were not wired into the running stack; excluded from scope. Removed in Phase 2 — last version in the git tag `legacy-services-final` |
 
 ## 2. Risk-based prioritisation
 

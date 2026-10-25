@@ -1,4 +1,4 @@
-export type GatewayServiceKey = "auth" | "billing" | "ai" | "users";
+export type GatewayServiceKey = "auth" | "billing" | "users";
 
 export interface GatewayErrorBody {
   success: false;

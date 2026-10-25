@@ -324,7 +324,8 @@ function); a periodic reconciliation check.
   `dist/` are committed (`.gitignore` only ignored root `/node_modules`; now `node_modules/` is ignored
   for new files — run `git rm -r --cached services/auth-billing-service/node_modules services/auth-billing-service/dist`);
   README says migrations `001→005`; legacy `services/auth-service`, `services/billing-service`
-  (Prisma/Stripe) and `services/ai-engine` are not wired in; empty `src/app/api/ai/[...path]` directories
+  (Prisma/Stripe) and `services/ai-engine` are not wired in (removed in Phase 2; last version kept in the git tag
+  `legacy-services-final`); empty `src/app/api/ai/[...path]` directories
   remain (no route — verified 404); `src/middleware.ts` uses the convention Next 16 deprecated in favour
   of `proxy.ts` (still works; verified by E2E); `index.ts` rejects any `JWT_SECRET` that merely
   *contains* `"secret"` (substring match), which can reject strong generated keys.
@@ -391,7 +392,8 @@ when the bug is fixed. No test is skipped.
   contract job against Lemon's **test mode** store and a Gemini sandbox key.
 * Rendering correctness of the Three.js scenes (smoke-mounted only) — consider visual-regression
   snapshots (Playwright `toHaveScreenshot`) with a fixed GPU/SwiftShader profile.
-* `services/ai-engine` (Python) and the legacy Prisma services — not wired into the stack.
+* `services/ai-engine` (Python) and the legacy Prisma services — not wired into the stack (removed in Phase 2;
+  git tag `legacy-services-final`).
 * Email content (verification/reset/receipt HTML) beyond "a link with a token is sent".
 * Multi-instance behaviour (in-process JWT revocation cache, in-memory chat limiter, Upstash path).
 
