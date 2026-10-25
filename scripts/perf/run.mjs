@@ -210,10 +210,19 @@ async function main() {
             const byHop = {};
             for (const h of hops) (byHop[h.hop] ??= []).push(h.ms);
             run.hops = Object.fromEntries(Object.entries(byHop).map(([k, v]) => [k, summarize(v)]));
+            if (run.tagged) {
+              // Exact per-request overhead: end-to-end minus that request's own Gemini time (2xx only).
+              const gemini = new Map();
+              for (const h of hops) if (h.req && h.hop === "gemini") gemini.set(h.req, (gemini.get(h.req) ?? 0) + h.ms);
+              const overhead = run.tagged.filter((r) => r.status >= 200 && r.status < 300 && gemini.has(r.id)).map((r) => r.ms - gemini.get(r.id));
+              run.overhead = { ...summarize(overhead), joined: overhead.length };
+            }
           }
+          delete run.tagged; // joined above; too large to keep per request
           runs.push(run);
           console.log(
-            `        run ${r + 1}: p50 ${run.p50} ms  p95 ${run.p95} ms  p99 ${run.p99} ms  ${run.rps} req/s  n ${run.n}  failures ${run.failures}`,
+            `        run ${r + 1}: p50 ${run.p50} ms  p95 ${run.p95} ms  p99 ${run.p99} ms  ${run.rps} req/s  n ${run.n}  failures ${run.failures}` +
+              (run.overhead ? `  overhead p50 ${run.overhead.p50} p95 ${run.overhead.p95} (joined ${run.overhead.joined})` : ""),
           );
         }
         const hopNames = [...new Set(runs.flatMap((r) => Object.keys(r.hops ?? {})))];
@@ -222,6 +231,7 @@ async function main() {
           hops: hopNames.length
             ? Object.fromEntries(hopNames.map((h) => [h, acrossRuns(runs.map((r) => r.hops?.[h]), ["p50", "p95", "p99", "mean"])]))
             : undefined,
+          overhead: runs.some((r) => r.overhead) ? acrossRuns(runs.map((r) => r.overhead), ["p50", "p95", "p99", "mean"]) : undefined,
           failures: runs.reduce((a, r) => a + r.failures, 0),
           statuses: runs.reduce((acc, r) => {
             for (const [k, v] of Object.entries(r.statuses)) acc[k] = (acc[k] ?? 0) + v;

@@ -9,12 +9,16 @@
  *  - Lemon checkout and Resend answer canned responses in-process (no latency modelled).
  *
  * Optional instrumentation (off unless the variable is set; the runner sets it per scenario):
- *  - PERF_HOP_LOG: JSON lines {t, hop, ms, status} for every upstream fetch this process makes
- *    (Next → Express and Next → Gemini), i.e. the per-hop breakdown of /api/chat.
+ *  - PERF_HOP_LOG: JSON lines {t, hop, ms, status, req} for every upstream fetch this process makes
+ *    (Next → Express and Next → Gemini), i.e. the per-hop breakdown of /api/chat. `req` is the load
+ *    driver's `x-perf-req` header of the incoming request that caused the call (AsyncLocalStorage), so
+ *    hops can be joined to their request exactly.
  *  - PERF_PROC_LOG: one JSON line per second {t, proc, rss, heapUsed, elu, lagP50, lagP99, lagMax}.
  * Lines are buffered and appended asynchronously once a second (and synchronously at exit).
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs";
+import http from "node:http";
 import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import { installNetworkGuard, jsonResponse, stubExternal } from "../test/network-guard.mjs";
 import { GEMINI_HOST, geminiRedirect } from "./lib/gemini-redirect.mjs";
@@ -60,6 +64,13 @@ function hopName(url) {
 
 if (process.env.PERF_HOP_LOG) {
   const write = lineWriter(process.env.PERF_HOP_LOG);
+  // Tag everything an incoming request does with the driver's request id.
+  const current = new AsyncLocalStorage();
+  const emit = http.Server.prototype.emit;
+  http.Server.prototype.emit = function tagRequest(event, req, ...rest) {
+    const id = event === "request" ? req?.headers?.["x-perf-req"] : undefined;
+    return id ? current.run(String(id), () => emit.call(this, event, req, ...rest)) : emit.call(this, event, req, ...rest);
+  };
   const inner = globalThis.fetch;
   globalThis.fetch = async function timedFetch(input, init) {
     const url = input instanceof URL ? input : new URL(typeof input === "string" ? input : input.url);
@@ -68,10 +79,10 @@ if (process.env.PERF_HOP_LOG) {
     try {
       const res = await inner(input, init);
       // Time to response headers, as the caller sees it before reading the (small JSON) body.
-      write({ t, hop: hopName(url), ms: performance.now() - start, status: res.status });
+      write({ t, hop: hopName(url), ms: performance.now() - start, status: res.status, req: current.getStore() });
       return res;
     } catch (err) {
-      write({ t, hop: hopName(url), ms: performance.now() - start, status: 0, error: String(err?.name ?? err) });
+      write({ t, hop: hopName(url), ms: performance.now() - start, status: 0, error: String(err?.name ?? err), req: current.getStore() });
       throw err;
     }
   };

@@ -23,6 +23,7 @@ import { summarize } from "./stats.mjs";
  * @param {(ctx: {vu: number, iteration: number}) => {method?: string, path: string, headers?: object, body?: string}} o.request
  * @param {(status: number, body: string) => boolean} [o.isOk]  default: 2xx
  * @param {number} [o.maxRequests]  stop early after this many measured requests
+ * @param {boolean} [o.tag]  send `x-perf-req: <id>` and return each measured request's {id, ms, status}
  */
 export async function runClosedLoop(o) {
   const url = new URL(o.origin);
@@ -39,6 +40,8 @@ export async function runClosedLoop(o) {
   let measured = 0;
   let firstMeasuredAt = null;
   let lastMeasuredAt = null;
+  const tagged = [];
+  const runId = Math.random().toString(36).slice(2, 8);
 
   const once = (spec) =>
     new Promise((resolve) => {
@@ -64,7 +67,10 @@ export async function runClosedLoop(o) {
     for (let iteration = 0; ; iteration++) {
       if (performance.now() >= stopAt) return;
       if (o.maxRequests && measured >= o.maxRequests) return;
-      const r = await once(o.request({ vu: index, iteration }));
+      const spec = o.request({ vu: index, iteration });
+      const id = o.tag ? `${runId}-${index}-${iteration}` : null;
+      if (id) spec.headers = { ...(spec.headers ?? {}), "x-perf-req": id };
+      const r = await once(spec);
       if (r.start < measureFrom || r.end > stopAt) continue;
       measured += 1;
       firstMeasuredAt ??= r.start;
@@ -73,6 +79,7 @@ export async function runClosedLoop(o) {
       if (r.error) errors[r.error] = (errors[r.error] ?? 0) + 1;
       if (r.status === 0 || !isOk(r.status, r.body)) failures += 1;
       latencies.push(r.end - r.start);
+      if (id) tagged.push({ id, ms: r.end - r.start, status: r.status });
     }
   };
 
@@ -86,6 +93,7 @@ export async function runClosedLoop(o) {
     statuses,
     errors,
     concurrency: o.concurrency,
+    tagged: o.tag ? tagged : undefined,
     windowStart: Date.now() - (performance.now() - (firstMeasuredAt ?? performance.now())),
     windowEnd: Date.now() - (performance.now() - (lastMeasuredAt ?? performance.now())),
   };

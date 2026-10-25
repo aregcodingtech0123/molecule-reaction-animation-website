@@ -41,11 +41,15 @@ export function sourceFingerprint() {
     "services/auth-billing-service/package.json",
     "services/auth-billing-service/package-lock.json",
   ];
+  // Content of the build inputs (git object ids), not HEAD: a commit that only touches docs or the harness
+  // does not make a build stale.
+  const tree = git("ls-tree", "-r", "HEAD", "--", ...scope);
   const diff = git("diff", "HEAD", "--", ...scope);
   const untracked = git("ls-files", "--others", "--exclude-standard", "--", ...scope);
   const dirty = Boolean(diff || untracked);
-  const hash = crypto.createHash("sha256").update(diff).update(untracked).digest("hex").slice(0, 16);
-  return { head, dirty, fingerprint: dirty ? `${head}+${hash}` : head };
+  const hash = (...parts) => parts.reduce((h, p) => h.update(p), crypto.createHash("sha256")).digest("hex").slice(0, 16);
+  const committed = hash(tree);
+  return { head, dirty, fingerprint: dirty ? `${committed}+${hash(diff, untracked)}` : committed };
 }
 
 export function buildAll(secrets) {

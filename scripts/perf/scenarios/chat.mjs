@@ -11,7 +11,9 @@
 import { browserRequest, rotatingUser } from "../lib/requests.mjs";
 
 export const defaults = { seedArgs: "--users 5000 --rows 20", concurrency: [1, 10, 50], duration: 15, warmup: 3, gemini: "fixed:0" };
-export const stack = { hopLog: true, procLog: true, apiOverrides: { AI_DAILY_TURNS_GLOBAL: "100000000" } };
+// PERF_CHAT_HOPLOG=0 runs without the hop log (measures the instrumentation's own cost).
+const hopLog = process.env.PERF_CHAT_HOPLOG !== "0";
+export const stack = { hopLog, procLog: true, apiOverrides: { AI_DAILY_TURNS_GLOBAL: "100000000" } };
 
 export async function run(ctx) {
   ctx.note(`Gemini mock latency: ${JSON.stringify(ctx.opts.gemini)}`);
@@ -20,6 +22,7 @@ export async function run(ctx) {
     await ctx.measure(`chat turn c=${c}`, {
       origin: ctx.webOrigin,
       concurrency: c,
+      tag: hopLog,
       request: (it) =>
         browserRequest(ctx.session(pick(it)), it.vu, "POST", "/api/chat", {
           messages: [{ role: "user", content: "Explain why benzene is aromatic in two sentences." }],
