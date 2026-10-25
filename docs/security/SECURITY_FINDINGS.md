@@ -15,6 +15,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-08 | Medium | Config / operations | Express ran with dev rules when NODE_ENV was unset; neither service validated the webhook secret, URLs, mail sender or bcrypt cost at startup | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-09 | Low | Express / errors | A compressed body that does not decode was answered 500 (logged with a stack) instead of 400 | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-10 | Medium | BFF / availability | The gateway buffered request bodies of any size (unauthenticated routes), /api/chat parsed any size for signed-in users | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -279,3 +280,17 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   unchanged (tested).
 * **Behaviour change:** BFF answers 413 for bodies over these limits (previously Express answered 413 for gateway
   routes after full buffering, and chat answered 400 or processed the body).
+
+## SEC-11 — Low — `/api/chat` without the cross-site guard
+
+* **Where:** `src/app/api/chat/route.ts`.
+* **Weakness:** every state-changing BFF route refuses cross-site requests (`Origin` foreign / `null`, `Sec-Fetch-Site:
+  cross-site`) — the gateway catch-alls and `clear-cookie` — except `/api/chat`, which reserves and charges credits.
+  It relied on `SameSite=Strict` alone. Low: SameSite=Strict already keeps the cookie off ordinary cross-site requests;
+  this is defence in depth against SameSite bypasses and embedded or misconfigured clients.
+* **Repro:** `tests/api/chat.csrf.test.ts` — a foreign `Origin`, `Origin: null` or `Sec-Fetch-Site: cross-site` with a
+  valid session cookie went on to reserve credits and call the model (502 in the test network).
+* **Fix:** the same `isCrossSiteRequest` guard as the gateway, as the first check: `403 CSRF_REJECTED`, nothing
+  reserved. Same-origin and server-to-server callers are unaffected (tested).
+* **Coverage check:** the BFF's non-GET routes are the three gateway catch-alls (`auth`, `billing`, `users`),
+  `auth/clear-cookie` and `chat` — all guarded now.

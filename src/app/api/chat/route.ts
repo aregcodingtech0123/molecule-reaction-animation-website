@@ -17,6 +17,7 @@ import {
 } from "@/lib/billing/server-billing";
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
+import { crossSiteRejection, isCrossSiteRequest } from "@/lib/security/csrf";
 
 const MAX_MESSAGES = 24;
 const DEFAULT_GEMINI_TIMEOUT_MS = 30_000;
@@ -68,6 +69,10 @@ function checkInMemoryRateLimit(userId: string): { allowed: boolean; retryAfter:
 }
 
 export async function POST(request: Request) {
+  // Spends credits: same cross-site guard as every other state-changing BFF route (SEC-11);
+  // SameSite=Strict on the cookie is the first line, this is the second.
+  if (isCrossSiteRequest(request)) return crossSiteRejection();
+
   const bearer = resolveSessionTokenFromRequest(request);
   if (!bearer) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
