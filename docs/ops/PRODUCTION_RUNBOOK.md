@@ -1,5 +1,13 @@
 # Production runbook — Phase 1.5 remediation (Batches 0–5)
 
+> **Which document do I need?** This runbook is the **upgrade** path: it moves a deployment (and a database that
+> already holds Phase 1 data) to the Phase 1.5 code, adopting that database with `--baseline`. A **first
+> deployment on a fresh, empty database** follows [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) instead (hosting, env,
+> Neon rehearsal, Lemon live mode, first live verification, monitoring, incident response): the runner then
+> chooses `mode=fresh` by itself, there is nothing to baseline, and §1–§3 below do not apply. The env table (§5),
+> the checks (§7), the jobs (§9) and the rollback SQL (§10) are shared by both. Constraints you accepted for launch:
+> [`LAUNCH_NOTES.md`](LAUNCH_NOTES.md).
+
 **Who runs this:** the project owner, by hand. Nothing in this repository connects to a hosted
 database automatically. Every command below runs from `services/auth-billing-service` unless noted.
 
@@ -23,7 +31,7 @@ self-hosted HDR files ship in `public/hdri/` with the Next.js build.
 > (their old page still calls the removed `/api/auth/set-cookie`) until they reload.
 >
 > ⚠️ **Deploy Express before (or together with) Next.js**, never Next first: the new Next.js
-> middleware refuses tokens without `tv`, and only the new Express issues them — a new Next in front
+> proxy (`src/proxy.ts`, formerly `middleware.ts`) refuses tokens without `tv`, and only the new Express issues them — a new Next in front
 > of an old Express would send every user into a login loop.
 
 Order: **1 backup → 2 read-only checks → 3 FINDING-03 abuse report → 4 migrations → 5 env vars →
@@ -34,7 +42,8 @@ Rollback steps follow each step and are collected in §10.
 
 ## 0. Before you start
 
-- [ ] `fix/phase1-findings` merged; CI green (service, web, e2e).
+- [ ] Everything you deploy is merged into `main` and CI is green (jobs `service`, `web`, `e2e` and
+      `e2e production build`; `lint` is non-blocking).
 - [ ] **Rehearse on a copy first.** Restore the step-1 backup into a staging database (Neon: branch it),
       run steps 2–7 against staging with staging copies of both services.
       **Production runs PostgreSQL 18.6** (Neon, `SELECT version();`), so rehearse the migrations on a Neon
@@ -73,8 +82,8 @@ Interpret the dry run:
 
 | Dry-run says | Meaning | Action |
 | --- | --- | --- |
-| `baseline: 7 … 001…007` and `would apply 008, 009, 010, 011` | expected if 006/007 were applied by hand earlier | continue |
-| `baseline: 5 … 001…005` and `would apply 006, 007, 008, 009, 010, 011` | the production DB never got 006/007 (FINDING-01): **AI usage has been failing in production** (every `/api/chat` turn → 503) | continue — step 4 fixes it |
+| `baseline: 7 … 001…007` and `would apply 008 … 014` | expected if 006/007 were applied by hand earlier | continue |
+| `baseline: 5 … 001…005` and `would apply 006, 007, 008 … 014` | the production DB never got 006/007 (FINDING-01): **AI usage has been failing in production** (every `/api/chat` turn → 503) | continue — step 4 fixes it |
 | `INCONSISTENT_SCHEMA` | a later migration appears present while an earlier one is not | **stop**; the schema was changed by hand. Send me the output of `\d+` for the tables named in the message |
 | `POOLED_URL` | you passed a pooled URL | use the direct URL |
 
@@ -173,6 +182,10 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 `013` (SEC-14) only adds the `lemon_order_refunds` table and the read-only `refunded_orders_to_review()`.
 `014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
+> **Empty database (first deployment)?** Skip `--baseline`: run `node scripts/migrate.mjs` and expect
+> `mode=fresh baselined=0 applied=14` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
+> before the runner did.
+
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
 node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–014)
@@ -207,6 +220,10 @@ Generate **one** key and set the **same value** on both services:
 openssl rand -base64 48
 ```
 
+(The same command makes `JWT_SECRET`; use a separate value for each. **`LEMONSQUEEZY_WEBHOOK_SECRET` is different:
+Lemon accepts 6–40 characters and our service needs ≥ 32 — use `openssl rand -hex 20`, 40 characters, not the 64-character
+base64 above.)
+
 | Variable | Next.js (BFF) | Express (`auth-billing-service`) | Notes |
 | --- | --- | --- | --- |
 | `INTERNAL_SERVICE_SECRET` | **required** | **required** | identical on both; ≥ 32 chars, random. Both services refuse to start without it |
@@ -224,6 +241,8 @@ openssl rand -base64 48
 | `FRONTEND_URL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `RESEND_API_KEY`, `SENDER_EMAIL` / `EMAIL_FROM`, `BCRYPT_ROUNDS` | — | **validated at boot** (SEC-08) | https origin; webhook secret ≥ 32 random chars, not a placeholder (Lemon allows up to 40 — rotate it in the dashboard and here together); store id numeric; sender on a verified domain, not `@resend.dev`; bcrypt cost 10–15 if set. Any problem → `FATAL:` line, exit 1 |
 | `JWT_SECRET`, `FRONTEND_URL`, `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` | **validated at start** (SEC-08) | — | `next start` refuses to start without them (not checked during `next build`) |
 | `AI_DAILY_TURNS_PER_USER` / `AI_DAILY_TURNS_GLOBAL` | — | optional (`200` / `3000`) | SEC-16: AI turns per rolling 24 h per user (`429 AI_DAILY_LIMIT`) and for the whole service (`503 AI_CAPACITY_REACHED`, logged as an error — alert on it). Size the global cap from your model budget |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | optional | — | shared per-user `/api/chat` limit (10/min). Needed whenever the platform runs more than one Next.js instance (Vercel always does); unset → per-instance in-memory counting. The daily AI caps are database-backed either way |
+| `GEMINI_MODEL`, `GEMINI_API_KEY` | key **required**, model optional | — | the key is server-side only (never `NEXT_PUBLIC_`); `check:config` reports a missing key |
 | `CSP_MODE` | optional (enforce) | — | SEC-18: `report-only` sends the strict nonce CSP as `Content-Security-Policy-Report-Only` — only as a temporary escape hatch if a third party (e.g. Google sign-in) breaks; anything else enforces |
 | `BILLING_CALL_TIMEOUT_MS` | optional (`10000`) | — | SEC-17: upper bound of one BFF → billing call; a timed-out reservation answers `503 BILLING_UNAVAILABLE`, a timed-out capture/release is retried |
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
@@ -235,27 +254,33 @@ cannot forge it. The right-most valid address is used.
 
 | Platform in front of Next.js | `CLIENT_IP_HEADER` |
 | --- | --- |
-| Vercel | `x-forwarded-for` |
+| Vercel | `x-forwarded-for` (Vercel documents that it **overwrites** this header with the client IP) |
 | nginx with `proxy_set_header X-Real-IP $remote_addr;` | `x-real-ip` |
 | Cloudflare (proxied) | `cf-connecting-ip` |
+| Render, Railway, Fly.io | **not decided here**: their reference docs do not promise an un-spoofable single header (Render: a Cloudflare-set `cf-connecting-ip` per a Render article, `X-Forwarded-For` appended to per a community thread; Railway: `X-Real-IP`; Fly: `Fly-Client-IP`). Choose one only after the client-IP test in `LAUNCH_CHECKLIST.md` §A |
 | Next.js reachable directly (no proxy) | leave unset — there is no trustworthy header |
 
 **Choosing `TRUST_PROXY_HOPS` (Express):** Express is publicly reachable for Lemon webhooks. With `0` it
 ignores `X-Forwarded-For` (any client could forge it). BFF traffic is unaffected: the BFF sends the
 end-user IP in `X-Client-IP` together with the internal key, and only then is it trusted. Set `1` only
-if a single load balancer that **appends** the client address (e.g. Render, Railway, an AWS ALB) sits in
-front of Express; otherwise direct callers all share the load balancer's IP bucket (harmless: legitimate
-users never call Express directly).
+if you have **verified** that exactly one load balancer that **appends** the client address sits in front of
+Express (an AWS ALB does; a platform that chains a CDN and a load balancer — for example Render, per its own
+article — may mean two hops, which this setting cannot express). Otherwise keep `0`: direct callers then share the
+load balancer's IP bucket (harmless: legitimate users never call Express directly, and the BFF's authenticated
+`X-Client-IP` still gives per-user buckets).
 
 Also check: `JWT_SECRET` must still pass the (changed) strength check — ≥ 32 chars, not a documented
 placeholder, and **not low-variety** (e.g. `aaaa…` or a short repeated pattern is now refused). A
 randomly generated key passes. Test locally: `node -e "import('./dist/config/secretStrength.js').then(m=>console.log(m.weakSecretReason('JWT_SECRET', process.env.JWT_SECRET)))"` after `npm run build` (prints `null` when fine).
 
 **Check both sides together before deploying** (Part 2B): export each host's environment to a local
-file (never commit it) and run
+file **whose name git ignores** and run
 
 ```bash
-npm run check:config -- --service ./express.env --web ./next.env   # or `env` to read the current shell
+# repo root. `.env.launch-express.local` / `.env.launch-next.local` match .gitignore (.env.*.local);
+# a name like `express.env` does NOT, and would let you commit production secrets.
+git check-ignore -v .env.launch-express.local .env.launch-next.local
+npm run check:config -- --service ./.env.launch-express.local --web ./.env.launch-next.local   # or `env` to read the current shell
 ```
 
 It prints variable **names** only, never values, and exits `1` when anything would fail or misbehave in
@@ -331,6 +356,13 @@ node scripts/migrate.mjs --status
 node scripts/reconcile.mjs                                               # exit 0, or the same rows as in step 2
 ```
 
+Security headers (SEC-18) — every page response carries a per-request nonce CSP, HSTS and friends:
+
+```bash
+curl -sI https://<public-site>/ | grep -iE '^(content-security-policy|strict-transport-security|x-frame-options|x-content-type-options|referrer-policy|permissions-policy|cross-origin-opener-policy|x-powered-by)'
+# expect script-src 'self' 'nonce-…' 'strict-dynamic', max-age=63072000; includeSubDomains, DENY, nosniff, … and NO x-powered-by
+```
+
 Then, with a staff account that has credits: one AI Lab question.
 
 ```sql
@@ -367,16 +399,25 @@ In the Lemon dashboard → Settings → Webhooks:
 
 - URL is `https://<express-host>/api/billing/webhooks/lemonsqueezy` — the **Express** host, **not** the
   Next.js site. (The BFF drops `X-Signature`; deliveries to the Next host are always rejected.)
+- You are in **live** mode (Lemon keeps test and live mode separate: live API key, live variant ids, and this
+  webhook listed under live), and `LEMONSQUEEZY_ALLOW_TEST_MODE` is **not set** on Express. No discount codes exist
+  (`LAUNCH_NOTES.md`). The full test → live switch is `LAUNCH_CHECKLIST.md` §3.
 - Events `order_created` **and `order_refunded`** are subscribed (SEC-14); signing secret equals
   `LEMONSQUEEZY_WEBHOOK_SECRET`. Lemon documents no dispute/chargeback event: when Lemon refunds a
   disputed order on your behalf, whether that also sends `order_refunded` is not documented — check the
   Lemon dashboard for disputes during the weekly review.
-- Use "Send test" → expect `200 {"received":true}` and an Express log `[Webhook] Acknowledged 200 OK`.
+- Use "Send test" (or the dashboard's simulate option, if offered) → expect `200 {"received":true}` and an Express log
+  `[Webhook] Acknowledged 200 OK`. Lemon retries a failed delivery up to three more times (documented example delays
+  5, 25, 125 s); the webhooks settings page lists deliveries and lets you resend them.
 - If the URL pointed at the Next host until now, every purchase since then was rejected (401) and **not
   credited**: re-deliver those orders from Lemon's "Recent deliveries" after fixing the URL (fulfilment is
   idempotent per order).
 
 ## 9. Scheduled jobs
+
+Where to run them, which log lines to alert on and how long logs survive on each platform: `LAUNCH_CHECKLIST.md` §5.
+`db:reconcile` needs the service folder with `npm ci` done and the owner direct URL in `MIGRATION_DATABASE_URL`
+(not on the Express host's runtime environment).
 
 - **Reconciliation** (daily): `node scripts/reconcile.mjs` (read-only session). **Alert on any
   non-zero exit code:**
@@ -488,9 +529,15 @@ can be re-delivered from the dashboard).
 
 ---
 
-## Optional hardening (recommended, not required for this release)
+## Optional hardening (recommended, not required for launch)
 
-The `user_balances` guard is a safety net against application bugs, not a privilege boundary. For a
-real boundary, run the app with a role that cannot `UPDATE`/`TRUNCATE` the money tables and let a
-`SECURITY DEFINER` `post_credit_transaction()` owned by a separate role do the writes. On Neon/Supabase
-this means creating a second role and changing the app's `DATABASE_URL`; plan it with Phase 2 (Security).
+The `user_balances` guard is a safety net against application bugs, not a privilege boundary. The real
+boundary — an application role that cannot `UPDATE`/`DELETE`/`TRUNCATE` the money tables and posts credits only
+through the `SECURITY DEFINER` `post_credit_transaction()` — is implemented (SEC-12): migration `012`,
+`database/roles/app-role.sql`, [`../security/DB_ROLES.md`](../security/DB_ROLES.md). It is **not** switched on by
+default; rehearse it on a Neon branch first (`LAUNCH_CHECKLIST.md` §2.4), then change only the Express `DATABASE_URL`.
+
+---
+
+See also: [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) (first deployment, monitoring, rotation, incident response,
+rollback plan, known limitations) · [`LAUNCH_NOTES.md`](LAUNCH_NOTES.md) (accepted constraints).
