@@ -61,6 +61,14 @@ describe("assistant output rendering is inert", () => {
     expect(a.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("a model-named image is a link the user may choose to follow, never loaded (SEC-15)", () => {
+    const { container } = render(<ChatMessageContent content="![benzene ring](https://upload.example/benzene.png)" />);
+    expect(container.querySelector("img")).toBeNull();
+    const a = container.querySelector("a")!;
+    expect(a.getAttribute("href")).toBe("https://upload.example/benzene.png");
+    expect(a.textContent).toBe("[image: benzene ring]");
+  });
+
   it("text, emphasis, lists, code and math still render", () => {
     const { container } = render(<ChatMessageContent content={"**Benzene** is `C6H6`:\n\n- aromatic\n- planar\n\n$E = mc^2$"} />);
     expect(container.querySelector("strong")?.textContent).toBe("Benzene");

