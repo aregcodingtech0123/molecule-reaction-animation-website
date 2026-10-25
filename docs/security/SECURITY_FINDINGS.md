@@ -349,3 +349,34 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 * **Open (owner decision, Info):** refunds and chargebacks are not handled — `order_refunded` is not subscribed,
   so credits stay after Lemon refunds an order. Needs a product decision (claw back unspent credits, allow a
   negative balance, or flag for review).
+
+## Part 2A — areas reviewed without a further finding
+
+Evidence is the named test, or the code reference where a test would only restate the code.
+
+* **Sessions.** Both services verify HS256 only, with issuer and audience (`src/lib/auth/verify-jwt.ts`,
+  `services/auth-billing-service/src/utils/jwt.ts`). Express rejects a revoked `jti` and a stale `tv`
+  (`users.token_version`) on every authenticated request (`requireAuth.ts`). The BFF's own check is signature-only,
+  but every credit-spending path calls Express first: `/api/chat` resolves verification through `/me` before it
+  reserves. The page middleware only redirects, so a revoked-but-unexpired token can open a protected page shell,
+  and every data call on it gets 401.
+* **Open redirects (gateway / frontend).** None found. The only server redirect is `middleware.ts` → `/login`
+  (same origin, built from `nextUrl`). Browser navigations go to fixed paths or to the `checkoutUrl` the service
+  received from Lemon's API. The post-checkout `returnPath` is a path appended to the fixed `FRONTEND_URL`
+  (`sanitizeReturnPath`: must start with one `/`, no query or fragment, ≤ 200 chars). `?redirect_checkout=` only
+  toggles a label.
+* **Methods.** The gateway exports GET/POST/PUT/PATCH/DELETE/OPTIONS. Every non-GET/HEAD/OPTIONS method passes the
+  cross-site guard (SEC-11 completed the list). No Express GET or OPTIONS route changes state, and there is no
+  method-override middleware.
+* **SQL injection.** Every query uses `$n` parameters. The interpolations are constant column lists, the migration
+  runner's own file text, and test-only database names validated by `db-guard`.
+* **Hold races and expiry.** Capture, release and reserve serialise on the per-user advisory lock and the hold's
+  row lock. The sweeper (`release_expired_ai_holds()`) updates only `status = 'held' AND expires_at <= NOW()` rows
+  and re-checks the row after a lock wait. `tests/api/hold-expiry-race.test.ts` forces both orders: a capture that
+  started before expiry is charged exactly once and the sweeper skips it; a sweep that wins makes the capture
+  `409 NOT_CAPTURABLE`, never charged. An expired, unswept hold no longer counts against the available balance.
+  The existing FINDING-22 suites cover reserve races and the expired-capture path.
+* **Configuration constraint (Info, documented, not enforced).** `AI_HOLD_TTL_SECONDS` (Express, default 600)
+  must exceed the BFF's `GEMINI_TIMEOUT_MS` (default 30 s) plus `BILLING_RETRY_DELAYS_MS` (default ≈ 4.25 s).
+  Otherwise a slow but successful turn finds its hold expired, capture answers `HOLD_EXPIRED`, and the answer is
+  delivered uncharged. The services cannot check this pair at boot because each knows only its own half.

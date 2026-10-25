@@ -196,7 +196,7 @@ openssl rand -base64 48
 | `INTERNAL_SERVICE_SECRET` | **required** | **required** | identical on both; ≥ 32 chars, random. Both services refuse to start without it |
 | `GEMINI_TIMEOUT_MS` | optional (30000) | — | a timed-out turn is released (not charged) |
 | `BILLING_RETRY_DELAYS_MS` | optional (`250,1000,3000`) | — | backoff for capture/release retries |
-| `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this |
+| `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this. Keep it well above `GEMINI_TIMEOUT_MS` + the `BILLING_RETRY_DELAYS_MS` total, or slow successful turns go uncharged |
 | `AI_HOLD_SWEEP_INTERVAL_MS` | — | optional (300000) | in-process settling of expired reservations; `0` disables |
 | `MIGRATION_DATABASE_URL` | — | optional | only for migration/reconcile jobs (direct URL) |
 | `FRONTEND_URL` | **must be exact** | (unchanged) | the public origin, scheme + host, no trailing slash (e.g. `https://moleculestudio.app`). Next.js now refuses **every** browser POST/PUT/PATCH/DELETE whose `Origin` differs (403 `CSRF_REJECTED`) — a wrong value blocks all sign-ins. `www.` and apex are different origins |
