@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated output (E2E distDir, coverage, Playwright reports, compiled service).
+    ".next-e2e/**",
+    "**/coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "blob-report/**",
+    "services/*/dist/**",
   ]),
 ]);
 

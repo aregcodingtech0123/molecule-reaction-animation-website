@@ -54,10 +54,5 @@ coverage/
 # service dependencies are installed per checkout (see FINDINGS: node_modules was committed)
 node_modules/
 
-# build output at any level (Express service and legacy services compile src/ → dist/)
+# build output at any level (the Express service compiles src/ → dist/)
 dist/
-
-# Python bytecode and virtualenvs (services/ai-engine)
-__pycache__/
-*.py[cod]
-.venv/

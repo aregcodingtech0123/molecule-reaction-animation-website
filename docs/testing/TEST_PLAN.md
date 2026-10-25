@@ -11,7 +11,7 @@ phases; anything noticed in those areas is recorded under "Out-of-scope observat
 | Next.js 16 BFF + UI | `src/` | Catch-all proxies `/api/{auth,billing,users}/*`; `/api/chat` (Gemini); `/api/auth/{set,clear}-cookie`; `src/middleware.ts` gates `/dashboard`, `/ai-lab`, `/profile` |
 | Express 5 service | `services/auth-billing-service/src` | Auth, JWT revocation, checkout, Lemon webhook, AI credit metering (`/consume`, `/refund`, `/deduct`) |
 | PostgreSQL | `database/init/001…007` | **Seven** migrations (README says five). Ledger function `post_credit_transaction()`, append-only triggers |
-| Legacy (not tested) | `services/auth-service`, `services/billing-service`, `services/ai-engine` | Not wired into the running stack; excluded from scope |
+| Legacy (not tested; removed in Phase 2) | `services/auth-service`, `services/billing-service`, `services/ai-engine` | Were not wired into the running stack; excluded from scope. Removed in Phase 2 — last version in the git tag `legacy-services-final` |
 
 ## 2. Risk-based prioritisation
 
@@ -52,7 +52,9 @@ Risk = likelihood × impact (money, account integrity, data loss).
   * Local: any Postgres ≥ 14 reachable at `TEST_DATABASE_URL` (defaults to
     `postgresql://postgres@127.0.0.1:55432/moleculestudio_test`). `docker-compose.test.yml` provides one
     (`npm run test:db:up`), or point at a throwaway `initdb` cluster.
-  * CI: `postgres:16-alpine` service container.
+  * CI and `docker-compose.test.yml`: `postgres:18-alpine` (18.6 at the time of writing), the same major version
+    as production (Neon, PostgreSQL 18.6). Moved from 16 in Phase 2; the only behavioural difference the suites
+    observed is the SQLSTATE of a RESTRICT foreign-key violation (`23503` on 16, `23001` on 18 — TC-40).
   * Testcontainers was rejected: it requires a running Docker daemon on every developer machine and
     adds ~10 s per run; a disposable database per run gives the same isolation.
 * **Playwright** for E2E, with both servers started by Playwright's `webServer` on dedicated ports
@@ -125,7 +127,7 @@ Service: `test` (unit + api + db), `test:unit`, `test:api`, `test:db`, `test:cov
 
 `.github/workflows/test.yml`, on push/PR:
 
-1. **service** job — `postgres:16-alpine` service container; `npm ci` in the service; `test:coverage`.
+1. **service** job — `postgres:18-alpine` service container; `npm ci` in the service; `test:coverage`.
 2. **web** job — `npm ci` at root + service (the BFF suite boots the real Express app); same Postgres
    service; `test:unit`, `test:api` with coverage.
 3. **e2e** job — needs 1+2; Postgres service; `npx playwright install --with-deps chromium`;

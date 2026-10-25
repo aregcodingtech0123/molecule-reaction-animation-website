@@ -73,7 +73,6 @@ export function webEnv() {
     AUTH_SERVICE_URL: `${API_ORIGIN}/api/auth`,
     BILLING_SERVICE_URL: `${API_ORIGIN}/api/billing`,
     USERS_SERVICE_URL: `${API_ORIGIN}/api/users`,
-    AI_ENGINE_URL: "",
     GEMINI_API_KEY: "e2e-gemini-key-not-real",
     GEMINI_MODEL: "",
     UPSTASH_REDIS_REST_URL: "",

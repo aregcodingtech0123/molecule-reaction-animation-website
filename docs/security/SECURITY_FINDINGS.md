@@ -6,6 +6,9 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | ID | Sev | Area | Title | Status |
 | --- | --- | --- | --- | --- |
 | SEC-01 | Critical | Dependencies / Next.js | `next` 16.2.6 affected by 20 published advisories (6 critical RCE, SSRF, cache poisoning, DoS, middleware bypass) | **Fixed** (branch `security/next-upgrade`) — `next` / `eslint-config-next` 16.4.3 |
+| SEC-02 | High | Dependencies / Express | body-parser < 2.4.0 can crash the public Express process from a compressed request body; proxy-addr and qs advisories | **Fixed** (branch `security/deps-and-ci`) — body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1 (lockfile) |
+| SEC-03 | Low | Dependencies / root | 25 root advisories (3 critical); none reachable at runtime (dev tooling, or unused parts of runtime libraries) | **Fixed** (branch `security/deps-and-ci`) except the KaTeX chain (4 low) — deferred, see DEPENDENCY_TRIAGE.md |
+| SEC-04 | Low | CI / supply chain | Workflow used mutable action tags, default token permissions, `ubuntu-latest`, and persisted checkout credentials | **Fixed** (branch `security/deps-and-ci`) |
 
 ---
 
@@ -45,3 +48,77 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   * defence in depth: every API behind the protected pages answers 401 without a session, also with bypass headers;
     the three protected pages are client components with no server-side data access and no route layouts.
 * **Result:** 11 / 11 on 16.2.6 (dev and production build) and on 16.4.3 (dev and production build).
+
+## SEC-02 — High — Express request-handling dependencies (body-parser, proxy-addr, qs)
+
+* **Where:** `services/auth-billing-service/package-lock.json` (Express 5.2.1 dependencies: body-parser 2.3.0,
+  proxy-addr 2.0.7, qs 6.15.2).
+* **Advisories and reachability here:**
+  * **body-parser GHSA-27r3-jxmh-p828 (High, < 2.4.0) — reachable.** A compressed request body can raise an uncaught
+    exception that terminates the process; no authentication or matching route is needed because parsing runs before
+    routing. Express is publicly reachable (Lemon webhook), parses JSON globally (`express.json`) and uses
+    `express.raw` on the webhook route, both with decompression enabled by default.
+  * **proxy-addr GHSA-jqcg-44mw-7w3h (Critical, < 2.0.8) — not reachable.** Requires an IPv6 trust subnet with zero
+    leading bits (e.g. `::ffff:10.0.0.0/8`); this service sets `trust proxy` to a hop count (`TRUST_PROXY_HOPS`).
+  * **qs GHSA-4mjr-xmp4-gh2g / GHSA-x5fp-wj9c-mxmx (Moderate) — not reachable through requests.** No
+    `urlencoded` parser is mounted and Express 5's default query parser is the simple one; `qs` remains in the tree via
+    body-parser and supertest.
+* **Fix:** lockfile update within Express's declared ranges: body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1. Service
+  `npm audit`: 0 vulnerabilities.
+* **Regression test:** `tests/unit/dependency-floors.test.ts` asserts the installed minimums; it fails on the previous
+  lockfile (verified) and passes now. `tests/api/body-parser-compressed.test.ts` is a resilience smoke check (gzip body
+  with trailing bytes on the global JSON parser, an unmatched route and the webhook parser; the service keeps serving).
+  It did **not** reproduce the crash on 2.3.0, so it is not counted as the regression proof.
+* **Optional hardening (Part 2):** `inflate: false` on the parsers if no client needs compressed request bodies.
+
+## SEC-03 — Low — Root-package advisories (tooling and unused runtime paths)
+
+* **Evidence:** after SEC-01, `npm audit` reported 25 advisories in the root package (3 critical, 12 high, 5 moderate,
+  5 low). Each was traced to its chain and its precondition checked against the code — `docs/security/DEPENDENCY_TRIAGE.md`.
+* **Severity rationale:** the critical ones are `shell-quote` via the dev-only `concurrently` (fixed literal commands)
+  and `proxy-addr` inside the MCP SDK's Express transport under `@google/genai`, which this app never starts. No
+  advisory had a reachable path at runtime, hence Low (hygiene) rather than the advisories' own ratings.
+* **Fix:** `npm update` of the affected packages within their declared ranges (lockfile only). Root audit: 25 → 4 low.
+  `shadcn` 4.7.0 → 4.22.1 ships additional CSS utilities only; none is used by `src/` (diffed).
+* **Deferred:** the KaTeX chain (4 low, GHSA-238p-pmpm-9mq7) — no plugin release uses a patched KaTeX yet; every
+  available change breaks chat math rendering. Options and impact in DEPENDENCY_TRIAGE.md; decision pending.
+* **Verification:** root suite 403/403, `tsc` 0 errors, `next build` passes on the updated lockfile.
+
+## SEC-04 — Low — CI workflow supply-chain hardening
+
+* **Where:** `.github/workflows/test.yml`.
+* **Before:** actions referenced by mutable tags (`actions/checkout@v4`, `setup-node@v4`, `upload-artifact@v4`, all on
+  the Node 20 runtime); no `permissions:` block (the token got the repository default); `runs-on: ubuntu-latest`;
+  `actions/checkout` left the token in `.git/config` for every later step (`npm ci` install scripts, tests).
+* **After:**
+  * `permissions: contents: read` at workflow level.
+  * Actions pinned to full commit SHAs, resolved with `git ls-remote` against `github.com/actions/*` (lightweight
+    tags, so the SHA is the commit): checkout v7.0.1 `3d3c42e5…`, setup-node v7.1.0 `949feb24…`, upload-artifact
+    v7.0.2 `cf430e03…` (full SHAs in the workflow). Each `action.yml` at that SHA declares `runs.using: node24`.
+    Release notes checked for v5–v7: Node 24 runtime (runner ≥ 2.327.1; GitHub-hosted runners satisfy it);
+    setup-node automatic caching (we set `cache: npm` explicitly); upload-artifact v7 adds `archive`, default `true`
+    (same zip behaviour as v4).
+  * `persist-credentials: false` on every checkout (nothing pushes).
+  * `runs-on: ubuntu-24.04` in every job.
+  * Fork PRs: the workflow triggers on `pull_request` (not `pull_request_target`) and references no secrets.
+  * New: `npx next build` in the web job; a non-blocking `lint` job (`continue-on-error: true`); ESLint ignores
+    generated output (`.next-e2e/`, coverage, Playwright reports, compiled service).
+* **Verification:** the workflow parses (4 jobs, permissions, pins, runners checked programmatically); the steps it runs
+  were executed locally (results in the Part 1 summary). It runs on GitHub only once pushed.
+
+## Secret scan (Part 1) — no finding
+
+* **Tool:** gitleaks 8.30.1 (official Windows release, SHA-256 verified against the release's checksums file),
+  run from the session scratchpad; not added to the project.
+* **Scope:** git history — all 46 commits of every ref (`--log-opts=--all`, 389.7 MB, including the commits that
+  once tracked `node_modules`, `dist` and `__pycache__`); uncommitted changes (`--pre-commit`); untracked files
+  outside `.gitignore` (none). Gitignored local files (e.g. a developer's `.env`) were deliberately not opened; only
+  `*.env.example` / `.env.test.example` have ever been committed (`git log --all --diff-filter=A`).
+* **Result:** 8 `generic-api-key` hits, all false positives (values redacted in the report; classified by key name,
+  length and placeholder/test pattern without printing them):
+  * `JWT_SECRET` / `INTERNAL_SERVICE_SECRET` placeholders in `.env.example` (lines 27, 29), `.env.test.example:11`,
+    `services/auth-billing-service/.env.example` (34, 41), legacy `services/auth-service/.env.example:16`;
+  * `tests/e2e/gating.spec.mts:131` — the deliberately foreign signing secret for the forged-token test;
+  * `services/auth-billing-service/tests/api/client-ip.test.ts:55` — the deliberately wrong internal key in the
+    negative test "X-Client-IP with a WRONG internal key is ignored".
+* **No rotation needed.**

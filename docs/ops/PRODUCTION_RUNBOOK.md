@@ -37,6 +37,9 @@ Rollback steps follow each step and are collected in §10.
 - [ ] `fix/phase1-findings` merged; CI green (service, web, e2e).
 - [ ] **Rehearse on a copy first.** Restore the step-1 backup into a staging database (Neon: branch it),
       run steps 2–7 against staging with staging copies of both services.
+      **Production runs PostgreSQL 18.6** (Neon, `SELECT version();`), so rehearse the migrations on a Neon
+      branch of that same version — not on a local or older server. CI and the local test stack use
+      `postgres:18-alpine` to match.
 - [ ] You have a **direct** (non-pooled) connection string for production. The migration runner
       refuses pooled URLs (`-pooler` hosts, port `6543`, `pgbouncer=true`) because it holds a
       session-level advisory lock.

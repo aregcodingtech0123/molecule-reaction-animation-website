@@ -22,12 +22,6 @@ export const GATEWAY_SERVICES: Record<GatewayServiceKey, GatewayServiceConfig> =
     label: "Billing Service",
     defaultTimeoutMs: 15_000,
   },
-  ai: {
-    key: "ai",
-    envVar: "AI_ENGINE_URL",
-    label: "AI Engine",
-    defaultTimeoutMs: 60_000,
-  },
   users: {
     key: "users",
     envVar: "USERS_SERVICE_URL",

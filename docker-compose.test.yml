@@ -2,9 +2,10 @@
 # Separate from docker-compose.yml so tests never touch the dev database volume.
 #   npm run test:db:up    → postgres on 127.0.0.1:55432 (trust auth, test-only)
 #   npm run test:db:down
+# Major version matches production (Neon, PostgreSQL 18.6).
 services:
   postgres-test:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: molecule_studio_postgres_test
     ports:
       - "127.0.0.1:55432:5432"
@@ -13,8 +14,9 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_DB: postgres
     command: ["postgres", "-c", "fsync=off", "-c", "max_connections=200"]
+    # 18+ images keep PGDATA at /var/lib/postgresql/18/docker (declared volume: /var/lib/postgresql).
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
