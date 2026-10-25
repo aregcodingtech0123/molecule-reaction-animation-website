@@ -21,6 +21,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-14 | Low | Webhook / payments | Lemon refunds were invisible: credits of a refunded order stayed and nothing recorded or reported it | **Fixed** (branch `security/audit-fixes-b`) — recorded and reported for manual review (no automatic claw-back, owner decision) |
 | SEC-15 | Low | AI Lab / output | Model output could make the browser load any remote image (markdown image) — conversation exfiltration / tracking via prompt injection | **Fixed** (branch `security/audit-fixes-b`) |
 | SEC-16 | Medium | AI Lab / cost | No ceiling on model spend: no daily caps (per user or global), unbounded output tokens, up to ~192 000 characters of prompt per turn | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-17 | Low | BFF / availability, billing | BFF → billing calls had no timeout: a hung billing service held AI turns for minutes and late captures left answers uncharged | **Fixed** (branch `security/audit-fixes-b`) |
 
 ---
 
@@ -467,3 +468,19 @@ Evidence is the named test, or the code reference where a test would only restat
   conversations lose their oldest turns from the model's context; answers longer than ~2 048 tokens are cut by the
   model. New optional env: `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL` (Express), `GEMINI_MAX_OUTPUT_TOKENS`
   (Next). Pick the global cap from your budget: worst case ≈ cap × (32 k chars in + 2 048 tokens out) per day.
+
+## SEC-17 — Low — BFF → billing calls without a timeout
+
+* **Where:** `src/lib/billing/server-billing.ts` (`callInternal`: reserve, capture, release).
+* **Weakness:** the internal `fetch` had no deadline. A billing service (or a proxy in front of it) that accepts
+  the connection but does not answer — a stuck database lock, an overloaded instance — held each AI request for
+  undici's default (~300 s) per attempt, up to four attempts for a capture: browsers hang, BFF connections pile up,
+  and a capture that lands after the hold's TTL (600 s) is refused, so a delivered answer goes uncharged.
+* **Repro:** `tests/api/chat.billing-timeout.test.ts` — with a billing stand-in that never answers `/consume`,
+  the chat request was still pending after 20 s; a capture that hung once was never retried.
+* **Fix:** every internal call (and its body read) is bounded by `BILLING_CALL_TIMEOUT_MS` (default 10 s); a
+  timeout is handled like an unreachable service: a reservation → `503 BILLING_UNAVAILABLE` without calling the
+  model; a capture / release → retried (both idempotent — a capture that did land is answered `alreadyProcessed`),
+  tested to charge exactly once. `npm run check:config` now counts the capture attempts' timeouts in the longest
+  turn (defaults: 30 s + 4.25 s + 4 × 10 s = 74.25 s, TTL must be ≥ 2× that).
+* **Behaviour change (env):** optional `BILLING_CALL_TIMEOUT_MS` (Next).

@@ -224,6 +224,7 @@ openssl rand -base64 48
 | `FRONTEND_URL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `RESEND_API_KEY`, `SENDER_EMAIL` / `EMAIL_FROM`, `BCRYPT_ROUNDS` | — | **validated at boot** (SEC-08) | https origin; webhook secret ≥ 32 random chars, not a placeholder (Lemon allows up to 40 — rotate it in the dashboard and here together); store id numeric; sender on a verified domain, not `@resend.dev`; bcrypt cost 10–15 if set. Any problem → `FATAL:` line, exit 1 |
 | `JWT_SECRET`, `FRONTEND_URL`, `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` | **validated at start** (SEC-08) | — | `next start` refuses to start without them (not checked during `next build`) |
 | `AI_DAILY_TURNS_PER_USER` / `AI_DAILY_TURNS_GLOBAL` | — | optional (`200` / `3000`) | SEC-16: AI turns per rolling 24 h per user (`429 AI_DAILY_LIMIT`) and for the whole service (`503 AI_CAPACITY_REACHED`, logged as an error — alert on it). Size the global cap from your model budget |
+| `BILLING_CALL_TIMEOUT_MS` | optional (`10000`) | — | SEC-17: upper bound of one BFF → billing call; a timed-out reservation answers `503 BILLING_UNAVAILABLE`, a timed-out capture/release is retried |
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
@@ -259,8 +260,8 @@ npm run check:config -- --service ./express.env --web ./next.env   # or `env` to
 It prints variable **names** only, never values, and exits `1` when anything would fail or misbehave in
 production: every boot-time check of both services (SEC-08), `.env.example` placeholders still in place,
 `INTERNAL_SERVICE_SECRET` / `JWT_SECRET` / `FRONTEND_URL` / the Google client id differing between the two,
-and `AI_HOLD_TTL_SECONDS` below **2 ×** (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`) — with the
-defaults 600 s against 2 × 34.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
+and `AI_HOLD_TTL_SECONDS` below **2 ×** the longest turn (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`
++ capture attempts × `BILLING_CALL_TIMEOUT_MS`) — with the defaults 600 s against 2 × 74.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
 Delete the exported files afterwards.
 
 **Rollback 5:** remove the variables (old code ignores them).

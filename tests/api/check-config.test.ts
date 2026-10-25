@@ -73,16 +73,16 @@ describe("checkConfig", () => {
     ]);
   });
 
-  it(`hold TTL must be ≥ ${TTL_MARGIN}× (GEMINI_TIMEOUT_MS + sum of BILLING_RETRY_DELAYS_MS)`, () => {
-    // Defaults: 30 000 + 250 + 1 000 + 3 000 = 34 250 ms → at least 68.5 s.
-    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "69" }), webEnv())).toMatchObject({ problems: [], turnMs: 34_250 });
-    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "68" }), webEnv()).problems).toEqual([
-      expect.stringMatching(/AI_HOLD_TTL_SECONDS \(68 s\) must be at least 2× .*34\.25 s → ≥ 69 s/),
+  it(`hold TTL must be ≥ ${TTL_MARGIN}× (GEMINI_TIMEOUT_MS + Σ BILLING_RETRY_DELAYS_MS + attempts × BILLING_CALL_TIMEOUT_MS)`, () => {
+    // Defaults: 30 000 + (250 + 1 000 + 3 000) + 4 × 10 000 = 74 250 ms → at least 148.5 s.
+    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "149" }), webEnv())).toMatchObject({ problems: [], turnMs: 74_250 });
+    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "148" }), webEnv()).problems).toEqual([
+      expect.stringMatching(/AI_HOLD_TTL_SECONDS \(148 s\) must be at least 2× .*74\.25 s → ≥ 149 s/),
     ]);
-    // Values the operator sets on the web side count too.
-    const slow = webEnv({ GEMINI_TIMEOUT_MS: "300000", BILLING_RETRY_DELAYS_MS: "1000,1000" });
+    // Values the operator sets on the web side count too: 300 s + 2 s + 3 × 5 s = 317 s → ≥ 634 s.
+    const slow = webEnv({ GEMINI_TIMEOUT_MS: "300000", BILLING_RETRY_DELAYS_MS: "1000,1000", BILLING_CALL_TIMEOUT_MS: "5000" });
     expect(checkConfig(serviceEnv(), slow).problems).toEqual([expect.stringMatching(/AI_HOLD_TTL_SECONDS \(600 s\)/)]);
-    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "604" }), slow).problems).toEqual([]);
+    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "634" }), slow).problems).toEqual([]);
   });
 
   it("missing required production variables are each reported by name, on the right side", () => {

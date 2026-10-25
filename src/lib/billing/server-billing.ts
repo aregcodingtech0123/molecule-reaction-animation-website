@@ -32,6 +32,16 @@ export function retryDelays(source: NodeJS.ProcessEnv = process.env): number[] {
   return parsed.every((n) => Number.isFinite(n) && n >= 0) ? parsed : DEFAULT_RETRY_DELAYS_MS;
 }
 
+/**
+ * Upper bound for one BFF → billing call (SEC-17). Without it a billing service that accepts the
+ * connection and never answers holds the AI turn for undici's ~300 s per attempt. A timed-out call is
+ * treated like an unreachable service (503, retried for capture/release — both are idempotent).
+ */
+export function billingCallTimeoutMs(source: NodeJS.ProcessEnv = process.env): number {
+  const v = Number(source.BILLING_CALL_TIMEOUT_MS);
+  return Number.isInteger(v) && v > 0 ? v : 10_000;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type InternalCall =
@@ -61,12 +71,15 @@ async function callInternal(path: string, bearerToken: string, payload: unknown)
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: AbortSignal.timeout(billingCallTimeoutMs()),
     });
   } catch (err) {
     console.error("[billing] Billing service unreachable", { path, error: err instanceof Error ? err.message : String(err) });
     return { ok: false, status: 503, body: {}, unreachable: true };
   }
 
+  // The body read is under the same deadline. A body that stalls after the status line keeps that
+  // status (the service has decided) with an empty body.
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.status === 404) {
     // The billing service answers 404 to a wrong/missing internal key on purpose.

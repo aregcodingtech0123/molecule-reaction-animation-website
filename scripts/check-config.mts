@@ -14,9 +14,10 @@
  *  - shared values identical on both sides: INTERNAL_SERVICE_SECRET, JWT_SECRET, FRONTEND_URL, and the
  *    Google client id (service GOOGLE_CLIENT_ID = web NEXT_PUBLIC_GOOGLE_CLIENT_ID) when set;
  *  - AI reservation lifetime: AI_HOLD_TTL_SECONDS (service) must be at least TWICE the longest a turn can
- *    take before its capture lands = GEMINI_TIMEOUT_MS + sum(BILLING_RETRY_DELAYS_MS) (web). The 2× margin
- *    covers the reserve/capture round trips themselves and clock skew; below it a slow but successful
- *    turn can find its hold expired and go uncharged.
+ *    take between reservation and the last capture attempt = GEMINI_TIMEOUT_MS + sum(BILLING_RETRY_DELAYS_MS)
+ *    + attempts × BILLING_CALL_TIMEOUT_MS (web; attempts = delays + 1, each call bounded since SEC-17). The 2×
+ *    margin covers request handling and clock skew; below it a slow but successful turn can find its hold
+ *    expired and go uncharged.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -30,7 +31,7 @@ import {
 import { weakSecretReason as serviceSecretReason } from "../services/auth-billing-service/src/config/secretStrength";
 import { bffProductionConfigProblems } from "../src/instrumentation";
 import { geminiTimeoutMs } from "../src/lib/ai/gemini-limits";
-import { retryDelays } from "../src/lib/billing/server-billing";
+import { billingCallTimeoutMs, retryDelays } from "../src/lib/billing/server-billing";
 import { weakSecretReason as webSecretReason } from "../src/lib/security/secret-strength";
 
 type Env = Record<string, string | undefined>;
@@ -139,10 +140,15 @@ export function checkConfig(service: Env, web: Env, examples = { service: exampl
 
   // ── Hold lifetime vs the longest turn ─────────────────────────────────────
   const ttlMs = aiHoldTtlSeconds(service as NodeJS.ProcessEnv) * 1000;
-  const turnMs = geminiTimeoutMs(web as NodeJS.ProcessEnv) + retryDelays(web as NodeJS.ProcessEnv).reduce((a, b) => a + b, 0);
+  const delays = retryDelays(web as NodeJS.ProcessEnv);
+  const turnMs =
+    geminiTimeoutMs(web as NodeJS.ProcessEnv) +
+    delays.reduce((a, b) => a + b, 0) +
+    (delays.length + 1) * billingCallTimeoutMs(web as NodeJS.ProcessEnv);
   if (ttlMs < TTL_MARGIN * turnMs) {
     problems.push(
-      `AI_HOLD_TTL_SECONDS (${ttlMs / 1000} s) must be at least ${TTL_MARGIN}× GEMINI_TIMEOUT_MS + sum(BILLING_RETRY_DELAYS_MS) ` +
+      `AI_HOLD_TTL_SECONDS (${ttlMs / 1000} s) must be at least ${TTL_MARGIN}× the longest turn — GEMINI_TIMEOUT_MS + ` +
+        `sum(BILLING_RETRY_DELAYS_MS) + capture attempts × BILLING_CALL_TIMEOUT_MS ` +
         `(${turnMs / 1000} s → ≥ ${Math.ceil((TTL_MARGIN * turnMs) / 1000)} s), or slow successful turns go uncharged.`,
     );
   }
