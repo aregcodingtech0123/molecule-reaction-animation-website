@@ -162,7 +162,7 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008`–`013` are backward compatible with the currently deployed code:
+`008`–`014` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
 never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
@@ -171,10 +171,11 @@ index on `pending_checkout_orders`. `012` (SEC-12) pins `search_path` on the led
 `post_credit_transaction()` `SECURITY DEFINER` and revokes its `EXECUTE` from `PUBLIC` — the owner role
 the services connect as keeps it, so nothing changes while one role owns the schema and runs the app.
 `013` (SEC-14) only adds the `lemon_order_refunds` table and the read-only `refunded_orders_to_review()`.
+`014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–013)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–014)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -222,6 +223,8 @@ openssl rand -base64 48
 | `NODE_ENV` | `production` | **`production`** (Phase 2, SEC-08) | Express now applies production rules unless `NODE_ENV` is exactly `development` or `test`. Production rules without `HOST` bind `127.0.0.1`: hosted platforms need `HOST=0.0.0.0` |
 | `FRONTEND_URL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `RESEND_API_KEY`, `SENDER_EMAIL` / `EMAIL_FROM`, `BCRYPT_ROUNDS` | — | **validated at boot** (SEC-08) | https origin; webhook secret ≥ 32 random chars, not a placeholder (Lemon allows up to 40 — rotate it in the dashboard and here together); store id numeric; sender on a verified domain, not `@resend.dev`; bcrypt cost 10–15 if set. Any problem → `FATAL:` line, exit 1 |
 | `JWT_SECRET`, `FRONTEND_URL`, `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` | **validated at start** (SEC-08) | — | `next start` refuses to start without them (not checked during `next build`) |
+| `AI_DAILY_TURNS_PER_USER` / `AI_DAILY_TURNS_GLOBAL` | — | optional (`200` / `3000`) | SEC-16: AI turns per rolling 24 h per user (`429 AI_DAILY_LIMIT`) and for the whole service (`503 AI_CAPACITY_REACHED`, logged as an error — alert on it). Size the global cap from your model budget |
+| `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
 
@@ -414,10 +417,13 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–013 (only if they cause a problem)
+### 10.1 Migrations 008–014 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 014 (indexes only; the caps are code — roll the code back too, or they just get slower)
+DROP INDEX IF EXISTS idx_ai_credit_holds_user_created;
+DROP INDEX IF EXISTS idx_ai_credit_holds_created;
 -- 013 (export lemon_order_refunds first if you need the refund history)
 DROP FUNCTION IF EXISTS refunded_orders_to_review();
 DROP TABLE IF EXISTS lemon_order_refunds;
@@ -443,7 +449,7 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
-                   '013_lemon_order_refunds.sql');
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql');
 COMMIT;
 ```
 

@@ -29,7 +29,7 @@ import {
 } from "../services/auth-billing-service/src/config/productionConfig";
 import { weakSecretReason as serviceSecretReason } from "../services/auth-billing-service/src/config/secretStrength";
 import { bffProductionConfigProblems } from "../src/instrumentation";
-import { geminiTimeoutMs } from "../src/lib/ai/gemini-timeout";
+import { geminiTimeoutMs } from "../src/lib/ai/gemini-limits";
 import { retryDelays } from "../src/lib/billing/server-billing";
 import { weakSecretReason as webSecretReason } from "../src/lib/security/secret-strength";
 

@@ -20,6 +20,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-14 | Low | Webhook / payments | Lemon refunds were invisible: credits of a refunded order stayed and nothing recorded or reported it | **Fixed** (branch `security/audit-fixes-b`) — recorded and reported for manual review (no automatic claw-back, owner decision) |
 | SEC-15 | Low | AI Lab / output | Model output could make the browser load any remote image (markdown image) — conversation exfiltration / tracking via prompt injection | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-16 | Medium | AI Lab / cost | No ceiling on model spend: no daily caps (per user or global), unbounded output tokens, up to ~192 000 characters of prompt per turn | **Fixed** (branch `security/audit-fixes-b`) |
 
 ---
 
@@ -437,3 +438,32 @@ Evidence is the named test, or the code reference where a test would only restat
   classes and MathML are stripped and maths in answers renders as garbled plain text. Making it render needs either
   sanitize-before-KaTeX (KaTeX's own output then becomes trusted; `trust` stays off) or a schema that allows
   KaTeX's classes, inline `style` and MathML. Both widen what model output can produce — a deliberate choice.
+
+## SEC-16 — Medium — AI Lab spend had no ceiling
+
+* **Where:** `src/app/api/chat/route.ts` (BFF), `services/auth-billing-service/src/services/aiCredits.service.ts`.
+* **Weakness:** a turn costs one credit, but nothing bounded what a turn or a day costs us. Every verified account
+  gets free credits (sign-up bonus), sign-ups are limited only per IP; a turn could send 24 × 8 000 characters of
+  client-chosen history (~48 k tokens) and receive an answer of the model's maximum length (`maxOutputTokens`
+  unset); there was no per-user or service-wide daily cap — the only limits were 10 turns/min/user (Upstash when
+  configured, plus an in-memory per-instance limit). A farm of free accounts, or one compromised paying account,
+  turns directly into model spend with no circuit breaker.
+* **Repro:** `services/auth-billing-service/tests/api/ai-daily-caps.test.ts` (no cap: the 4th / 9th turn of a user
+  was reserved, the global budget never refused) and `tests/api/chat.limits.test.ts` (`maxOutputTokens`
+  absent from the model call; a 24 × 7 900-character history forwarded whole).
+* **Fix:**
+  * Express, at reservation time under the user's advisory lock: `AI_DAILY_TURNS_PER_USER` (default 200 per rolling
+    24 h) → `429 AI_DAILY_LIMIT` with `limit` and `retryAfter` (when the oldest turn leaves the window);
+    `AI_DAILY_TURNS_GLOBAL` (default 3 000) → `503 AI_CAPACITY_REACHED`, logged as an error. Every reservation counts
+    (released/expired turns still called the model). Database-backed, so the caps hold across instances; the
+    per-user count is serialised (concurrent turns cannot overshoot, tested with 8 parallel requests), the global one
+    is a soft breaker (may overshoot by the in-flight count). Invalid or non-positive values fall back to the
+    defaults — a typo cannot switch a cap off. Migration `014` adds the two indexes for the counts.
+  * BFF: `maxOutputTokens` = `GEMINI_MAX_OUTPUT_TOKENS` (default 2 048); the conversation sent to the model is the
+    newest turns that fit 32 000 characters (the user's question always included); `AI_DAILY_LIMIT` → `429` with
+    `Retry-After`, `AI_CAPACITY_REACHED` → `503`; in both cases nothing is reserved and the model is not called.
+* **Behaviour change (frontend / env):** new answers `429 {error:"AI_DAILY_LIMIT", retryAfter}` and
+  `503 {error:"AI_CAPACITY_REACHED"}` from `/api/chat` (the UI shows them like other error codes); long
+  conversations lose their oldest turns from the model's context; answers longer than ~2 048 tokens are cut by the
+  model. New optional env: `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL` (Express), `GEMINI_MAX_OUTPUT_TOKENS`
+  (Next). Pick the global cap from your budget: worst case ≈ cap × (32 k chars in + 2 048 tokens out) per day.

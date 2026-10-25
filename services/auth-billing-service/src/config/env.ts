@@ -1,6 +1,6 @@
 import "../config/loadEnv.js";
 import { assertDatabaseEnv, resolveDatabaseEnv } from "./database.js";
-import { aiHoldTtlSeconds, isProductionNodeEnv } from "./productionConfig.js";
+import { aiDailyTurnLimits, aiHoldTtlSeconds, isProductionNodeEnv } from "./productionConfig.js";
 
 const BCRYPT_ROUNDS = 10;
 
@@ -89,6 +89,10 @@ export const env = {
   /** How long a reservation may stay 'held' before it expires (never charged). */
   get aiHoldTtlSeconds() {
     return aiHoldTtlSeconds(process.env);
+  },
+  /** AI turns per rolling 24 h, per user and service-wide (SEC-16). */
+  get aiDailyTurnLimits() {
+    return aiDailyTurnLimits(process.env);
   },
   /** How often the service settles expired reservations. 0 disables the timer. */
   get aiHoldSweepIntervalMs() {

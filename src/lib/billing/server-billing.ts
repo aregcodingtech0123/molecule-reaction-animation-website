@@ -120,6 +120,10 @@ export interface ConsumeCreditsResult {
   cost?: number;
   /** Present on a 402 — how many credits the operation needed. */
   requiredCredits?: number;
+  /** The billing service's error code (e.g. AI_DAILY_LIMIT, AI_CAPACITY_REACHED — SEC-16). */
+  code?: string;
+  /** Seconds until a per-user daily cap frees up (429 AI_DAILY_LIMIT). */
+  retryAfter?: number;
 }
 
 /**
@@ -141,6 +145,8 @@ export async function consumeCreditsForOperation(params: {
       ok: false,
       status: r.status,
       requiredCredits: typeof r.body.requiredCredits === "number" ? r.body.requiredCredits : undefined,
+      code: typeof r.body.code === "string" ? r.body.code : undefined,
+      retryAfter: typeof r.body.retryAfter === "number" ? r.body.retryAfter : undefined,
     };
   }
   const data = (r.body.data ?? {}) as { balance?: number; cost?: number };

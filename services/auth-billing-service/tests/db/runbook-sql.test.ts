@@ -71,7 +71,7 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect(rows[1]).toMatchObject({ consumptions: "6", refunds: "4", late_refunds: "0", refund_pct: "67" });
     }));
 
-  it("§10.1 rollback of 008–013 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
+  it("§10.1 rollback of 008–014 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
     withRunnerDb(async (db) => {
       await db.pool.query(rollback0809!);
       const status = await db.pool.query(`SELECT filename FROM schema_migrations ORDER BY 1`);
@@ -79,6 +79,7 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect((await db.pool.query(`SELECT to_regclass('public.ai_credit_holds') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('expire_stale_checkout_orders(interval)') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regclass('public.lemon_order_refunds') IS NULL AS gone`)).rows[0].gone).toBe(true);
+      expect((await db.pool.query(`SELECT to_regclass('public.idx_ai_credit_holds_created') IS NULL AS gone`)).rows[0].gone).toBe(true);
       const writer = await db.pool.query(
         `SELECT prosecdef, proconfig, has_function_privilege('public', oid, 'EXECUTE') AS public_exec
          FROM pg_proc WHERE proname = 'post_credit_transaction'`,
@@ -99,6 +100,7 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
         "011_checkout_order_expiry.sql",
         "012_function_search_path.sql",
         "013_lemon_order_refunds.sql",
+        "014_ai_daily_caps.sql",
       ]);
       expect((await db.pool.query(`SELECT to_regprocedure('expire_stale_checkout_orders(interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT prosecdef FROM pg_proc WHERE proname = 'post_credit_transaction'`)).rows[0].prosecdef).toBe(true);

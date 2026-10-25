@@ -58,6 +58,7 @@ describe("migrations 001→007 on an empty database", () => {
       "011_checkout_order_expiry.sql",
       "012_function_search_path.sql",
       "013_lemon_order_refunds.sql",
+      "014_ai_daily_caps.sql",
     ]);
   });
 

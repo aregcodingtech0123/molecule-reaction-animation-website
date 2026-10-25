@@ -56,6 +56,22 @@ export function aiHoldTtlSeconds(source: NodeJS.ProcessEnv = process.env): numbe
   return Number.isInteger(v) && v > 0 ? v : 600;
 }
 
+/**
+ * AI turns allowed per rolling 24 h (SEC-16): per user and for the whole service. Credits alone never
+ * bounded model spend (every verified account gets free credits). Invalid / non-positive values fall
+ * back to the defaults — a cap cannot be switched off by a typo.
+ */
+export function aiDailyTurnLimits(source: NodeJS.ProcessEnv = process.env): { perUser: number; global: number } {
+  const positive = (raw: string | undefined, fallback: number) => {
+    const v = Number(raw?.trim());
+    return Number.isInteger(v) && v > 0 ? v : fallback;
+  };
+  return {
+    perUser: positive(source.AI_DAILY_TURNS_PER_USER, 200),
+    global: positive(source.AI_DAILY_TURNS_GLOBAL, 3000),
+  };
+}
+
 /** Resend's shared sandbox sender: it only delivers to the Resend account owner. */
 const SANDBOX_SENDER = /@resend\.dev\b/i;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);

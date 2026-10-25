@@ -27,6 +27,12 @@ links here.
 * **Next.js:** `/api/chat` uses Upstash for its distributed limit when configured, plus an in-memory per-instance
   limit. Without Upstash the same single-instance rule applies.
 
+## AI spend
+
+* AI turns are capped per user (200 / 24 h) and globally (3 000 / 24 h) by default (SEC-16). Set
+  `AI_DAILY_TURNS_GLOBAL` from the model budget before launch and alert on `AI_CAPACITY_REACHED` in the Express
+  logs. Keep Upstash configured for the chat limiter if Next runs on more than one instance.
+
 ## Database role
 
 * The service may keep using the owner role at launch. The least-privilege role (SEC-12,
