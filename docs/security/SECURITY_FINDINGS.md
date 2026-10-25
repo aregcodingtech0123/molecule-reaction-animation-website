@@ -23,6 +23,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-16 | Medium | AI Lab / cost | No ceiling on model spend: no daily caps (per user or global), unbounded output tokens, up to ~192 000 characters of prompt per turn | **Fixed** (branch `security/audit-fixes-b`) |
 | SEC-17 | Low | BFF / availability, billing | BFF → billing calls had no timeout: a hung billing service held AI turns for minutes and late captures left answers uncharged | **Fixed** (branch `security/audit-fixes-b`) |
 | SEC-18 | Low | Frontend / headers | The CSP allowed any inline script (`'unsafe-inline'`), images from any https host and stale CDN origins; no `frame-ancestors`, `form-action`, HSTS; `X-Powered-By` sent | **Fixed** (branch `security/audit-fixes-b`) — strict nonce CSP (owner decision) |
+| SEC-19 | Low | Logging / privacy | Purchase webhooks and receipts logged buyers' full email addresses on every order | **Fixed** (branch `security/audit-fixes-b`) |
 
 ---
 
@@ -523,3 +524,21 @@ Evidence is the named test, or the code reference where a test would only restat
 * **Behaviour change (hosting / env):** all pages are server-rendered per request (no static/CDN caching of HTML;
   `_next/static` assets are unchanged). New optional env `CSP_MODE` (Next). Browsers remember HSTS for two years
   once the site is served over https.
+
+## SEC-19 — Low — Full email addresses in production logs
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts`, `src/lib/email.ts`.
+* **Weakness:** "Processing user" (every purchase), "Purchase receipt sent", "No user matches the order email" and
+  "Missing user identity" logged the buyer's full address; the Resend error path logged Resend's raw response body.
+  Logs are retained and shipped to third parties far more widely than the database — personal data there is harder
+  to delete and to protect.
+* **Repro:** `services/auth-billing-service/tests/api/log-hygiene.test.ts` — a purchase matched by email and an
+  unmatched order email: the full address appeared in the captured production log lines.
+* **Fix:** `maskEmail()` (`a***@example.com`: enough to correlate a support request) at all four sites; the Resend
+  error body is cut to 200 characters with addresses replaced.
+* **Reviewed, no change:** no log line carries a password, session token, internal key, reset/verification token or
+  link in production — the dev-only mail stand-in that prints whole mails is refused in production (SEC-08);
+  rate-limit, auth and chat logs carry user ids, not addresses. `.env.example` files contain placeholders only
+  (the two `replace-with-…` secrets are on both services' placeholder deny-lists; the local Docker password is the
+  dev compose value). Error bodies: Express answers generic messages without stacks (FINDING-12, SEC-08), the BFF's
+  error bodies are tested free of stack traces and paths (SEC-08 E2E).

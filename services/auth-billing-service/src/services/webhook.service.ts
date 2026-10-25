@@ -10,6 +10,7 @@ import {
 import { fulfillVerifiedPurchase } from "./checkout.service.js";
 import { sendPurchaseReceiptEmail } from "./email.service.js";
 import { pool } from "../db/index.js";
+import { maskEmail } from "../utils/logRedaction.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -92,7 +93,7 @@ function queuePurchaseReceipt(params: {
 
       console.log("[email] Purchase receipt sent", {
         orderId: params.orderId,
-        to: recipient.email,
+        to: maskEmail(recipient.email),
       });
     } catch (error) {
       console.error("[email] Purchase receipt failed (credits already allocated)", {
@@ -142,7 +143,7 @@ async function resolveUserId(
     if (byEmail) {
       return { userId: byEmail, via: "order email fallback" };
     }
-    console.error("[Webhook] No user matches the order email either", { email: trimmed });
+    console.error("[Webhook] No user matches the order email either", { email: maskEmail(trimmed) });
   }
 
   return { userId: null, via: "unresolved" };
@@ -332,7 +333,7 @@ export async function processLemonSqueezyEvent(
     resolvedVia: via,
     variantId,
     customUserId,
-    orderEmail: attrs.user_email ?? null,
+    orderEmail: maskEmail(attrs.user_email),
     orderId: order.id,
   });
 
@@ -353,7 +354,7 @@ export async function processLemonSqueezyEvent(
     console.error("[Webhook] Missing user identity — no user_id match and no email match", {
       orderId: order.id,
       customUserId,
-      userEmail: attrs.user_email ?? null,
+      userEmail: maskEmail(attrs.user_email),
     });
     return { processed: false, reason: "missing_user", orderId: order.id };
   }
