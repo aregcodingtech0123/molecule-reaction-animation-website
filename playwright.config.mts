@@ -38,7 +38,12 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: `npx next dev --port ${WEB_PORT}`,
+      // Default: `next dev`. E2E_NEXT_MODE=production builds and serves the production output
+      // (same isolated distDir) — used to check page gating against compiled middleware.
+      command:
+        process.env.E2E_NEXT_MODE === "production"
+          ? `npx next build && npx next start --port ${WEB_PORT}`
+          : `npx next dev --port ${WEB_PORT}`,
       cwd: repoRoot,
       url: `${WEB_ORIGIN}/`,
       env: webEnv(),
