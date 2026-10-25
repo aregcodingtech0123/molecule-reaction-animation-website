@@ -14,6 +14,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-07 | Medium | Auth / enumeration | Register, forgot-password and resend revealed whether an account exists through mail-send timing (and resend through a 502) | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-08 | Medium | Config / operations | Express ran with dev rules when NODE_ENV was unset; neither service validated the webhook secret, URLs, mail sender or bcrypt cost at startup | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-09 | Low | Express / errors | A compressed body that does not decode was answered 500 (logged with a stack) instead of 400 | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-10 | Medium | BFF / availability | The gateway buffered request bodies of any size (unauthenticated routes), /api/chat parsed any size for signed-in users | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -260,3 +261,21 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 * **Fix:** an exposed 400 whose `code` is a zlib decoder code (`Z_*`, `ERR__ERROR_*` for brotli, `ZSTD_error_*`) is
   answered `400 { code: "INVALID_CONTENT_ENCODING", error: "Request body could not be decoded." }`; the zlib message
   is not echoed.
+
+## SEC-10 — Medium — Unbounded request bodies in the BFF
+
+* **Where:** `src/lib/gateway/proxy.ts` (`readRequestBody`), `src/app/api/chat/route.ts`.
+* **Weakness:** the gateway read the whole request body with `request.arrayBuffer()` before forwarding it. Express
+  rejects more than 32 kB — but only after the BFF had held the complete body in memory and sent it on. The gateway
+  serves unauthenticated routes (`/api/auth/login`, `/register`, …), so any anonymous client could make the BFF buffer
+  arbitrarily large bodies: memory exhaustion / DoS of the web tier. `/api/chat` parsed any size with
+  `request.json()` for a signed-in user (anonymous requests are refused with 401 before the body is read).
+* **Repro:** `tests/api/bff-body-limit.test.ts` with counting stream bodies: a 20 MB gateway body was read completely
+  and forwarded (the upstream answered 200); a signed-in user's 50 MB chat body was read completely (400 after parsing).
+* **Fix:** `src/lib/http/limited-body.ts` — a declared `Content-Length` over the limit is refused without reading; a
+  streamed body is cancelled as soon as it passes the limit. Gateway limit 64 kB (Express accepts 32 kB) →
+  `413 { code: "PAYLOAD_TOO_LARGE" }`, nothing forwarded; chat limit 1 MB (24 messages × 8,000 characters, up to 4
+  bytes each in UTF-8) → `413 { error: "PAYLOAD_TOO_LARGE" }`, the model is never called. Normal bodies are forwarded
+  unchanged (tested).
+* **Behaviour change:** BFF answers 413 for bodies over these limits (previously Express answered 413 for gateway
+  routes after full buffering, and chat answered 400 or processed the body).

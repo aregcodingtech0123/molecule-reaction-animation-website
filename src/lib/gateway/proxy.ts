@@ -4,6 +4,7 @@ import { buildDownstreamHeaders, pickDownstreamResponseHeaders } from "./headers
 import { clearedSessionCookieHeader, sessionCookieHeader } from "@/lib/auth/session-cookie";
 import { crossSiteRejection, isCrossSiteRequest, SAFE_METHODS } from "@/lib/security/csrf";
 import type { ProxyOptions } from "./types";
+import { BodyTooLargeError, GATEWAY_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
 
 /**
  * Upstream routes the browser must never reach through the gateway. The AI
@@ -71,16 +72,11 @@ function buildDownstreamUrl(baseUrl: string, pathSegments: string[], request: Re
   return url.toString();
 }
 
+/** Bounded (SEC-10): the bytes are forwarded unchanged, the Content-Type header carries the format. */
 async function readRequestBody(request: Request): Promise<BodyInit | undefined> {
   if (request.method === "GET" || request.method === "HEAD") return undefined;
-
-  const contentType = request.headers.get("content-type") ?? "";
-  if (contentType.includes("multipart/form-data")) {
-    return request.blob();
-  }
-
-  const buffer = await request.arrayBuffer();
-  return buffer.byteLength > 0 ? buffer : undefined;
+  const body = await readBodyWithLimit(request, GATEWAY_MAX_BODY_BYTES);
+  return body && body.byteLength > 0 ? (body as Uint8Array<ArrayBuffer>) : undefined;
 }
 
 /**
@@ -138,6 +134,9 @@ export async function proxyToService(options: ProxyOptions): Promise<Response> {
       headers: responseHeaders,
     });
   } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      return gatewayErrorJson(413, "Request body too large.", { code: GATEWAY_ERROR_CODES.PAYLOAD_TOO_LARGE, service });
+    }
     return handleGatewayFailure(err, service);
   } finally {
     clearTimeout(timeoutId);
