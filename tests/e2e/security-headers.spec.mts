@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { webEnv } from "../../scripts/test/e2e-env.mjs";
 import { closeDb, dismissWelcome, isolateBrowser, plantVerificationToken, trackPageErrors, uniqueEmail } from "./support.mjs";
 
 /**
@@ -123,4 +124,23 @@ test("signed-in pages and an AI Lab answer (markdown + math) render without a CS
     expect(await violations(), path).toEqual([]);
   }
   expect(errors).toEqual([]);
+});
+
+test("client bundles carry no server secret; production serves no source maps", async ({ request }) => {
+  const secrets = Object.entries(webEnv())
+    .filter(([name, value]) => /SECRET|_KEY|TOKEN|DATABASE_URL/.test(name) && !name.startsWith("NEXT_PUBLIC_") && typeof value === "string" && value.length >= 8)
+    .map(([name, value]) => [name, value as string] as const);
+  expect(secrets.map(([n]) => n)).toEqual(expect.arrayContaining(["JWT_SECRET", "INTERNAL_SERVICE_SECRET", "GEMINI_API_KEY"]));
+
+  const chunks = new Set<string>();
+  for (const path of PUBLIC_PAGES) {
+    const html = await (await request.get(path)).text();
+    for (const m of html.matchAll(/src="(\/_next\/static\/[^"]+\.js)"/g)) chunks.add(m[1]!);
+  }
+  expect(chunks.size).toBeGreaterThan(0);
+  for (const chunk of chunks) {
+    const body = await (await request.get(chunk)).text();
+    for (const [name, value] of secrets) expect(body.includes(value), `${name} in ${chunk}`).toBe(false);
+    if (PRODUCTION) expect((await request.get(`${chunk}.map`)).status(), `${chunk}.map`).toBe(404);
+  }
 });
