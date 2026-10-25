@@ -12,6 +12,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-05 | Low | Auth / OAuth | A password registration racing a first Google sign-in got linked without the FINDING-34 takeover (registrant's password stayed valid) | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-06 | Medium | Express / rate limits | Login and forgot-password limits bypassed with whitespace/case variants of the email | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-07 | Medium | Auth / enumeration | Register, forgot-password and resend revealed whether an account exists through mail-send timing (and resend through a 502) | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-08 | Medium | Config / operations | Express ran with dev rules when NODE_ENV was unset; neither service validated the webhook secret, URLs, mail sender or bcrypt cost at startup | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -188,3 +189,48 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   answers the generic 200. A delivery failure is only logged (`[auth] Failed to send … email`).
 * **Residual (accepted):** the account-dependent branches still do a little more database work (a token insert in one
   transaction) than the others — single-digit milliseconds, far below network jitter; bcrypt dominates both.
+
+## SEC-08 — Medium — Production configuration failed open (NODE_ENV, unvalidated secrets and URLs)
+
+* **Where:** `services/auth-billing-service/src/config/env.ts`, `src/index.ts`; `src/instrumentation.ts` (Next.js).
+* **Weaknesses (each reproduced by booting the real process):**
+  * Express decided "production" with `(NODE_ENV ?? "development") === "production"`. Many hosts do not set
+    `NODE_ENV`; the service then ran with **dev rules**: verification / reset links are logged instead of mailed when
+    `RESEND_API_KEY` is unset (anyone with log access can take over accounts), the dev CORS allowance is on, the
+    Lemon-variant check is only a warning. `NODE_ENV=staging` (or a typo) behaved the same.
+  * No startup validation of `LEMONSQUEEZY_WEBHOOK_SECRET` — a weak or placeholder value makes purchase webhooks
+    **forgeable (credits minted)** — nor of `FRONTEND_URL` (defaulted to `http://localhost:3000` for mail links and
+    the Lemon redirect), the Lemon API key / store, `RESEND_API_KEY`, the sender (defaulted to Resend's sandbox
+    `onboarding@resend.dev`, which only delivers to the account owner) or `BCRYPT_ROUNDS` (`4` accepted; an empty
+    value even gave cost **0**, because `Number("")` is 0).
+  * Next.js checked only `INTERNAL_SERVICE_SECRET`: a production server started without `JWT_SECRET`, without
+    `FRONTEND_URL` (the CSRF guard then falls back to localhost and refuses every real browser) and without the
+    service URLs.
+* **Repro:** `services/auth-billing-service/tests/api/production-startup.test.ts` spawns the real service
+  (`node --import tsx src/index.ts`) with only the given environment — `scripts/test/no-dotenv.mjs` keeps the
+  developer's `.env` out, the network guard blocks real Resend / Lemon calls. Before the fix the service **started**
+  with NODE_ENV unset / `staging`, a placeholder webhook secret, an http `FRONTEND_URL`, the sandbox sender and bcrypt
+  cost 4. `tests/e2e/production-config.spec.mts` (production mode) starts a real `next start` without `JWT_SECRET`.
+* **Fix:**
+  * Express: production rules unless `NODE_ENV` is explicitly `development` or `test` (`isProductionNodeEnv`).
+    In production, `productionConfigProblems()` validates `FRONTEND_URL` (absolute origin, https except localhost),
+    `LEMONSQUEEZY_WEBHOOK_SECRET` (same strength rules as `JWT_SECRET`: ≥ 32 chars, not a placeholder, entropy floor),
+    `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID` (numeric), the three variants, `RESEND_API_KEY`, `SENDER_EMAIL` /
+    `EMAIL_FROM` (set, not `@resend.dev`), `BCRYPT_ROUNDS` (10–15 when set); the whole list is printed as `FATAL:`
+    lines and the process exits 1. Empty numeric env values fall back to their defaults.
+  * Next.js: `assertProductionConfig()` in `register()` (production start only, never during `next build`):
+    `JWT_SECRET` (strength), `FRONTEND_URL` (origin, https except localhost), `AUTH_SERVICE_URL`,
+    `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` (absolute http(s)).
+* **Verified in production mode:** the real service starts with a complete configuration, serves helmet headers (HSTS,
+  nosniff), no dev CORS, no `databaseError` in `/health`, generic error bodies without stack traces, no dev mail
+  logging; the real `next start` refuses without `JWT_SECRET`; the session cookie is `HttpOnly; SameSite=Strict;
+  Path=/; Max-Age=…; Secure` in production (not `Secure` in dev).
+* **Env / behaviour changes (deploy):**
+  * Express hosts **must** set `NODE_ENV=production` explicitly **or** accept production rules when it is unset.
+    With production rules and no `HOST`, Express binds `127.0.0.1` (existing behaviour of production mode): hosted
+    platforms need `HOST=0.0.0.0` (or the platform's bind address).
+  * Newly required in production (Express): `FRONTEND_URL` (https), a strong `LEMONSQUEEZY_WEBHOOK_SECRET`
+    (≥ 32 random chars; Lemon allows up to 40), `LEMONSQUEEZY_API_KEY`, numeric `LEMONSQUEEZY_STORE_ID`,
+    `RESEND_API_KEY`, `SENDER_EMAIL` on a verified domain; `BCRYPT_ROUNDS`, if set, 10–15.
+  * Newly required in production (Next.js): `JWT_SECRET` (same value as Express), `FRONTEND_URL`,
+    `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`.

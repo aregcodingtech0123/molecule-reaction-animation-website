@@ -4,7 +4,10 @@ import { assertDatabaseEnv, resolveDatabaseEnv } from "./database.js";
 const BCRYPT_ROUNDS = 10;
 
 function parseIntEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name]);
+  // An empty value means "not set": Number("") is 0, which used to give e.g. bcrypt cost 0 (SEC-08).
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
 }
 
@@ -12,10 +15,23 @@ function readEnv(name: string): string {
   return process.env[name]?.trim() ?? "";
 }
 
+/**
+ * Production rules apply unless NODE_ENV is explicitly "development" or "test". An unset or
+ * unexpected value ("staging", a typo) must fail closed — not quietly enable dev-only behaviour
+ * such as logging verification / reset links instead of mailing them (SEC-08).
+ */
+export function isProductionNodeEnv(value: string | undefined): boolean {
+  const mode = value?.trim().toLowerCase();
+  return mode !== "development" && mode !== "test";
+}
+
 export const env = {
   host: process.env.HOST?.trim() || "0.0.0.0",
   port: parseIntEnv("PORT", 4000),
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  /** Raw NODE_ENV for messages ("" when unset). Use `isProduction` for decisions. */
+  get nodeEnv() {
+    return process.env.NODE_ENV?.trim() ?? "";
+  },
   get databaseUrl() {
     return resolveDatabaseEnv().connectionString;
   },
@@ -25,7 +41,9 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET ?? "",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   bcryptRounds: parseIntEnv("BCRYPT_ROUNDS", BCRYPT_ROUNDS),
-  isProduction: (process.env.NODE_ENV ?? "development") === "production",
+  get isProduction() {
+    return isProductionNodeEnv(process.env.NODE_ENV);
+  },
   get frontendUrl() {
     return (readEnv("FRONTEND_URL") || "http://localhost:3000").replace(/\/+$/, "");
   },
