@@ -98,11 +98,13 @@ Or SQL-only reset (refuses production URLs): `npm run db:reset` from the service
 * **Start fresh** (local data is disposable): `npm run docker:up`, then `npm run db:setup` in the service folder.
 * **Keep your local data** — dump it with the old 16 container *before* switching, then restore into 18:
   ```bash
-  git stash                      # or check out a commit with the postgres:16 compose file
-  docker compose up -d           # the old 16 container on the old volume
+  # the previous compose file (postgres:16, old volume) is preserved in the tag legacy-services-final
+  git show legacy-services-final:docker-compose.yml > docker-compose.pg16.yml
+  docker compose -f docker-compose.pg16.yml up -d     # the old 16 container on the old volume
   docker exec molecule_studio_postgres pg_dumpall -U postgres > local-dev-backup.sql
-  git stash pop                  # back to the postgres:18 compose file
-  docker compose up -d           # recreates the container on 18 with the new, empty volume
+  docker compose -f docker-compose.pg16.yml down      # stops it; the old volume is kept
+  rm docker-compose.pg16.yml
+  docker compose up -d                                # the 18 container on the new, empty volume
   docker exec -i molecule_studio_postgres psql -U postgres < local-dev-backup.sql
   ```
   Keep `local-dev-backup.sql` out of git. Once you are happy, remove the old volume yourself:
