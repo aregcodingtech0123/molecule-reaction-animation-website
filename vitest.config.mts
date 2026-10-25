@@ -25,7 +25,7 @@ export default defineConfig({
       include: [
         "src/lib/**/*.{ts,tsx}",
         "src/app/api/**/*.ts",
-        "src/middleware.ts",
+        "src/proxy.ts",
         "src/context/**/*.tsx",
         "src/hooks/**/*.ts",
         "src/components/{auth,billing,periodic-table,atom-models,layout,ai}/**/*.tsx",
