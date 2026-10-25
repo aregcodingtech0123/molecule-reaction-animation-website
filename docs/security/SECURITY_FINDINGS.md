@@ -6,6 +6,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | ID | Sev | Area | Title | Status |
 | --- | --- | --- | --- | --- |
 | SEC-01 | Critical | Dependencies / Next.js | `next` 16.2.6 affected by 20 published advisories (6 critical RCE, SSRF, cache poisoning, DoS, middleware bypass) | **Fixed** (branch `security/next-upgrade`) — `next` / `eslint-config-next` 16.4.3 |
+| SEC-02 | High | Dependencies / Express | body-parser < 2.4.0 can crash the public Express process from a compressed request body; proxy-addr and qs advisories | **Fixed** (branch `security/deps-and-ci`) — body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1 (lockfile) |
 
 ---
 
@@ -45,3 +46,25 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   * defence in depth: every API behind the protected pages answers 401 without a session, also with bypass headers;
     the three protected pages are client components with no server-side data access and no route layouts.
 * **Result:** 11 / 11 on 16.2.6 (dev and production build) and on 16.4.3 (dev and production build).
+
+## SEC-02 — High — Express request-handling dependencies (body-parser, proxy-addr, qs)
+
+* **Where:** `services/auth-billing-service/package-lock.json` (Express 5.2.1 dependencies: body-parser 2.3.0,
+  proxy-addr 2.0.7, qs 6.15.2).
+* **Advisories and reachability here:**
+  * **body-parser GHSA-27r3-jxmh-p828 (High, < 2.4.0) — reachable.** A compressed request body can raise an uncaught
+    exception that terminates the process; no authentication or matching route is needed because parsing runs before
+    routing. Express is publicly reachable (Lemon webhook), parses JSON globally (`express.json`) and uses
+    `express.raw` on the webhook route, both with decompression enabled by default.
+  * **proxy-addr GHSA-jqcg-44mw-7w3h (Critical, < 2.0.8) — not reachable.** Requires an IPv6 trust subnet with zero
+    leading bits (e.g. `::ffff:10.0.0.0/8`); this service sets `trust proxy` to a hop count (`TRUST_PROXY_HOPS`).
+  * **qs GHSA-4mjr-xmp4-gh2g / GHSA-x5fp-wj9c-mxmx (Moderate) — not reachable through requests.** No
+    `urlencoded` parser is mounted and Express 5's default query parser is the simple one; `qs` remains in the tree via
+    body-parser and supertest.
+* **Fix:** lockfile update within Express's declared ranges: body-parser 2.4.0, proxy-addr 2.0.8, qs 6.16.1. Service
+  `npm audit`: 0 vulnerabilities.
+* **Regression test:** `tests/unit/dependency-floors.test.ts` asserts the installed minimums; it fails on the previous
+  lockfile (verified) and passes now. `tests/api/body-parser-compressed.test.ts` is a resilience smoke check (gzip body
+  with trailing bytes on the global JSON parser, an unmatched route and the webhook parser; the service keeps serving).
+  It did **not** reproduce the crash on 2.3.0, so it is not counted as the regression proof.
+* **Optional hardening (Part 2):** `inflate: false` on the parsers if no client needs compressed request bodies.
