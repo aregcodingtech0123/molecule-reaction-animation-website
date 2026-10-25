@@ -144,3 +144,11 @@ test("client bundles carry no server secret; production serves no source maps", 
     if (PRODUCTION) expect((await request.get(`${chunk}.map`)).status(), `${chunk}.map`).toBe(404);
   }
 });
+
+test("404 pages (including dotted paths like /robots.txt) carry the CSP too", async ({ request }) => {
+  for (const path of ["/robots.txt", "/sitemap.xml", "/no-such-page", "/anything.php"]) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(404);
+    expect(res.headers()["content-security-policy"], path).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+  }
+});

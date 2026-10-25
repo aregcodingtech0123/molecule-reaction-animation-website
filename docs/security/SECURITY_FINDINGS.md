@@ -518,6 +518,10 @@ Evidence is the named test, or the code reference where a test would only restat
 * **Trust model, stated:** `'strict-dynamic'` trusts scripts that already-trusted code creates (that is how the
   Google Identity script loads); styles keep `'unsafe-inline'` (React / framer-motion / R3F set style attributes;
   CSS injection is not script execution).
+* **Follow-up from the ZAP baseline (reproduced, fixed in the same finding):** the first matcher skipped every path
+  containing a dot, so the HTML 404 page for e.g. `/robots.txt` or `/anything.php` was served without a CSP. The proxy
+  now covers every HTML response and skips only API routes, build assets and `hdri/` (tests: matcher unit test and
+  "404 pages … carry the CSP too" in the E2E spec).
 * **Not verifiable offline:** the live Google sign-in (Google's hosts are blocked in E2E). The policy follows
   Google's documented values; confirm a real Google sign-in on staging. Escape hatch: `CSP_MODE=report-only` (Next
   then sends `Content-Security-Policy-Report-Only`; nonces keep working).
@@ -542,3 +546,28 @@ Evidence is the named test, or the code reference where a test would only restat
   (the two `replace-with-…` secrets are on both services' placeholder deny-lists; the local Docker password is the
   dev compose value). Error bodies: Express answers generic messages without stacks (FINDING-12, SEC-08), the BFF's
   error bodies are tested free of stack traces and paths (SEC-08 E2E).
+
+## Dynamic scan — OWASP ZAP baseline (Part 2B)
+
+* **Tool:** official image `ghcr.io/zaproxy/zaproxy:stable` (ZAP's docs: "Docker" → about / baseline-scan), pulled
+  once and pinned by digest `sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6` (ZAP 2.17.0).
+  One-off `docker run --rm`, only mount: the repo's gitignored `test-results/zap/`. Image removed afterwards
+  (`docker rmi`); no other container or Docker setting touched.
+* **Target:** only the local production-mode E2E stack (`next build` + `next start` on port 3100, Express on
+  127.0.0.1:4100 behind it, Lemon/Gemini stubbed in-process), reached from the container as
+  `http://host.docker.internal:3100` (Docker Desktop's name for this machine). Traditional spider only (2 min); the
+  Ajax spider was not used because its browser would execute page JavaScript and contact Google/PubChem/Wikipedia
+  from the container. `zap-baseline.py` is passive — no attack payloads.
+* **Result:** 50 URLs, **0 FAIL**, 62 → 63 PASS, warnings below. Every warning was reproduced or explained before
+  deciding:
+
+| ZAP rule | Instances | Outcome |
+| --- | --- | --- |
+| 10038 CSP header not set | `/robots.txt`, `/sitemap.xml` | **Reproduced → fixed** (SEC-18 follow-up); gone on the re-scan |
+| 10031 User-controllable HTML attribute | `/explore?molecule=…` | Not exploitable: probed with `x"><script>…<img onerror>`; the value only appears JSON-escaped (`\u003cscript\u003e`) inside Next's RSC payload, never as markup |
+| 10055 CSP `style-src 'unsafe-inline'` | every page | Accepted, documented in SEC-18 (inline style attributes from React/framer-motion/R3F; not script execution) |
+| 90004 COEP / COOP / CORP | pages, static chunks | Accepted: `require-corp` would break Wikipedia images and Google sign-in; COOP is deliberately `same-origin-allow-popups` (Google's guidance for sign-in popups), which ZAP reports as "invalid" |
+| 10019 Content-Type missing | `/ai-lab`, `/dashboard`, `/profile` | Expected: the 307 redirects to `/login` for an anonymous client carry no body |
+| 10049 Non-storable content | pages | Expected: pages are rendered per request (nonce CSP) |
+
+* Raw reports (HTML / JSON / Markdown) stay local in `test-results/zap/` (gitignored), not committed.

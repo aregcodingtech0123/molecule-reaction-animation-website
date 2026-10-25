@@ -210,7 +210,8 @@ describe("middleware route protection", () => {
   it("gates exactly the protected sections; the proxy itself runs on every page (CSP nonce), not on API or assets", () => {
     expect(PROTECTED_PREFIXES).toEqual(["/dashboard", "/ai-lab", "/profile"]);
     const runsOn = (path: string) => middlewareConfig.matcher.some((m) => new RegExp(`^${m}$`).test(path));
-    for (const path of ["/dashboard", "/dashboard/billing", "/ai-lab", "/profile", "/", "/explore", "/login"]) {
+    // Also 404 pages for dotted paths: they are HTML and need the CSP too (ZAP baseline lead, reproduced).
+    for (const path of ["/dashboard", "/dashboard/billing", "/ai-lab", "/profile", "/", "/explore", "/login", "/robots.txt", "/anything.php"]) {
       expect(runsOn(path), path).toBe(true);
     }
     for (const path of ["/api/chat", "/api/auth/login", "/_next/static/chunks/main.js", "/_next/image", "/favicon.ico", "/hdri/studio.hdr"]) {

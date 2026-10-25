@@ -60,6 +60,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Every page; not API routes (JSON, no CSP needed), build assets or public files (anything with an extension).
-  matcher: ["/((?!api/|_next/static|_next/image|favicon\\.ico|.*\\.[A-Za-z0-9]+$).*)"],
+  // Every HTML response — including 404 pages for paths like /robots.txt (found by the ZAP baseline) — but not
+  // API routes (JSON, own static policy), build assets, or the public 3D environment maps.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon\\.ico$|hdri/).*)"],
 };
