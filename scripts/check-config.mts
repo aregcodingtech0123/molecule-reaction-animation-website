@@ -10,6 +10,10 @@
  * Checks (production rules):
  *  - each side: every boot-time check the service / `next start` would run (SEC-08), reused from
  *    the code itself, plus INTERNAL_SERVICE_SECRET / GEMINI_API_KEY presence and strength;
+ *  - service (production rules only): LEMONSQUEEZY_ALLOW_TEST_MODE must not be set to a truthy value — it makes
+ *    production credit Lemon test-mode orders (SEC-13). Unset, empty and false/0/no/off pass; any other value
+ *    that is not clearly truthy only warns (the service itself honours exactly "true", so it is inert, but it is
+ *    left over from something and should go);
  *  - any value still equal to its `.env.example` placeholder;
  *  - shared values identical on both sides: INTERNAL_SERVICE_SECRET, JWT_SECRET, FRONTEND_URL, and the
  *    Google client id (service GOOGLE_CLIENT_ID = web NEXT_PUBLIC_GOOGLE_CLIENT_ID) when set;
@@ -79,6 +83,8 @@ function exampleValues(relative: string): Env {
 }
 
 const trimmed = (v: string | undefined) => v?.trim() ?? "";
+const TRUTHY = /^(true|1|yes|y|on)$/i;
+const FALSY = /^(false|0|no|n|off)$/i;
 const sameOrigin = (a: string, b: string) => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
 
 export function checkConfig(service: Env, web: Env, examples = { service: exampleValues("services/auth-billing-service/.env.example"), web: exampleValues(".env.example") }) {
@@ -97,6 +103,16 @@ export function checkConfig(service: Env, web: Env, examples = { service: exampl
     serviceSecretReason("INTERNAL_SERVICE_SECRET", service.INTERNAL_SERVICE_SECRET),
     trimmed(service.DATABASE_URL) || trimmed(service.DB_HOST) ? null : "DATABASE_URL is not set.",
   ]);
+  // Stricter than the service on purpose (it enables only on exactly "true"): a "1" or "yes" left in a
+  // production env is a misconfiguration worth stopping on. The value is never printed.
+  const testMode = trimmed(service.LEMONSQUEEZY_ALLOW_TEST_MODE);
+  if (isProductionNodeEnv(service.NODE_ENV) && testMode) {
+    if (TRUTHY.test(testMode)) {
+      problems.push("service: LEMONSQUEEZY_ALLOW_TEST_MODE is set to a truthy value — production would credit Lemon test-mode orders (SEC-13). Remove it from the production Express env.");
+    } else if (!FALSY.test(testMode)) {
+      warnings.push("service: LEMONSQUEEZY_ALLOW_TEST_MODE has an unrecognised value — it is ignored (only \"true\" enables it), but remove it from the production Express env.");
+    }
+  }
   if (!trimmed(service.HOST)) warnings.push("service: HOST is not set — production binds 127.0.0.1 (hosted platforms need HOST=0.0.0.0).");
   if (!trimmed(service.GOOGLE_CLIENT_ID)) warnings.push("service: GOOGLE_CLIENT_ID is not set — Google sign-in answers 503.");
 

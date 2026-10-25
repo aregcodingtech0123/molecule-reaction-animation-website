@@ -16,7 +16,7 @@ flag).
 * **Refunds are never clawed back automatically** (SEC-14). Subscribe `order_refunded`, run `db:reconcile`
   daily and review `refunded_order_credited` rows (runbook §9). Lemon documents no dispute/chargeback event:
   check disputes in the Lemon dashboard weekly.
-* **Test mode:** never set `LEMONSQUEEZY_ALLOW_TEST_MODE=true` on the live deployment (SEC-13).
+* **Test mode:** never set `LEMONSQUEEZY_ALLOW_TEST_MODE=true` on the live deployment (SEC-13). `npm run check:config` fails when it is set to a truthy value in the Express env file.
 
 ## Scale-out: single instance only
 

@@ -126,6 +126,46 @@ describe("checkConfig", () => {
     expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "600" }), webEnv()).problems).toEqual([]);
   });
 
+  describe("LEMONSQUEEZY_ALLOW_TEST_MODE (SEC-13)", () => {
+    const testModeProblem = /^service: LEMONSQUEEZY_ALLOW_TEST_MODE is set to a truthy value/;
+
+    it("unset or empty passes silently", () => {
+      expect(checkConfig(serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: undefined }), webEnv())).toMatchObject({ problems: [], warnings: [] });
+      expect(checkConfig(serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: "  " }), webEnv())).toMatchObject({ problems: [], warnings: [] });
+    });
+
+    it.each(["false", "FALSE", " False ", "0", "no", "off"])("explicit %j passes silently", (value) => {
+      expect(checkConfig(serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: value }), webEnv())).toMatchObject({ problems: [], warnings: [] });
+    });
+
+    it.each(["true", "TRUE", " True ", "1", "yes", "Y", "on"])("truthy %j is a problem", (value) => {
+      const { problems } = checkConfig(serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: value }), webEnv());
+      expect(problems).toEqual([expect.stringMatching(testModeProblem)]);
+      // Names only: the configured value is never part of the message.
+      expect(problems.join(" ")).not.toContain(`"${value.trim()}"`);
+    });
+
+    it("an unrecognised value only warns (the service ignores anything but \"true\")", () => {
+      const res = checkConfig(serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: "banana" }), webEnv());
+      expect(res.problems).toEqual([]);
+      expect(res.warnings).toEqual([expect.stringMatching(/^service: LEMONSQUEEZY_ALLOW_TEST_MODE has an unrecognised value/)]);
+      expect(res.warnings.join(" ")).not.toContain("banana");
+    });
+
+    it("applies to production rules only: unset NODE_ENV is production, development reports just NODE_ENV", () => {
+      expect(checkConfig(serviceEnv({ NODE_ENV: undefined, LEMONSQUEEZY_ALLOW_TEST_MODE: "true" }), webEnv()).problems).toEqual([
+        expect.stringMatching(testModeProblem),
+      ]);
+      expect(checkConfig(serviceEnv({ NODE_ENV: "development", LEMONSQUEEZY_ALLOW_TEST_MODE: "true" }), webEnv()).problems).toEqual([
+        expect.stringMatching(/^service: NODE_ENV is "development"/),
+      ]);
+    });
+
+    it("the web side's file is not consulted for it", () => {
+      expect(checkConfig(serviceEnv(), webEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: "true" })).problems).toEqual([]);
+    });
+  });
+
   it("warns (does not fail) about HOST, CLIENT_IP_HEADER and GOOGLE_CLIENT_ID", () => {
     const res = checkConfig(serviceEnv({ HOST: undefined, GOOGLE_CLIENT_ID: undefined }), webEnv({ CLIENT_IP_HEADER: undefined }));
     expect(res.problems).toEqual([]);
@@ -182,6 +222,18 @@ describe("npm run check:config (CLI)", () => {
     expect(res.out).toMatch(/PROBLEM {2}INTERNAL_SERVICE_SECRET differs between service and web/);
     expect(res.out).toMatch(/PROBLEM {2}AI_HOLD_TTL_SECONDS \(30 s\)/);
     for (const v of values(service, web)) expect(res.out).not.toContain(v);
+  });
+
+  it("exit 1 naming LEMONSQUEEZY_ALLOW_TEST_MODE (and not its value) when it is truthy; false passes", () => {
+    const web = webEnv();
+    const truthy = serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: "true" });
+    const res = run(["--service", write("svc-testmode.env", truthy), "--web", write("web-testmode.env", web)]);
+    expect(res.code, res.out).toBe(1);
+    expect(res.out).toMatch(/PROBLEM {2}service: LEMONSQUEEZY_ALLOW_TEST_MODE is set to a truthy value/);
+    expect(res.out).not.toMatch(/LEMONSQUEEZY_ALLOW_TEST_MODE=/);
+    for (const v of values(truthy, web)) expect(res.out).not.toContain(v);
+    const ok = run(["--service", write("svc-testmode-off.env", serviceEnv({ LEMONSQUEEZY_ALLOW_TEST_MODE: "false" })), "--web", write("web-testmode-off.env", web)]);
+    expect(ok.code, ok.out).toBe(0);
   });
 
   it("`env` reads the variables it is started with", () => {

@@ -201,9 +201,12 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
 - [ ] Output ends with `[check:config] OK — no problems found.` and exit code `0` (`1` = problems, `64` = usage error).
       It prints variable **names** only, never values.
 - [ ] It catches: every boot-time check of both services, `.env.example` placeholders, `INTERNAL_SERVICE_SECRET` /
-      `JWT_SECRET` / `FRONTEND_URL` / Google client id differing between the two, and `AI_HOLD_TTL_SECONDS` below 2 ×
-      the longest turn (defaults: 600 s against 74.25 s).
-- [ ] It does **not** check `LEMONSQUEEZY_ALLOW_TEST_MODE` — confirm by eye that it is absent from the Express env.
+      `JWT_SECRET` / `FRONTEND_URL` / Google client id differing between the two, `AI_HOLD_TTL_SECONDS` below 2 ×
+      the longest turn (defaults: 600 s against 74.25 s), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
+      (`true`, `1`, `yes`, `y`, `on`) in the Express file — a `PROBLEM` naming the variable, exit `1`. Unset, empty and
+      `false` / `0` / `no` / `off` pass; any other value only warns (the service honours exactly `true`, so it is inert).
+- [ ] The check reads only the file or env you hand it. It cannot see what the **host's dashboard** really holds, so
+      the file must be a faithful export of it (§3.5 re-confirms on the live host).
 - [ ] Delete both files afterwards (`rm .env.launch-*.local`).
 - [ ] The same values are now entered in the two hosts' secret stores (not the files).
 
@@ -337,7 +340,7 @@ Lemon keeps **test mode and live mode separate**. Work in **live mode** for ever
         no dispute/chargeback event — §6.2, §7);
       - Lemon's docs do not state whether webhooks are shared between modes — confirm in the dashboard that this
         webhook is listed under **live** mode.
-- [ ] **3.5 Test mode is off in production.** `LEMONSQUEEZY_ALLOW_TEST_MODE` is **not set** on Express (§1.5). In
+- [ ] **3.5 Test mode is off in production.** `LEMONSQUEEZY_ALLOW_TEST_MODE` is **not set** on Express (§1.5; `check:config` fails on a truthy value). In
       production a test-mode order is logged `[Webhook] Ignoring test-mode order` and never credited (SEC-13).
 - [ ] **3.6 No discount codes.** Create none, and do **not** copy any from test mode ("Copy to Live Mode" also exists
       for discounts). The live Discounts list must be empty. Reason: the webhook accepts an order when `total`,

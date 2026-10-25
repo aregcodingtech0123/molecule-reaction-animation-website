@@ -246,7 +246,7 @@ base64 above.)
 | `CSP_MODE` | optional (enforce) | — | SEC-18: `report-only` sends the strict nonce CSP as `Content-Security-Policy-Report-Only` — only as a temporary escape hatch if a third party (e.g. Google sign-in) breaks; anything else enforces |
 | `BILLING_CALL_TIMEOUT_MS` | optional (`10000`) | — | SEC-17: upper bound of one BFF → billing call; a timed-out reservation answers `503 BILLING_UNAVAILABLE`, a timed-out capture/release is retried |
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
-| `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
+| `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment; `check:config` fails on a truthy value. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
 
 **Choosing `CLIENT_IP_HEADER` (Next.js):** it must be a header the platform **overwrites**, so a client
@@ -286,7 +286,8 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
 It prints variable **names** only, never values, and exits `1` when anything would fail or misbehave in
 production: every boot-time check of both services (SEC-08), `.env.example` placeholders still in place,
 `INTERNAL_SERVICE_SECRET` / `JWT_SECRET` / `FRONTEND_URL` / the Google client id differing between the two,
-and `AI_HOLD_TTL_SECONDS` below **2 ×** the longest turn (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`
+`LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value on the service (`true`, `1`, `yes`, `y`, `on`; unset / `false` /
+`0` / `no` / `off` pass), and `AI_HOLD_TTL_SECONDS` below **2 ×** the longest turn (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`
 + capture attempts × `BILLING_CALL_TIMEOUT_MS`) — with the defaults 600 s against 2 × 74.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
 Delete the exported files afterwards.
 
