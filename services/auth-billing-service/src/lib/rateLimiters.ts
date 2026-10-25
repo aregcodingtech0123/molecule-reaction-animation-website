@@ -5,12 +5,20 @@ import rateLimit from "express-rate-limit";
 const ip = (req: Request) => req.clientIp ?? req.ip ?? "unknown";
 /** X-Forwarded-For is resolved deliberately via TRUST_PROXY_HOPS; silence the library guess. */
 const validate = { xForwardedForHeader: false } as const;
+/**
+ * The account an email-keyed limit protects, normalised exactly like normalizeEmail() (trim +
+ * lower-case) — otherwise whitespace/case variants of one address each get a fresh bucket (SEC-06).
+ */
+const emailKey = (req: Request) => {
+  const email = req.body?.email;
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+};
 
 /** Login: 5 attempts per 15 minutes per IP + email. */
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${ip(req)}:${String(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ip(req)}:${emailKey(req)}`,
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 900 },
   validate,
   standardHeaders: true,
@@ -43,7 +51,7 @@ export const googleRateLimiter = rateLimit({
 export const emailActionRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${ip(req)}:${String(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ip(req)}:${emailKey(req)}`,
   message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
   validate,
   standardHeaders: true,

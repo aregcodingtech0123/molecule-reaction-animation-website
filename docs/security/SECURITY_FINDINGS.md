@@ -10,6 +10,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-03 | Low | Dependencies / root | 25 root advisories (3 critical); none reachable at runtime (dev tooling, or unused parts of runtime libraries) | **Fixed** (branch `security/deps-and-ci`) except the KaTeX chain (4 low) — deferred, see DEPENDENCY_TRIAGE.md |
 | SEC-04 | Low | CI / supply chain | Workflow used mutable action tags, default token permissions, `ubuntu-latest`, and persisted checkout credentials | **Fixed** (branch `security/deps-and-ci`) |
 | SEC-05 | Low | Auth / OAuth | A password registration racing a first Google sign-in got linked without the FINDING-34 takeover (registrant's password stayed valid) | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-06 | Medium | Express / rate limits | Login and forgot-password limits bypassed with whitespace/case variants of the email | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -145,3 +146,21 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 * **Tests:** the takeover race (attacker password → 401, verified, `token_version` bumped, verification tokens
   deleted, one user / link / bonus) and a competing-Google-sign-in race that now covers the subject fallback
   deterministically (coverage no longer depends on timing).
+
+## SEC-06 — Medium — Email-keyed rate limits bypassed by whitespace / case variants
+
+* **Where:** `services/auth-billing-service/src/lib/rateLimiters.ts` (`loginRateLimiter`, `emailActionRateLimiter`).
+* **Weakness:** both limiters keyed on `ip + email.toLowerCase()` of the raw body value, while the service looks the
+  account up with `normalizeEmail()` (trim + lower-case). `" victim@x"`, `"victim@x "`, `"	victim@x"`, `"VICTIM@X "` …
+  therefore each got a fresh 5-attempt bucket for the **same** account: unlimited password guesses per IP against one
+  account, and unlimited reset / verification mails to one victim from one IP (mail flooding, sender reputation).
+  Express is publicly reachable, so the BFF is not in the way.
+* **Repro:** `tests/api/rate-limit-email-key.test.ts` — 8 spellings of one address from one IP: before the fix all 8
+  login attempts were answered 401 (all 8 forgot-password requests 200); after: 5 answered, then 429.
+* **Fix:** the key uses the email normalised exactly like `normalizeEmail()`; non-string values map to an empty key
+  (validation still answers 400). Different accounts from one IP keep separate buckets (tested).
+* **Open — decision needed (not changed):** there is no per-account limit **across** IPs, so a distributed guesser
+  gets 5 attempts per IP per 15 minutes per account. A per-account failed-attempt limit (e.g. 20 failures / 15 min,
+  `skipSuccessfulRequests`) would stop that but lets anyone lock a victim's *password* sign-in for the window (Google
+  sign-in and password reset would still work). Also: all limiters are in-memory, i.e. per instance and reset on
+  restart; a shared store (Redis) is needed before running several Express instances.
