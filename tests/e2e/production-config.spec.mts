@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomInt } from "node:crypto";
 import net from "node:net";
 import { expect, test } from "@playwright/test";
 import { repoRoot, webEnv } from "../../scripts/test/e2e-env.mjs";
@@ -16,12 +17,15 @@ test.afterAll(async () => {
 
 test("session cookie flags: HttpOnly, SameSite=Strict, Path=/, Max-Age; Secure exactly in production", async ({ request }) => {
   const email = uniqueEmail("cookie");
+  // Own client IP (the E2E BFF reads x-forwarded-for): the journeys share the 3-per-hour register bucket.
+  const client = { "x-forwarded-for": `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}` };
   const reg = await request.post("/api/auth/register", {
+    headers: client,
     data: { email, password: "E2e-pass-123", firstName: "Ada", lastName: "Lovelace", dateOfBirth: "1990-12-10" },
   });
   expect(reg.status()).toBe(200);
   const token = await plantVerificationToken(email);
-  const verified = await request.post("/api/auth/verify-email", { data: { token } });
+  const verified = await request.post("/api/auth/verify-email", { headers: client, data: { token } });
   expect(verified.status()).toBe(200);
   expect(await verified.json()).not.toHaveProperty("data.token");
 
