@@ -22,6 +22,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-15 | Low | AI Lab / output | Model output could make the browser load any remote image (markdown image) — conversation exfiltration / tracking via prompt injection | **Fixed** (branch `security/audit-fixes-b`) |
 | SEC-16 | Medium | AI Lab / cost | No ceiling on model spend: no daily caps (per user or global), unbounded output tokens, up to ~192 000 characters of prompt per turn | **Fixed** (branch `security/audit-fixes-b`) |
 | SEC-17 | Low | BFF / availability, billing | BFF → billing calls had no timeout: a hung billing service held AI turns for minutes and late captures left answers uncharged | **Fixed** (branch `security/audit-fixes-b`) |
+| SEC-18 | Low | Frontend / headers | The CSP allowed any inline script (`'unsafe-inline'`), images from any https host and stale CDN origins; no `frame-ancestors`, `form-action`, HSTS; `X-Powered-By` sent | **Fixed** (branch `security/audit-fixes-b`) — strict nonce CSP (owner decision) |
 
 ---
 
@@ -484,3 +485,41 @@ Evidence is the named test, or the code reference where a test would only restat
   tested to charge exactly once. `npm run check:config` now counts the capture attempts' timeouts in the longest
   turn (defaults: 30 s + 4.25 s + 4 × 10 s = 74.25 s, TTL must be ≥ 2× that).
 * **Behaviour change (env):** optional `BILLING_CALL_TIMEOUT_MS` (Next).
+
+## SEC-18 — Low — Content-Security-Policy did not restrict script execution
+
+* **Where:** `next.config.ts` (static headers), `src/middleware.ts` (now `src/proxy.ts`), `src/app/layout.tsx`.
+* **Weakness:** the CSP had `script-src 'self' 'unsafe-inline' https://accounts.google.com`: any injected inline
+  script or event handler would run, so it gave no XSS protection. `img-src https:` allowed every host (the SEC-15
+  channel), `connect-src` still listed the drei HDRI CDNs removed by FINDING-31, and `frame-ancestors`,
+  `form-action`, `upgrade-insecure-requests` and HSTS were absent (only `X-Frame-Options`). Next sent
+  `X-Powered-By: Next.js`. Low: no XSS sink was found (React escaping, the sanitised markdown renderer — SEC-15);
+  this is the second layer.
+* **Repro:** `tests/e2e/security-headers.spec.mts` and `tests/api/csp.test.ts` against the old headers: script-src
+  contained `'unsafe-inline'`, `frame-ancestors` missing, `img-src` contained `https:`.
+* **Fix (owner decision: strict nonce CSP, pages rendered per request):** `src/proxy.ts` (Next 16's rename of
+  `middleware.ts`; the page gating is unchanged) sets a fresh 128-bit nonce per page request and
+  `script-src 'self' 'nonce-…' 'strict-dynamic'` (`'unsafe-eval'` only under `next dev`), `frame-ancestors 'none'`,
+  `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `default-src 'self'`, purpose-listed third parties
+  (Google Identity Services per Google's documented values — `gsi/style`, `gsi/` frames and endpoints; PubChem and
+  Wikipedia for the structure/element data; `upload.wikimedia.org` images), `worker-src 'self' blob:` and
+  `upgrade-insecure-requests` in production behind https. Next applies the nonce to its own scripts; the root layout
+  puts it on the theme script, which also makes every page dynamic (a nonce CSP requires it). API routes get a static
+  `default-src 'self'; frame-ancestors 'none'; form-action 'none'` policy. `next.config.ts`: HSTS
+  (`max-age=63072000; includeSubDomains`, production only, no `preload`), `Cross-Origin-Opener-Policy:
+  same-origin-allow-popups` (Google's guidance for sign-in popups), Permissions-Policy adds `payment=()`, `usb=()`,
+  `poweredByHeader: false`.
+* **Verified in the browser (dev and production builds):** every served `<script>` carries the response's nonce,
+  nonces differ per request; injected markup cannot run script (inline `<script>` in an injected `srcdoc`
+  iframe, `onerror` handler, `javascript:` link — all blocked with a `script-src` violation); all public pages
+  including the three 3D scenes, and the signed-in dashboard / AI Lab / profile, render with **zero** CSP
+  violations and no page errors; the whole E2E suite passes under the policy (48/48 production, 46+1 skipped dev).
+* **Trust model, stated:** `'strict-dynamic'` trusts scripts that already-trusted code creates (that is how the
+  Google Identity script loads); styles keep `'unsafe-inline'` (React / framer-motion / R3F set style attributes;
+  CSS injection is not script execution).
+* **Not verifiable offline:** the live Google sign-in (Google's hosts are blocked in E2E). The policy follows
+  Google's documented values; confirm a real Google sign-in on staging. Escape hatch: `CSP_MODE=report-only` (Next
+  then sends `Content-Security-Policy-Report-Only`; nonces keep working).
+* **Behaviour change (hosting / env):** all pages are server-rendered per request (no static/CDN caching of HTML;
+  `_next/static` assets are unchanged). New optional env `CSP_MODE` (Next). Browsers remember HSTS for two years
+  once the site is served over https.
