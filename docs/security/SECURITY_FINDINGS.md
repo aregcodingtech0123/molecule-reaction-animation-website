@@ -13,6 +13,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-06 | Medium | Express / rate limits | Login and forgot-password limits bypassed with whitespace/case variants of the email | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-07 | Medium | Auth / enumeration | Register, forgot-password and resend revealed whether an account exists through mail-send timing (and resend through a 502) | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-08 | Medium | Config / operations | Express ran with dev rules when NODE_ENV was unset; neither service validated the webhook secret, URLs, mail sender or bcrypt cost at startup | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-09 | Low | Express / errors | A compressed body that does not decode was answered 500 (logged with a stack) instead of 400 | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -73,7 +74,19 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   lockfile (verified) and passes now. `tests/api/body-parser-compressed.test.ts` is a resilience smoke check (gzip body
   with trailing bytes on the global JSON parser, an unmatched route and the webhook parser; the service keeps serving).
   It did **not** reproduce the crash on 2.3.0, so it is not counted as the regression proof.
-* **Optional hardening (Part 2):** `inflate: false` on the parsers if no client needs compressed request bodies.
+* **Behavioural verification (Part 2A)** — `tests/api/compressed-bodies.test.ts`, raw HTTP (byte-exact) against the
+  public app on both parsers (global JSON 32 kb; webhook raw 256 kb, read before HMAC):
+  * valid gzip, deflate, br, zstd (Node 24 + body-parser 2.4 decode zstd) and identity bodies → decoded and handled;
+  * `compress`, an unknown encoding, `gzip, gzip` → 415 `UNSUPPORTED_MEDIA_TYPE`;
+  * malformed / truncated gzip, deflate, br, zstd streams → 400 `INVALID_CONTENT_ENCODING` after SEC-09 (500 before);
+  * a body under the limit compressed but over it decompressed → 413 `PAYLOAD_TOO_LARGE`; on the webhook this happens
+    **before HMAC verification and with zero database calls** (the limit is measured after decompression);
+  * decompression bomb, ~200 MB of zeros in a 199 kB gzip → 413 in 53–71 ms, RSS +0.3–0.6 MB: inflation stops at the
+    limit;
+  * no uncaught exception, no unhandled rejection, no hang (15 s request timeout) in any case.
+  The advisory's crash could not be reproduced on 2.3.0 with these inputs either; the fix stays the version floor.
+* **Decision:** decompression stays enabled (`inflate` default). With the limits applied after decompression it showed
+  no crash, hang or memory risk; disabling it would only reject clients that compress.
 
 ## SEC-03 — Low — Root-package advisories (tooling and unused runtime paths)
 
@@ -234,3 +247,16 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
     `RESEND_API_KEY`, `SENDER_EMAIL` on a verified domain; `BCRYPT_ROUNDS`, if set, 10–15.
   * Newly required in production (Next.js): `JWT_SECRET` (same value as Express), `FRONTEND_URL`,
     `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`.
+
+## SEC-09 — Low — Undecodable compressed bodies answered 500
+
+* **Where:** `services/auth-billing-service/src/middlewares/errorHandler.ts`.
+* **Weakness:** body-parser wraps a zlib decoder error (bad gzip / deflate / br / zstd stream) as `status 400,
+  expose: true` but without a body-parser `type`, so the FINDING-12 mapping missed it: the public service answered
+  **500 INTERNAL_ERROR** and logged a stack trace for every such request — a cheap way to flood error logs and alerts,
+  and a misleading signal (client error reported as server fault).
+* **Repro:** `tests/api/compressed-bodies.test.ts` — five malformed streams (garbage behind a gzip header, truncated
+  gzip, random bytes as deflate / br, gzip bytes declared as zstd) on both parsers: 500 before, 400 after.
+* **Fix:** an exposed 400 whose `code` is a zlib decoder code (`Z_*`, `ERR__ERROR_*` for brotli, `ZSTD_error_*`) is
+  answered `400 { code: "INVALID_CONTENT_ENCODING", error: "Request body could not be decoded." }`; the zlib message
+  is not echoed.
