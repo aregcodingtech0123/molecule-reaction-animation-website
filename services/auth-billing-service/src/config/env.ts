@@ -70,6 +70,10 @@ export const env = {
   get lemonSqueezyVariantEnterprise() {
     return readEnv("LEMONSQUEEZY_VARIANT_ENTERPRISE");
   },
+  /** Production credits test-mode orders only with this explicit opt-in (staging stores). */
+  get lemonSqueezyAllowTestMode() {
+    return readEnv("LEMONSQUEEZY_ALLOW_TEST_MODE") === "true";
+  },
 
   // ── Internal service-to-service credential (BFF → this service) ───────────
   /** Shared secret the Next.js BFF sends as X-Internal-Service-Key on metering calls. */

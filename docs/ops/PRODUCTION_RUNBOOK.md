@@ -204,6 +204,11 @@ openssl rand -base64 48
 | `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` | — | **required** (existing vars, now enforced) | numeric and distinct. Express **refuses to start** in production otherwise (FINDING-13): the hard-coded fallback ids (`2154652` / `2154661` / `2154665`) were removed. Confirm the three values against the Lemon dashboard **before** deploying |
 | `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` | optional, **build-time** | — | same ids; only for `?variant_id=` deep links. Unset → those links are ignored |
 | `TRUST_PROXY_HOPS` | — | optional (`0`) | proxies in front of Express whose `X-Forwarded-For` is trusted for **direct** traffic. Keep `0` unless exactly one load balancer that appends the client IP sits in front |
+| `NODE_ENV` | `production` | **`production`** (Phase 2, SEC-08) | Express now applies production rules unless `NODE_ENV` is exactly `development` or `test`. Production rules without `HOST` bind `127.0.0.1`: hosted platforms need `HOST=0.0.0.0` |
+| `FRONTEND_URL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `RESEND_API_KEY`, `SENDER_EMAIL` / `EMAIL_FROM`, `BCRYPT_ROUNDS` | — | **validated at boot** (SEC-08) | https origin; webhook secret ≥ 32 random chars, not a placeholder (Lemon allows up to 40 — rotate it in the dashboard and here together); store id numeric; sender on a verified domain, not `@resend.dev`; bcrypt cost 10–15 if set. Any problem → `FATAL:` line, exit 1 |
+| `JWT_SECRET`, `FRONTEND_URL`, `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL` | **validated at start** (SEC-08) | — | `next start` refuses to start without them (not checked during `next build`) |
+| `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
+| `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
 
 **Choosing `CLIENT_IP_HEADER` (Next.js):** it must be a header the platform **overwrites**, so a client
 cannot forge it. The right-most valid address is used.

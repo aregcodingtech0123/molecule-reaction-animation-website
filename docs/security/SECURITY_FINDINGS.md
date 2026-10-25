@@ -17,6 +17,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-10 | Medium | BFF / availability | The gateway buffered request bodies of any size (unauthenticated routes), /api/chat parsed any size for signed-in users | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
+| SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
 
 ---
 
@@ -321,3 +322,30 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   INSERT (see DB_ROLES.md).
 * **Behaviour change:** none while one role owns the schema and runs the app. Other database roles lose implicit
   `EXECUTE` on `post_credit_transaction()`.
+
+## SEC-13 — Low — Webhook trusted the signature for where the order came from
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts` (`processLemonSqueezyEvent`).
+* **Weakness:** after the HMAC check the order was credited if it was `paid`, not refunded, matched a pack price
+  and its currency was not something other than USD. Not checked: `test_mode` (Lemon test-mode orders are paid
+  with test cards, so a test-mode webhook pointed at production — same URL and secret, a common setup while
+  integrating — turns free test purchases into real credits), `store_id` (a second store or webhook sharing the
+  secret), and a missing `currency` (accepted). Low: every case needs an event signed with our secret.
+* **Repro:** `tests/api/webhook.order-origin.test.ts` — in production a `test_mode: true` order, an order with
+  another or no `store_id`, and an order without `currency` were all credited (+50).
+* **Fix:** in production a test-mode order is ignored (`test_mode_order`, logged "Ignoring test-mode order")
+  unless `LEMONSQUEEZY_ALLOW_TEST_MODE=true`; outside production test mode keeps working for local checkout
+  testing. When `LEMONSQUEEZY_STORE_ID` is set (required in production, SEC-08) `store_id` must equal it
+  (`store_mismatch`). The currency must be present and USD. The webhook still answers 200 for all of these, as for
+  every other non-credited order, so Lemon does not retry.
+* **Behaviour change (Lemon / env):** new optional `LEMONSQUEEZY_ALLOW_TEST_MODE`. A test-mode webhook on the
+  production service no longer credits — if you test purchases on production with test cards, set the flag for
+  that period only.
+* **Reviewed, no change:** replay — signatures carry no timestamp, so a captured event can be re-sent forever,
+  but fulfilment is idempotent on `ls_order_<id>` (unique ledger index, FINDING-11; concurrent replays tested),
+  and only `order_created` is acted on. Amount — must equal the pack's list price in `total`, `subtotal` or the
+  line price; a buyer who sets `custom_data.package_id` to a dearer pack fails the amount check. `subtotal` is
+  before discounts, so an owner-issued discount code (even 100 %) still credits the full pack: intended, noted.
+* **Open (owner decision, Info):** refunds and chargebacks are not handled — `order_refunded` is not subscribed,
+  so credits stay after Lemon refunds an order. Needs a product decision (claw back unspent credits, allow a
+  negative balance, or flag for review).
