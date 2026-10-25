@@ -342,9 +342,21 @@ describe("non-order events", () => {
   );
 
   it("processLemonSqueezyEvent returns ignored_event_type for non-order events", async () => {
-    await expect(
-      processLemonSqueezyEvent(orderCreatedEvent({ eventName: "order_refunded" }) as never),
-    ).resolves.toEqual({ processed: false, reason: "ignored_event_type" });
+    for (const eventName of ["subscription_created", "license_key_created", "customer_updated"]) {
+      await expect(
+        processLemonSqueezyEvent(orderCreatedEvent({ eventName }) as never),
+      ).resolves.toEqual({ processed: false, reason: "ignored_event_type" });
+    }
+  });
+
+  it("order_refunded is no longer ignored: it goes to the refund recorder, never to crediting (SEC-14, TC-47)", async () => {
+    // This fixture still says status "paid": the refund gate refuses it, and nothing is credited.
+    const event = orderCreatedEvent({ eventName: "order_refunded" });
+    await expect(processLemonSqueezyEvent(event as never)).resolves.toEqual({
+      processed: false,
+      reason: "unexpected_refund_status",
+      orderId: event.data.id,
+    });
   });
 });
 
