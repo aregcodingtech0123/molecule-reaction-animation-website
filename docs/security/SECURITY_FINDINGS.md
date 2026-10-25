@@ -18,6 +18,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
 | SEC-11 | Low | BFF / CSRF | `/api/chat` (spends credits) lacked the Origin / Sec-Fetch-Site guard of the other state-changing routes | **Fixed** (branch `security/audit-fixes-a`) |
 | SEC-12 | Low | Database / privileges | The service runs as the schema owner; the ledger writer resolved names through the caller's `search_path` and any role could execute it; no least-privilege role existed | **Fixed** (branch `security/audit-fixes-a`) — migration 012; app-role split ready, switching is an owner decision |
 | SEC-13 | Low | Webhook / payments | A signed `order_created` was credited without checking test mode, store or a present currency | **Fixed** (branch `security/audit-fixes-a`) |
+| SEC-14 | Low | Webhook / payments | Lemon refunds were invisible: credits of a refunded order stayed and nothing recorded or reported it | **Fixed** (branch `security/audit-fixes-b`) — recorded and reported for manual review (no automatic claw-back, owner decision) |
 
 ---
 
@@ -346,9 +347,7 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   and only `order_created` is acted on. Amount — must equal the pack's list price in `total`, `subtotal` or the
   line price; a buyer who sets `custom_data.package_id` to a dearer pack fails the amount check. `subtotal` is
   before discounts, so an owner-issued discount code (even 100 %) still credits the full pack: intended, noted.
-* **Open (owner decision, Info):** refunds and chargebacks are not handled — `order_refunded` is not subscribed,
-  so credits stay after Lemon refunds an order. Needs a product decision (claw back unspent credits, allow a
-  negative balance, or flag for review).
+* **Open → decided (Part 2B):** refunds are recorded and reported for manual review, never clawed back — SEC-14.
 
 ## Part 2A — areas reviewed without a further finding
 
@@ -380,3 +379,36 @@ Evidence is the named test, or the code reference where a test would only restat
   must exceed the BFF's `GEMINI_TIMEOUT_MS` (default 30 s) plus `BILLING_RETRY_DELAYS_MS` (default ≈ 4.25 s).
   Otherwise a slow but successful turn finds its hold expired, capture answers `HOLD_EXPIRED`, and the answer is
   delivered uncharged. The services cannot check this pair at boot because each knows only its own half.
+
+---
+
+# Part 2B (branch `security/audit-fixes-b`)
+
+## SEC-14 — Low — Refunded Lemon orders kept their credits silently
+
+* **Where:** `services/auth-billing-service/src/services/webhook.service.ts`; database (new migration 013).
+* **Weakness:** only `order_created` was handled. After Lemon refunded an order (full or partial — e.g. a buyer
+  asking for a refund after spending the credits) nothing recorded it and nothing reported it, so the owner could
+  not notice a buy → spend → refund pattern.
+* **Repro:** `tests/api/webhook.refunds.test.ts` — a signed `order_refunded` for a credited order was answered 200
+  and dropped (`ignored_event_type`): nothing stored, nothing listed.
+* **Lemon facts used (official docs, not guessed):** `order_refunded` "A full or partial refund is issued on an
+  order", payload = the Order object (`status` `refunded` / `partial_refund`, `refunded` = fully refunded,
+  `refunded_amount` / `refunded_amount_usd` in cents, `refunded_at`, `test_mode`, `store_id`). No dispute or
+  chargeback event exists in Lemon's event list; their refunds/chargebacks page says Lemon handles chargebacks and
+  "in most cases" refunds on the store's behalf, but does not say whether that emits `order_refunded`. The webhook
+  meta has no event id.
+* **Fix (owner decision: no automatic claw-back):** the webhook verifies the signature exactly as for
+  `order_created`, applies the same origin gate (store id; test mode in production, SEC-13), validates status and
+  amount, and inserts one row per refund state into `lemon_order_refunds` (unique on order id + status + refunded
+  amount: retries and replays are no-ops, a later larger partial refund is a new row). It never touches the ledger
+  or balances. `refunded_orders_to_review()` (read-only, pinned `search_path`) lists unreviewed refunded orders
+  whose `CREDIT_PURCHASE` is in the ledger; `npm run db:reconcile` prints them as `refunded_order_credited` and
+  exits 2 until the owner sets `reviewed_at` (runbook §9). The app role may insert and read refunds, not mark
+  them reviewed or delete them. Logs carry order id, status, amount — not the buyer's email.
+* **Tests:** `tests/api/webhook.refunds.test.ts` (13), `tests/db/cli.test.ts` (reconcile lists / clears),
+  `tests/api/app-role.test.ts` (flow as the app role; review/delete refused), runbook rollback covers 013.
+* **Behaviour change (Lemon / ops):** subscribe `order_refunded` in the Lemon dashboard (runbook §8);
+  `db:reconcile` can now exit 2 for unreviewed refunds.
+* **Open:** chargebacks without an `order_refunded` (undocumented) — check the Lemon dashboard's disputes in the
+  weekly review.

@@ -175,6 +175,82 @@ export interface ProcessOutcome {
   orderId?: string;
 }
 
+type LemonOrderAttributes = LemonOrderCreatedEvent["data"]["attributes"];
+
+/**
+ * A valid signature proves the event came from a webhook holding our secret, not that the order is a
+ * real purchase in this store (SEC-13): test-mode orders are paid with test cards. Shared by
+ * order_created and order_refunded. Returns the reason to ignore the event, or null.
+ */
+function orderOriginProblem(orderId: string, attrs: LemonOrderAttributes): string | null {
+  if (attrs.test_mode === true && env.isProduction && !env.lemonSqueezyAllowTestMode) {
+    console.warn("[Webhook] Ignoring test-mode order", { orderId });
+    return "test_mode_order";
+  }
+  const storeId = env.lemonSqueezyStoreId;
+  if (storeId && String(attrs.store_id ?? "") !== storeId) {
+    console.error("[Webhook] Order from another store", { orderId, storeId: attrs.store_id ?? null });
+    return "store_mismatch";
+  }
+  return null;
+}
+
+const REFUND_STATUSES = new Set(["refunded", "partial_refund"]);
+const isCents = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
+
+/**
+ * `order_refunded` (full or partial — Lemon documents no dispute/chargeback event): record it for
+ * manual review (SEC-14). NEVER changes credits; refunded_orders_to_review() / db:reconcile list it.
+ * Idempotent per refund state: Lemon sends no event id, so retries hit the unique key.
+ */
+async function recordLemonRefund(event: LemonOrderCreatedEvent): Promise<ProcessOutcome> {
+  const order = event.data;
+  const attrs = order?.attributes;
+  if (!order?.id || !attrs) {
+    console.error("[Webhook] Malformed refund payload — no data.attributes");
+    return { processed: false, reason: "malformed_payload" };
+  }
+  const orderId = String(order.id);
+
+  const originProblem = orderOriginProblem(orderId, attrs);
+  if (originProblem) return { processed: false, reason: originProblem, orderId };
+
+  if (!REFUND_STATUSES.has(attrs.status)) {
+    console.warn("[Webhook] Ignoring refund event with unexpected status", { orderId, status: attrs.status });
+    return { processed: false, reason: "unexpected_refund_status", orderId };
+  }
+  const currency = String(attrs.currency ?? "").toUpperCase();
+  if (!isCents(attrs.refunded_amount) || !/^[A-Z]{3}$/.test(currency) || orderId.length > 64) {
+    console.error("[Webhook] Malformed refund payload", { orderId, refundedAmount: attrs.refunded_amount ?? null });
+    return { processed: false, reason: "malformed_payload", orderId };
+  }
+  const refundedAt = typeof attrs.refunded_at === "string" && !Number.isNaN(Date.parse(attrs.refunded_at)) ? attrs.refunded_at : null;
+
+  const { rowCount } = await pool.query(
+    `INSERT INTO lemon_order_refunds
+       (provider_order_id, order_status, fully_refunded, refunded_amount, refunded_amount_usd, currency, refunded_at, test_mode)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT ON CONSTRAINT uq_lemon_order_refunds_state DO NOTHING`,
+    [
+      orderId,
+      attrs.status,
+      attrs.refunded === true,
+      attrs.refunded_amount,
+      isCents(attrs.refunded_amount_usd) ? attrs.refunded_amount_usd : null,
+      currency,
+      refundedAt,
+      attrs.test_mode === true,
+    ],
+  );
+  const logFields = { orderId, status: attrs.status, refundedAmount: attrs.refunded_amount, currency };
+  if (!rowCount) {
+    console.log("[Webhook] Refund already recorded", logFields);
+    return { processed: false, reason: "already_recorded", orderId };
+  }
+  console.warn("[Webhook] Recorded refund — credits NOT changed; review with db:reconcile", logFields);
+  return { processed: true, reason: "refund_recorded", orderId };
+}
+
 /**
  * Stage 2 — ASYNCHRONOUS fulfilment. Runs AFTER the 200 OK has been flushed,
  * so its latency never holds the Lemon Squeezy delivery open.
@@ -192,6 +268,9 @@ export async function processLemonSqueezyEvent(
 ): Promise<ProcessOutcome> {
   const eventName = event.meta?.event_name;
 
+  if (eventName === "order_refunded") {
+    return recordLemonRefund(event);
+  }
   if (eventName !== "order_created") {
     return { processed: false, reason: "ignored_event_type" };
   }
@@ -213,18 +292,8 @@ export async function processLemonSqueezyEvent(
     return { processed: false, reason: "order_refunded", orderId: order.id };
   }
 
-  // A valid signature proves the event came from a webhook holding our secret, not that the order is
-  // a real purchase in this store (SEC-13): test-mode orders are paid with test cards.
-  if (attrs.test_mode === true && env.isProduction && !env.lemonSqueezyAllowTestMode) {
-    console.warn("[Webhook] Ignoring test-mode order", { orderId: order.id });
-    return { processed: false, reason: "test_mode_order", orderId: order.id };
-  }
-
-  const storeId = env.lemonSqueezyStoreId;
-  if (storeId && String(attrs.store_id ?? "") !== storeId) {
-    console.error("[Webhook] Order from another store", { orderId: order.id, storeId: attrs.store_id ?? null });
-    return { processed: false, reason: "store_mismatch", orderId: order.id };
-  }
+  const originProblem = orderOriginProblem(order.id, attrs);
+  if (originProblem) return { processed: false, reason: originProblem, orderId: order.id };
 
   const custom = event.meta?.custom_data ?? {};
   const customUserId = readCustomDataString(custom, "user_id");

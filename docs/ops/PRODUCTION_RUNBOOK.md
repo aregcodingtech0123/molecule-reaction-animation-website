@@ -162,7 +162,7 @@ Save the output with the date; it is the audit record.
 
 ## 4. Migrations (old code may stay live during this step)
 
-`008`–`012` are backward compatible with the currently deployed code:
+`008`–`013` are backward compatible with the currently deployed code:
 `008` re-creates `post_credit_transaction()` with the same signature and behaviour (plus the flag the
 balance guard checks) and only blocks direct `UPDATE`/`TRUNCATE` of `user_balances` — the old code
 never does either. `009` only adds a table and two functions. `010` adds `users.token_version`
@@ -170,10 +170,11 @@ never does either. `009` only adds a table and two functions. `010` adds `users.
 index on `pending_checkout_orders`. `012` (SEC-12) pins `search_path` on the ledger functions, makes
 `post_credit_transaction()` `SECURITY DEFINER` and revokes its `EXECUTE` from `PUBLIC` — the owner role
 the services connect as keeps it, so nothing changes while one role owns the schema and runs the app.
+`013` (SEC-14) only adds the `lemon_order_refunds` table and the read-only `refunded_orders_to_review()`.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–012)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–013)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -347,7 +348,10 @@ In the Lemon dashboard → Settings → Webhooks:
 
 - URL is `https://<express-host>/api/billing/webhooks/lemonsqueezy` — the **Express** host, **not** the
   Next.js site. (The BFF drops `X-Signature`; deliveries to the Next host are always rejected.)
-- Event `order_created` is subscribed; signing secret equals `LEMONSQUEEZY_WEBHOOK_SECRET`.
+- Events `order_created` **and `order_refunded`** are subscribed (SEC-14); signing secret equals
+  `LEMONSQUEEZY_WEBHOOK_SECRET`. Lemon documents no dispute/chargeback event: when Lemon refunds a
+  disputed order on your behalf, whether that also sends `order_refunded` is not documented — check the
+  Lemon dashboard for disputes during the weekly review.
 - Use "Send test" → expect `200 {"received":true}` and an Express log `[Webhook] Acknowledged 200 OK`.
 - If the URL pointed at the Next host until now, every purchase since then was rejected (401) and **not
   credited**: re-deliver those orders from Lemon's "Recent deliveries" after fixing the URL (fulfilment is
@@ -372,6 +376,19 @@ In the Lemon dashboard → Settings → Webhooks:
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
   two are revenue loss, not customer harm.
+- **Refunded orders still credited** (same job, SEC-14): `refunded_order_credited` lists every Lemon
+  order refunded (fully or partly) whose purchase credits are in the ledger and that nobody has reviewed —
+  user, credits granted, current balance, refunded amount. **Credits are never clawed back
+  automatically.** Decide per order (keep as goodwill, or post a correction with an `ADMIN_ADJUSTMENT`
+  through `post_credit_transaction()` — it refuses to take the balance below zero), then mark it reviewed:
+
+  ```text
+  UPDATE lemon_order_refunds SET reviewed_at = NOW(), review_note = '<decision, your initials>'
+  WHERE provider_order_id = '<order id>' AND reviewed_at IS NULL;
+  ```
+
+  The job exits `2` until every listed order is reviewed. A later, larger partial refund of the same order
+  is a new row and is listed again.
 - **Stale checkouts** (hourly or daily — FINDING-15): `SELECT expire_stale_checkout_orders();` marks
   `pending_checkout_orders` rows older than 24 h as `expired` (pass an interval for another threshold;
   under 1 hour is refused). Bookkeeping only: it never touches credits, and a late payment for an
@@ -383,10 +400,13 @@ In the Lemon dashboard → Settings → Webhooks:
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–012 (only if they cause a problem)
+### 10.1 Migrations 008–013 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 013 (export lemon_order_refunds first if you need the refund history)
+DROP FUNCTION IF EXISTS refunded_orders_to_review();
+DROP TABLE IF EXISTS lemon_order_refunds;
 -- 012
 ALTER FUNCTION post_credit_transaction(uuid, integer, credit_transaction_type, varchar, varchar)
   SECURITY INVOKER RESET search_path;
@@ -408,7 +428,8 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 -- idempotent). Its tracking row must go too, otherwise a later roll-forward sees a gap.
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
-                   '011_checkout_order_expiry.sql', '012_function_search_path.sql');
+                   '011_checkout_order_expiry.sql', '012_function_search_path.sql',
+                   '013_lemon_order_refunds.sql');
 COMMIT;
 ```
 

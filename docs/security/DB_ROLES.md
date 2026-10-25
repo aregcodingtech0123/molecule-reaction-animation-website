@@ -23,12 +23,13 @@ Migration `012_function_search_path.sql` (applied by the normal runner, no behav
 | `pending_checkout_orders`, `ai_credit_holds` | SELECT, INSERT, UPDATE |
 | `credit_ledger_transactions` | SELECT |
 | `user_balances` | SELECT, INSERT |
+| `lemon_order_refunds` | SELECT, INSERT (the webhook records refunds; marking them reviewed is owner-only) |
 | `schema_migrations` | — |
 | functions | EXECUTE `post_credit_transaction(…)`, `release_expired_ai_holds()` |
 
 ## Switching (optional, owner decision)
 
-1. Apply migrations as usual (`node scripts/migrate.mjs`), so 012 is in place.
+1. Apply migrations as usual (`node scripts/migrate.mjs`), so 012 and 013 are in place.
 2. Create the login role (Neon console → Roles, or `CREATE ROLE moleculestudio_app LOGIN PASSWORD '…'`).
 3. As the owner: `psql "$OWNER_DATABASE_URL" -f database/roles/app-role.sql` (idempotent; it refuses to run
    before 012).

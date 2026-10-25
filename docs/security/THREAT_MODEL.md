@@ -68,6 +68,7 @@ Express ──▶ Resend (verification / reset / receipt mails)
 | Abuse case | Controls (and where verified) |
 | --- | --- |
 | Forge a purchase webhook | HMAC over raw body, 401 before any DB access; strong webhook secret enforced at startup in production (SEC-08) |
+| Buy, spend, then get refunded | `order_refunded` recorded; `db:reconcile` lists refunded orders still credited for manual review — no automatic claw-back (SEC-14) |
 | Replay a genuine webhook | ledger idempotency on `(provider, ls_order_<id>)` (FINDING-11); concurrent replays → `already_processed` |
 | Pay for a cheap pack, get an expensive one | amount checked against the server-side package price; currency USD only; variant → pack mapping from env only (FINDING-13) |
 | Refund a successful AI turn / pick the ledger type | metering endpoints internal-only (404 without the key), reserve → capture / release (FINDING-03, -07) |
