@@ -253,6 +253,41 @@ describe("errorHandler mapping", () => {
     expect(res.body.success).not.toBe(true);
   });
 
+  // PERF-29 / R18: "the database cannot serve this now" is a 503 with Retry-After, not a 500.
+  const unavailable: Array<[string, unknown]> = [
+    ["pool saturated / connect timeout (pg-pool)", new Error("timeout exceeded when trying to connect")],
+    ["connect timeout (pg client)", new Error("Connection terminated due to connection timeout")],
+    ["connection lost", new Error("Connection terminated unexpectedly")],
+    ["refused while connecting", Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED", syscall: "connect" })],
+    ["host not resolvable", Object.assign(new Error("getaddrinfo ENOTFOUND db"), { code: "ENOTFOUND", syscall: "getaddrinfo" })],
+    ["57P03 cannot_connect_now (resuming compute)", Object.assign(new Error("the database system is starting up"), { code: "57P03", severity: "FATAL" })],
+    ["53300 too_many_connections", Object.assign(new Error("sorry, too many clients already"), { code: "53300", severity: "FATAL" })],
+    ["08006 connection_failure", Object.assign(new Error("connection failure"), { code: "08006", severity: "FATAL" })],
+  ];
+  it.each(unavailable)("%s → 503 DATABASE_UNAVAILABLE with Retry-After", async (_label, err) => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const res = await request(appThrowing(err)).get("/boom");
+    expect(res.status).toBe(503);
+    expect(res.headers["retry-after"]).toBe("5");
+    expect(res.body).toEqual({ success: false, error: "Database is temporarily unavailable.", code: "DATABASE_UNAVAILABLE" });
+  });
+
+  const notUnavailable: Array<[string, unknown, number]> = [
+    ["a socket reset outside connect (not from pg)", Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }), 500],
+    ["a failed fetch to another service", Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } }), 500],
+    ["an errno-looking code without a pg severity", Object.assign(new Error("x"), { code: "57P03" }), 500],
+    ["a query error (syntax)", Object.assign(new Error("syntax error"), { code: "42601", severity: "ERROR" }), 500],
+    ["insufficient credits (P0001)", Object.assign(new Error("insufficient credits"), { code: "P0001", severity: "ERROR" }), 402],
+    ["unique violation", Object.assign(new Error("duplicate key"), { code: "23505", severity: "ERROR" }), 409],
+  ];
+  it.each(notUnavailable)("%s keeps its status (%s)", async (_label, err, status) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const res = await request(appThrowing(err)).get("/boom");
+    expect(res.status).toBe(status);
+    expect(res.headers["retry-after"]).toBeUndefined();
+  });
+
   it("unknown routes → 404 JSON", async () => {
     const res = await request(appThrowing(new Error("x"))).get("/nope");
     expect(res.status).toBe(404);

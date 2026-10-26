@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../types/index.js";
 import { ValidationError } from "../utils/validation.js";
+import { DATABASE_RETRY_AFTER_SECONDS, isDatabaseUnavailableError } from "../db/unavailable.js";
 
 export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({ success: false, error: "Route not found." });
@@ -78,6 +79,20 @@ export function errorHandler(
       success: false,
       error: "PAYMENT_ERROR",
       message: "A payment error occurred. Please try again.",
+    });
+    return;
+  }
+
+  // The database could not serve the request (unreachable, or every pool connection busy): a temporary
+  // condition, answered like requireDatabase does, plus Retry-After (PERF-29). Was a 500 INTERNAL_ERROR.
+  if (isDatabaseUnavailableError(err)) {
+    const e = err as { message?: string; code?: string };
+    console.warn("[db] Request failed: database unavailable", { code: e.code ?? null, message: e.message ?? null, path: req.path });
+    res.setHeader("Retry-After", String(DATABASE_RETRY_AFTER_SECONDS));
+    res.status(503).json({
+      success: false,
+      error: "Database is temporarily unavailable.",
+      code: "DATABASE_UNAVAILABLE",
     });
     return;
   }
