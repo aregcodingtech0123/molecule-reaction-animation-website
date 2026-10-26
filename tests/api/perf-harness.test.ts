@@ -321,6 +321,8 @@ describe("load and soak harness (Part 3)", () => {
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    // runOpenLoop is plain JS: its per-kind summaries are typed here.
+    type Kinds = Record<string, { p50: number; dropped: number }>;
     try {
       const results: number[] = [];
       const run = await runOpenLoop({
@@ -331,12 +333,12 @@ describe("load and soak harness (Part 3)", () => {
       });
       expect(run.total).toBe(20);
       expect(run.achievedPerSec).toBeGreaterThan(40); // not throttled by the 300 ms answers
-      expect(run.kinds.slow.p50).toBeGreaterThanOrEqual(290);
+      expect((run.kinds as Kinds).slow.p50).toBeGreaterThanOrEqual(290);
       expect(seen.filter((u) => u === "/a").length).toBe(seen.filter((u) => u === "/b").length);
       expect(results).toEqual(Array(20).fill(200));
 
       const capped = await runOpenLoop({ ratePerSec: 100, durationMs: 300, maxInFlight: 2, pick: () => ({ kind: "slow", origin, spec: { path: "/slow" } }) });
-      expect(capped.kinds.slow.dropped).toBeGreaterThan(0);
+      expect((capped.kinds as Kinds).slow.dropped).toBeGreaterThan(0);
       expect(stepBroke(capped)).toMatch(/error rate/); // a dropped arrival counts as an error
     } finally {
       await new Promise((r) => server.close(r));
