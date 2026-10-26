@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+// KaTeX's stylesheet travels with the renderer (PERF-24): this module loads on demand, not on every page.
+import "katex/dist/katex.min.css";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
