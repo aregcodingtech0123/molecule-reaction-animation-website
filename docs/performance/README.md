@@ -12,12 +12,21 @@ servers run behind the same fail-closed network guard as the E2E suite.
 | Runner | `scripts/perf/run.mjs` | One command: checks the build, seeds, starts the stack, runs a scenario (1 discarded warm-up run + `--runs` measured runs per measurement), writes `perf-results/<timestamp>-<scenario>/result.json`, stops the stack |
 | Stack | `scripts/perf/stack.mjs` | Mock Gemini, Express `node dist/index.js` (**NODE_ENV=production**), Next `next start` on the `.next-perf` build; logs to the run folder; kills process trees on exit |
 | Config | `scripts/perf/config.mjs` | Ports (Next **3200**, Express **4200**, mock Gemini **4290**), the guarded DB `moleculestudio_perf_test`, every env variable both servers read (process env wins over `.env` files), random secrets per run (never written to disk) |
-| Preload | `scripts/perf/preload.mjs` | Loaded into both servers: network guard (`scripts/test/network-guard.mjs`); Gemini **forwarded to the mock** with the caller's abort signal; Lemon checkout and Resend stubbed; optional instrumentation (below) |
+| Preload | `scripts/perf/preload.mjs` | Loaded into both servers: network guard (`scripts/test/network-guard.mjs`); Gemini **redirected to the mock** by rewriting the URL only, so the caller's `init` and abort signal are untouched (`lib/gemini-redirect.mjs`, PERF-21); `PERF_FORCE_GC_MS` forces GCs for PERF-21 checks only; Lemon checkout and Resend stubbed; optional instrumentation (below) |
 | Mock Gemini | `scripts/perf/mock-gemini.mjs` | Gemini REST shape; latency `fixed` / `uniform` / `lognormal(median, p95)`; failure rate and mode `500`/`503`/`hang`/`empty`/`reset`; seeded RNG; reconfigured at runtime (`POST /__config`) |
 | Seed | `scripts/perf/seed.mjs` | Recreates the DB with the production migration runner, then a deterministic dataset in SQL (below); checks `ledger_reconciliation()` is empty |
 | Load driver | `scripts/perf/lib/load.mjs` | Dependency-free closed-loop HTTP driver: N virtual users on keep-alive sockets, warm-up discarded, latency to the end of the body |
-| Scenarios | `scripts/perf/scenarios/*.mjs` | `smoke`, `balance`, `history`, `chat` (Part 0); Parts 1–3 add theirs here |
+| Scenarios | `scripts/perf/scenarios/*.mjs` | Part 0: `smoke`, `balance`, `history`, `chat`. Part 1: `gemini-timeout` (PERF-21), `metering` (reserve→capture on Express, one user / many users, DB sampler), `caps` (daily-cap boundary with production caps), `dbfaults` (DB latency, pool saturation via a harness-only `pg_sleep` trigger, cold start, DB down), `login` (bcrypt), `soak` (10-min mixed), `crosscheck` (in-repo driver vs autocannon) |
+| DB tools | `scripts/perf/explain.mjs`, `lib/db-sampler.mjs`, `lib/tcp-proxy.mjs` | `EXPLAIN (ANALYZE, BUFFERS)` of every hot query (writes rolled back; function internals via session-only `auto_explain`); backend/lock sampler; a 127.0.0.1-only TCP proxy in its own process (precise latency, suspend/resume, down) |
+| CPU profile | `PERF_CPU_PROF=api\|web` + `PERF_CPU_PROF_AFTER_MS` / `_FOR_MS`, `scripts/perf/cpu-top.mjs` | inspector profile of one server over a window (the preload writes it; servers are killed, so `--cpu-prof` would never flush); self time per function and package |
 | Tests | `tests/api/perf-harness.test.ts` | Statistics, seeded randomness (lognormal hits its median/p95), argument parsing, the DB guard, mock failure modes |
+
+**Network guard is mandatory (enforced since the Part 1 incident).** The runner installs and verifies it in its
+own process; each server's preload announces it on stderr and the stack refuses to measure a server whose log lacks
+`[perf-preload] network guard active`; `createMockGemini()` refuses to run in a process without it. Ad-hoc
+experiments ("isolation runs") go through `node scripts/perf/isolate.mjs <experiment.mjs>`, which installs the guard
+(and the Gemini redirect when `PERF_GEMINI_ORIGIN` is set) before importing the experiment — never a bare
+`node experiment.mjs`. (`scripts/perf/lib/guard.mjs`, tested in `tests/api/perf-harness.test.ts`.)
 
 Guards that stay in force: `scripts/test/db-guard.mjs` (the perf DB URL is built from `TEST_DATABASE_URL` and must
 be local, named `*test*`, no `sslmode=require`, no hosted host) and `scripts/test/network-guard.mjs` (any
@@ -50,7 +59,7 @@ Sessions are minted by the runner with the service's exact claim set (`scripts/p
 
 * **Per-hop log** (`hopLog: true`): the Next process records each upstream fetch (`auth/me`, `billing/consume`,
   `gemini`, `billing/capture`, …) with its time to response headers. The runner joins it with each run's window, so
-  `/api/chat` is broken down per hop. The Gemini hop includes the in-process forward to the mock (~3–12 ms locally);
+  `/api/chat` is broken down per hop. The Gemini hop includes the SDK's own work and the loopback call to the mock;
   "overhead excluding Gemini" = end-to-end − Gemini hop, which therefore slightly **under**-states overhead.
 * **Process log** (`procLog: true`, default): both servers sample RSS, heap, event-loop utilisation and event-loop
   delay (p50/p99/max) every second. Only samples inside measured windows are summarised (startup excluded).
@@ -67,6 +76,14 @@ node scripts/perf/run.mjs history --seed-args "--hot-rows 1000000"
 node scripts/perf/run.mjs chat --gemini lognormal:1500:4000 --concurrency 1,10,50
 node scripts/perf/run.mjs chat --gemini fixed:200 --gemini-failure 0.1:hang
 ```
+
+Scenario switches (environment): `PERF_CHAT_HOPLOG=0` (chat without the hop log), `PERF_CHAT_FORCE_GC_MS`,
+`PERF_CHAT_GEMINI_TIMEOUT_MS`, `PERF_DB_PROXY_LATENCY_MS` (chat through the DB proxy with that delay per direction),
+`PERF_REPRO_TIMEOUT_MS` / `PERF_REPRO_FORCE_GC_MS` (gemini-timeout), `PERF_UV_THREADPOOL_SIZE` (login),
+`PERF_LOG_VIA=pipe` (server output through a pipe instead of a file).
+
+Timing precision on Windows: timers fire in ~15.6 ms steps, so every harness delay below 20 ms (mock Gemini,
+DB proxy) uses a precise scheduler (coarse timer, then `setImmediate` polling); see PERFORMANCE_FINDINGS § Part 1.
 
 Options: `--runs N` (default 5), `--build`, `--allow-stale`, `--no-seed`, `--seed-args "…"`, `--concurrency a,b`,
 `--duration s`, `--warmup s`, `--gemini fixed:MS|uniform:MIN:MAX|lognormal:MEDIAN:P95`, `--gemini-failure RATE:MODE`.

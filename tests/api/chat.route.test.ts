@@ -125,6 +125,81 @@ describe("gating (nothing is charged and Gemini is never called)", () => {
     expect(gemini.generateContent).not.toHaveBeenCalled();
   });
 
+  describe("session and verification guarantees (PERF-01: hold whichever service call enforces them)", () => {
+    /** Nothing reserved, nothing posted, the model never called. */
+    async function expectUntouched(userId: string) {
+      expect(await holdsOf(userId)).toEqual([]);
+      expect(await ledgerOf(db, userId)).toEqual([]);
+      expect(gemini.generateContent).not.toHaveBeenCalled();
+    }
+
+    it("a logged-out token → 401 UNAUTHORIZED, nothing reserved", async () => {
+      const u = await createUser(db, { balance: 5 });
+      const t = tokenFor(u);
+      await callGateway("auth", "logout", { method: "POST", cookie: sessionCookie(t) });
+      const res = await chat(t);
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: "UNAUTHORIZED" });
+      await expectUntouched(u.id);
+    });
+
+    it("a token from an older session generation (password reset / takeover) → 401, nothing reserved", async () => {
+      const u = await createUser(db, { balance: 5 });
+      const t = tokenFor(u, 0);
+      await db.query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1`, [u.id]);
+      const res = await chat(t);
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: "UNAUTHORIZED" });
+      await expectUntouched(u.id);
+    });
+
+    it("an unverified email → 403 EMAIL_NOT_VERIFIED, nothing reserved", async () => {
+      const u = await createUser(db, { balance: 5, verified: false });
+      const res = await chat(tokenFor(u));
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "EMAIL_NOT_VERIFIED" });
+      await expectUntouched(u.id);
+    });
+
+    it("a token for a deleted account is never served or charged", async () => {
+      const u = await createUser(db, { balance: 5 });
+      const t = tokenFor(u);
+      await db.query(`DELETE FROM users WHERE id = $1`, [u.id]);
+      const res = await chat(t);
+      expect([401, 403, 503]).toContain(res.status);
+      expect(gemini.generateContent).not.toHaveBeenCalled();
+      expect(await holdsOf(u.id)).toEqual([]);
+    });
+
+    it("one service call before the model (PERF-01): /consume enforces session and verification, no /auth/me", async () => {
+      const u = await createUser(db, { balance: 5 });
+      const calls: string[] = [];
+      const realFetch = globalThis.fetch;
+      vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+        calls.push(new URL(typeof input === "string" || input instanceof URL ? input : input.url).pathname);
+        return realFetch(input, init);
+      });
+      gemini.generateContent.mockImplementation(async () => {
+        calls.push("<model>");
+        return { text: "Water is H2O." };
+      });
+      expect((await chat(tokenFor(u))).status).toBe(200);
+      expect(calls).toEqual(["/api/billing/consume", "<model>", "/api/billing/capture"]);
+    });
+
+    it("verification is checked on every turn: un-verifying an account stops the next turn", async () => {
+      const u = await createUser(db, { balance: 5 });
+      const t = tokenFor(u);
+      expect((await chat(t)).status).toBe(200);
+      await db.query(`UPDATE users SET is_verified = false WHERE id = $1`, [u.id]);
+      gemini.generateContent.mockClear();
+      const res = await chat(t);
+      expect(res.status).toBe(403);
+      expect(gemini.generateContent).not.toHaveBeenCalled();
+      expect((await holdsOf(u.id)).map((h) => h.status)).toEqual(["captured"]);
+    });
+  });
+
   it("no credits → 402 INSUFFICIENT_CREDITS with requiredCredits", async () => {
     const u = await funded(0);
     const res = await chat(tokenFor(u));

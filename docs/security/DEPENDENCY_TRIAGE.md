@@ -83,6 +83,18 @@ What each option would break:
 4. **Accept and track (recommended for now).** Low severity, not reachable without a separate prototype-pollution
    bug; revisit when `rehype-katex` / `micromark-extension-math` move to `katex` ≥ 0.18.2.
 
+## Root package — autocannon chain (3 moderate) — accepted (performance phase, 2026-10-26)
+
+`autocannon` 8.0.0 was added as an exact-pinned **devDependency** (owner-approved, Part 1 of the performance phase)
+to cross-check the in-repo load driver (`scripts/perf/scenarios/crosscheck.mjs`). 8.0.0 is the latest release
+(2024-10-14). It brings one advisory, reported three times along its chain:
+
+| Advisory | Chain | Runtime or tooling | Reachable? | Action |
+| --- | --- | --- | --- | --- |
+| GHSA-w5hq-g745-h8pq (moderate): uuid < 11.1.1, missing buffer bounds check in `v3`/`v5`/`v6` when `buf` is passed | `autocannon` 8.0.0 → `hyperid` 3.3.0 → `uuid` 8.3.2 | **dev tooling only** — local benchmarks; never in the Next build or Express | no — `hyperid` uses `crypto.randomUUID` (falls back to `uuid.v4` only on runtimes without it); `v3`/`v5`/`v6` are never called | accepted; npm's only offered fix is a downgrade to autocannon 2.0.1 |
+
+> **Re-check trigger:** a new `autocannon` or `hyperid` release, or removal of the cross-check.
+
 ## ESLint — pre-existing errors (not fixed in this phase)
 
 `eslint .` now ignores generated output (`.next-e2e/`, coverage, Playwright reports, compiled service). On this branch

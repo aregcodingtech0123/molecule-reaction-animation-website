@@ -7,6 +7,7 @@ import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { assertServerGuarded } from "./lib/guard.mjs";
 import {
   API_ORIGIN,
   GEMINI_ORIGIN,
@@ -41,11 +42,15 @@ export function sourceFingerprint() {
     "services/auth-billing-service/package.json",
     "services/auth-billing-service/package-lock.json",
   ];
+  // Content of the build inputs (git object ids), not HEAD: a commit that only touches docs or the harness
+  // does not make a build stale.
+  const tree = git("ls-tree", "-r", "HEAD", "--", ...scope);
   const diff = git("diff", "HEAD", "--", ...scope);
   const untracked = git("ls-files", "--others", "--exclude-standard", "--", ...scope);
   const dirty = Boolean(diff || untracked);
-  const hash = crypto.createHash("sha256").update(diff).update(untracked).digest("hex").slice(0, 16);
-  return { head, dirty, fingerprint: dirty ? `${head}+${hash}` : head };
+  const hash = (...parts) => parts.reduce((h, p) => h.update(p), crypto.createHash("sha256")).digest("hex").slice(0, 16);
+  const committed = hash(tree);
+  return { head, dirty, fingerprint: dirty ? `${committed}+${hash(diff, untracked)}` : committed };
 }
 
 export function buildAll(secrets) {
@@ -123,11 +128,21 @@ export async function startStack(o) {
     hopLog: o.hopLog ? path.join(o.runDir, "hops.jsonl") : "",
     apiProcLog: o.procLog ? path.join(o.runDir, "proc-api.jsonl") : "",
     webProcLog: o.procLog ? path.join(o.runDir, "proc-web.jsonl") : "",
+    runDir: o.runDir,
   };
   const children = [];
+  // PERF_LOG_VIA=pipe: server stdout/stderr go to a pipe the runner drains into the log file, instead of
+  // the file itself (Node writes stdout to a FILE synchronously, on the event loop) — PERF-18.
+  const viaPipe = process.env.PERF_LOG_VIA === "pipe";
   const launch = (name, args, cwd, env) => {
-    const log = fs.openSync(path.join(o.runDir, `${name}.log`), "a");
+    const logPath = path.join(o.runDir, `${name}.log`);
+    const log = viaPipe ? "pipe" : fs.openSync(logPath, "a");
     const child = spawn(process.execPath, args, { cwd, env, stdio: ["ignore", log, log], detached: process.platform !== "win32" });
+    if (viaPipe) {
+      const out = fs.createWriteStream(logPath, { flags: "a" });
+      child.stdout.pipe(out, { end: false });
+      child.stderr.pipe(out, { end: false });
+    }
     children.push(child);
     return child;
   };
@@ -144,10 +159,25 @@ export async function startStack(o) {
     await waitFor(`${API_ORIGIN}/health`, { child: api, name: "express" });
     const web = launch("web", [nextBin, "start", "--port", String(WEB_PORT)], repoRoot, webEnv(o.secrets, files, o.webOverrides));
     await waitFor(`${WEB_ORIGIN}/`, { child: web, name: "next" });
+    // Both servers must show the preload's guard marker before anything is measured.
+    for (const name of ["api", "web"]) await assertLogGuarded(path.join(o.runDir, `${name}.log`), name);
     return { files, stop, pids: { mock: mock.pid, api: api.pid, web: web.pid } };
   } catch (err) {
     await stop();
     throw err;
+  }
+}
+
+async function assertLogGuarded(file, name) {
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    try {
+      return assertServerGuarded(text, name);
+    } catch (err) {
+      if (Date.now() > deadline) throw err;
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
 }
 

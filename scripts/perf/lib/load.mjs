@@ -23,6 +23,9 @@ import { summarize } from "./stats.mjs";
  * @param {(ctx: {vu: number, iteration: number}) => {method?: string, path: string, headers?: object, body?: string}} o.request
  * @param {(status: number, body: string) => boolean} [o.isOk]  default: 2xx
  * @param {number} [o.maxRequests]  stop early after this many measured requests
+ * @param {boolean} [o.tag]  send `x-perf-req: <id>` and return each measured request's {id, ms, status}
+ * @param {(ctx: {vu: number, iteration: number, send: (spec: object) => Promise<{status: number, body: string}>}) => Promise<void>} [o.flow]
+ *   instead of `request`: several requests timed as one unit (e.g. reserve then capture)
  */
 export async function runClosedLoop(o) {
   const url = new URL(o.origin);
@@ -39,6 +42,8 @@ export async function runClosedLoop(o) {
   let measured = 0;
   let firstMeasuredAt = null;
   let lastMeasuredAt = null;
+  const tagged = [];
+  const runId = Math.random().toString(36).slice(2, 8);
 
   const once = (spec) =>
     new Promise((resolve) => {
@@ -60,11 +65,37 @@ export async function runClosedLoop(o) {
       req.end();
     });
 
+  /** A flow: several requests measured as one unit; its status is the last non-2xx, else the last one's. */
+  const runFlow = async (ctx) => {
+    const start = performance.now();
+    let status = 200;
+    let error;
+    let body = "";
+    const send = async (spec) => {
+      const r = await once(spec);
+      if (r.error) error = r.error;
+      if (status >= 200 && status < 300) status = r.status;
+      body = r.body ?? "";
+      return r;
+    };
+    await o.flow({ ...ctx, send });
+    return { start, end: performance.now(), status, error, body };
+  };
+
   const vu = async (index) => {
     for (let iteration = 0; ; iteration++) {
       if (performance.now() >= stopAt) return;
       if (o.maxRequests && measured >= o.maxRequests) return;
-      const r = await once(o.request({ vu: index, iteration }));
+      let r;
+      let id = null;
+      if (o.flow) {
+        r = await runFlow({ vu: index, iteration });
+      } else {
+        const spec = o.request({ vu: index, iteration });
+        id = o.tag ? `${runId}-${index}-${iteration}` : null;
+        if (id) spec.headers = { ...(spec.headers ?? {}), "x-perf-req": id };
+        r = await once(spec);
+      }
       if (r.start < measureFrom || r.end > stopAt) continue;
       measured += 1;
       firstMeasuredAt ??= r.start;
@@ -73,6 +104,7 @@ export async function runClosedLoop(o) {
       if (r.error) errors[r.error] = (errors[r.error] ?? 0) + 1;
       if (r.status === 0 || !isOk(r.status, r.body)) failures += 1;
       latencies.push(r.end - r.start);
+      if (id) tagged.push({ id, ms: r.end - r.start, status: r.status });
     }
   };
 
@@ -86,6 +118,7 @@ export async function runClosedLoop(o) {
     statuses,
     errors,
     concurrency: o.concurrency,
+    tagged: o.tag ? tagged : undefined,
     windowStart: Date.now() - (performance.now() - (firstMeasuredAt ?? performance.now())),
     windowEnd: Date.now() - (performance.now() - (lastMeasuredAt ?? performance.now())),
   };

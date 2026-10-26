@@ -16,10 +16,31 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
 import { latencySampler, seededRandom } from "./lib/random.mjs";
+import { assertNetworkGuard } from "./lib/guard.mjs";
+
+/** Sleep with sub-millisecond precision: a coarse timer until ~20 ms before, then setImmediate polling. */
+export function preciseSleep(ms) {
+  const due = performance.now() + ms;
+  return new Promise((resolve) => {
+    const tick = () => {
+      const left = due - performance.now();
+      if (left <= 0) resolve();
+      else if (left > 20) setTimeout(tick, left - 17);
+      else setImmediate(tick);
+    };
+    tick();
+  });
+}
 
 const DEFAULTS = { latency: { kind: "fixed", ms: 0 }, failureRate: 0, failureMode: "500", answerChars: 600, seed: 1 };
 
-export function createMockGemini() {
+/**
+ * @param {{ standalone?: boolean }} [options] `standalone` only for this file's own process (the stack's mock
+ *   server, which makes no outbound calls). In-process use — an experiment next to the Gemini SDK — requires the
+ *   network guard (PERF incident, Part 1).
+ */
+export function createMockGemini(options = {}) {
+  if (!options.standalone) assertNetworkGuard("createMockGemini() in-process");
   let config = { ...DEFAULTS };
   let rand = seededRandom(config.seed);
   let failRand = seededRandom(config.seed ^ 0x9e3779b9);
@@ -66,7 +87,9 @@ export function createMockGemini() {
 
     const delay = sample();
     const fail = config.failureRate > 0 && failRand() < config.failureRate;
-    await new Promise((r) => setTimeout(r, delay));
+    // No timer for 0 ms, a precise wait otherwise: Windows timers fire in ~15.6 ms steps, which made a
+    // "0 ms" mock answer after 1–15 ms and phase-locked single-user runs to the timer tick.
+    if (delay > 0) await preciseSleep(delay);
     // The caller gave up (GEMINI_TIMEOUT_MS abort): nothing to answer. (req itself is always destroyed
     // once its body has been read, so check the socket.)
     if (req.socket.destroyed) return;
@@ -111,6 +134,6 @@ export function createMockGemini() {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const i = process.argv.indexOf("--port");
   const port = Number(i > 0 ? process.argv[i + 1] : process.env.PERF_GEMINI_PORT || 4290);
-  const { server } = createMockGemini();
+  const { server } = createMockGemini({ standalone: true });
   server.listen(port, "127.0.0.1", () => console.log(`[mock-gemini] listening on 127.0.0.1:${port}`));
 }

@@ -61,13 +61,18 @@ function shared(secrets, files) {
     // Optional instrumentation, written by the preload (see README "Instrumentation").
     PERF_HOP_LOG: files?.hopLog ?? "",
     PERF_PROC_LOG: files?.procLog ?? "",
+    // CPU profile of one server over a time window (preload, node:inspector): PERF_CPU_PROF=api|web,
+    // PERF_CPU_PROF_AFTER_MS / PERF_CPU_PROF_FOR_MS after the server starts; written to the run folder.
+    PERF_CPU_PROF_DIR: files?.cpuProfDir ?? "",
+    PERF_CPU_PROF_AFTER_MS: process.env.PERF_CPU_PROF_AFTER_MS ?? "",
+    PERF_CPU_PROF_FOR_MS: process.env.PERF_CPU_PROF_FOR_MS ?? "",
   };
 }
 
 /** Express, built output (`node dist/index.js`), production rules (NODE_ENV=production). */
 export function apiEnv(secrets, files = {}, overrides = {}) {
   return {
-    ...shared(secrets, { procLog: files.apiProcLog }),
+    ...shared(secrets, { procLog: files.apiProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "api" ? files.runDir : "" }),
     NODE_OPTIONS: `--import ${noDotenv} --import ${preload}`,
     PERF_PROC_NAME: "api",
     NODE_ENV: "production",
@@ -106,8 +111,9 @@ export function apiEnv(secrets, files = {}, overrides = {}) {
 /** Next.js, `next start` on the `.next-perf` build (always NODE_ENV=production). */
 export function webEnv(secrets, files = {}, overrides = {}) {
   return {
-    ...shared(secrets, { hopLog: files.hopLog, procLog: files.webProcLog }),
-    NODE_OPTIONS: `--import ${preload}`,
+    ...shared(secrets, { hopLog: files.hopLog, procLog: files.webProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "web" ? files.runDir : "" }),
+    // --expose-gc only for the PERF-21 forced-GC check (PERF_FORCE_GC_MS); never in a normal run.
+    NODE_OPTIONS: `${overrides.PERF_FORCE_GC_MS ? "--expose-gc " : ""}--import ${preload}`,
     PERF_PROC_NAME: "web",
     AUTH_SERVICE_URL: `${API_ORIGIN}/api/auth`,
     BILLING_SERVICE_URL: `${API_ORIGIN}/api/billing`,

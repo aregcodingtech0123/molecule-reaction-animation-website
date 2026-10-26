@@ -14,6 +14,7 @@ export {
 } from "@/lib/billing/ai-operation-costs";
 
 import type { AiOperationType } from "@/lib/billing/ai-operation-costs";
+import { withDeadline } from "@/lib/http/deadline";
 
 export const INTERNAL_SERVICE_HEADER = "X-Internal-Service-Key";
 const DEFAULT_RETRY_DELAYS_MS = [250, 1000, 3000];
@@ -61,26 +62,30 @@ async function callInternal(path: string, bearerToken: string, payload: unknown)
   }
 
   let res: Response;
+  let body: Record<string, unknown>;
   try {
-    res = await fetch(`${base}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        "Content-Type": "application/json",
-        [INTERNAL_SERVICE_HEADER]: secret,
-      },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-      signal: AbortSignal.timeout(billingCallTimeoutMs()),
-    });
+    // One deadline for the call and its body read, cleared as soon as both are done (PERF-19).
+    ({ res, body } = await withDeadline(billingCallTimeoutMs(), async (signal) => {
+      const response = await fetch(`${base}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${bearerToken}`,
+          "Content-Type": "application/json",
+          [INTERNAL_SERVICE_HEADER]: secret,
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal,
+      });
+      // A body that stalls after the status line keeps that status (the service has decided) with an
+      // empty body.
+      return { res: response, body: (await response.json().catch(() => ({}))) as Record<string, unknown> };
+    }));
   } catch (err) {
     console.error("[billing] Billing service unreachable", { path, error: err instanceof Error ? err.message : String(err) });
     return { ok: false, status: 503, body: {}, unreachable: true };
   }
 
-  // The body read is under the same deadline. A body that stalls after the status line keeps that
-  // status (the service has decided) with an empty body.
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.status === 404) {
     // The billing service answers 404 to a wrong/missing internal key on purpose.
     console.error(
