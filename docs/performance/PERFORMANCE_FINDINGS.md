@@ -280,6 +280,16 @@ milliseconds (Express balance p50 3.77 vs 3; p99 5.57 vs 5). No discrepancy beyo
 * The `[env] Loaded …/.env` line in the perf Express log is misleading: the harness preload stubs `dotenv`, and a
   check showed the environment unchanged (92 variables before and after the loader).
 
+### Part 1 verification (PostgreSQL 18.6, after the last code change)
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck:tests`, service `npm run typecheck` | 0 errors |
+| Root `vitest` (unit + api, with coverage) | 29 files, **526 passed**; BFF set (TEST_PLAN §3) **94.83 %** lines (floor 94.33 %) |
+| Service `vitest` (unit + api + db, with coverage) | 36 files, **652 passed**; **91.31 %** lines, **79.72 %** branches (floors 91.31 / 79.72; service code unchanged) |
+| E2E, `next dev` | 49 passed, 1 skipped (by design in dev mode) |
+| E2E, `E2E_NEXT_MODE=production` | **50 / 50 passed** (paid journey incl. AI Lab, desktop + mobile) |
+
 ### Recommendations (not applied — measured, small, or outside Part 1's remit)
 
 | # | Area | Recommendation | Evidence |
