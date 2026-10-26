@@ -66,13 +66,16 @@ function shared(secrets, files) {
     PERF_CPU_PROF_DIR: files?.cpuProfDir ?? "",
     PERF_CPU_PROF_AFTER_MS: process.env.PERF_CPU_PROF_AFTER_MS ?? "",
     PERF_CPU_PROF_FOR_MS: process.env.PERF_CPU_PROF_FOR_MS ?? "",
+    // Heap snapshots of one server: PERF_HEAP_SNAP=api|web at PERF_HEAP_SNAP_AT_MS (comma-separated, after start).
+    PERF_HEAP_SNAP_DIR: files?.heapSnapDir ?? "",
+    PERF_HEAP_SNAP_AT_MS: process.env.PERF_HEAP_SNAP_AT_MS ?? "",
   };
 }
 
 /** Express, built output (`node dist/index.js`), production rules (NODE_ENV=production). */
 export function apiEnv(secrets, files = {}, overrides = {}) {
   return {
-    ...shared(secrets, { procLog: files.apiProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "api" ? files.runDir : "" }),
+    ...shared(secrets, { procLog: files.apiProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "api" ? files.runDir : "", heapSnapDir: process.env.PERF_HEAP_SNAP === "api" ? files.runDir : "" }),
     NODE_OPTIONS: `--import ${noDotenv} --import ${preload}`,
     PERF_PROC_NAME: "api",
     NODE_ENV: "production",
@@ -111,7 +114,7 @@ export function apiEnv(secrets, files = {}, overrides = {}) {
 /** Next.js, `next start` on the `.next-perf` build (always NODE_ENV=production). */
 export function webEnv(secrets, files = {}, overrides = {}) {
   return {
-    ...shared(secrets, { hopLog: files.hopLog, procLog: files.webProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "web" ? files.runDir : "" }),
+    ...shared(secrets, { hopLog: files.hopLog, procLog: files.webProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "web" ? files.runDir : "", heapSnapDir: process.env.PERF_HEAP_SNAP === "web" ? files.runDir : "" }),
     // --expose-gc only for the PERF-21 forced-GC check (PERF_FORCE_GC_MS); never in a normal run.
     NODE_OPTIONS: `${overrides.PERF_FORCE_GC_MS ? "--expose-gc " : ""}--import ${preload}`,
     PERF_PROC_NAME: "web",

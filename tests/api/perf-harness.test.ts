@@ -4,7 +4,11 @@
  * produces is trusted. Pure parts and the in-process mock only — no stack is started here.
  */
 import { spawnSync } from "node:child_process";
+import { createHmac } from "node:crypto";
+import fs from "node:fs";
+import http from "node:http";
 import type { AddressInfo } from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,6 +20,10 @@ import { acrossRuns, percentile, summarize } from "../../scripts/perf/lib/stats.
 import { latencySampler, seededRandom } from "../../scripts/perf/lib/random.mjs";
 import { clientIp, rotatingUser } from "../../scripts/perf/lib/requests.mjs";
 import { createMockGemini } from "../../scripts/perf/mock-gemini.mjs";
+import { runOpenLoop } from "../../scripts/perf/lib/load.mjs";
+import { MIX, mixedTraffic } from "../../scripts/perf/lib/mixed.mjs";
+import { processWindow } from "../../scripts/perf/lib/window.mjs";
+import { stepBroke } from "../../scripts/perf/scenarios/ramp.mjs";
 import { parseFailure, parseLatency, parseRunArgs } from "../../scripts/perf/run.mjs";
 import { SEED_DEFAULTS, parseSeedArgs } from "../../scripts/perf/seed.mjs";
 import { perfDatabaseUrl } from "../../scripts/perf/config.mjs";
@@ -220,6 +228,7 @@ describe("network guard enforcement (Part 1 incident: no harness run without the
     expect(() => assertServerGuarded(`boot\n${GUARD_MARKER}\nready`, "api")).not.toThrow();
     expect(() => assertServerGuarded("boot\nready", "web")).toThrow(/web server started without the network guard/);
   });
+
 });
 
 describe("bundle budget (Part 2)", () => {
@@ -249,5 +258,98 @@ describe("bundle budget (Part 2)", () => {
     expect(bucket("[project]/node_modules/react-markdown/lib/index.js")).toBe("markdown + KaTeX");
     expect(bucket("[project]/src/lib/i18n/content/de.json")).toBe("locale content (12 locales)");
     expect(bucket("[project]/src/app/page.tsx")).toBe("app code (src)");
+  });
+});
+
+describe("load and soak harness (Part 3)", () => {
+  const ctx = {
+    users: Array.from({ length: 51 }, (_, i) => ({ id: `u${i}`, email: `u${i}@perf.example` })),
+    session: (i: number) => `token-${i}`,
+    webOrigin: "http://localhost:3200",
+    apiOrigin: "http://127.0.0.1:4200",
+    webhookSecret: "whsec-test",
+    internalKey: "internal-test",
+  };
+  type Arrival = { kind: string; origin: string; spec: { method?: string; path: string; headers: Record<string, string>; body?: string; then?: () => Arrival["spec"] } };
+
+  it("every 100 arrivals follow the mix weights, interleaved; webhooks are signed over the raw body with unique order ids", () => {
+    const pick = mixedTraffic(ctx, { runTag: "t" }) as (i: number) => Arrival;
+    const arrivals = Array.from({ length: 200 }, (_, i) => pick(i));
+    const counts = arrivals.slice(0, 100).reduce<Record<string, number>>((a, r) => ((a[r.kind] = (a[r.kind] ?? 0) + 1), a), {});
+    expect(counts).toEqual(Object.fromEntries(MIX));
+    expect(arrivals.slice(0, 10).map((r) => r.kind)).not.toEqual(Array(10).fill("page")); // not in blocks
+    const hooks = arrivals.filter((r) => r.kind === "webhook");
+    for (const h of hooks) {
+      expect(h.origin).toBe(ctx.apiOrigin);
+      expect(h.spec.headers["x-signature"]).toBe(createHmac("sha256", ctx.webhookSecret).update(h.spec.body ?? "").digest("hex"));
+    }
+    expect(new Set(hooks.map((h) => JSON.parse(h.spec.body ?? "{}").data.id)).size).toBe(hooks.length);
+    expect(new Set(arrivals.map((r) => r.spec.headers["x-forwarded-for"])).size).toBe(200); // a client per arrival
+    expect(arrivals.some((r) => r.spec.headers.cookie === "session_token=token-0")).toBe(false); // never the hot user
+  });
+
+  it("target api: no pages, BFF headers on every Express call, chat = consume then capture of the same reservation", () => {
+    const pick = mixedTraffic(ctx, { runTag: "t", target: "api" }) as (i: number) => Arrival;
+    const arrivals = Array.from({ length: 65 }, (_, i) => pick(i));
+    expect(arrivals.some((r) => r.kind === "page")).toBe(false);
+    for (const r of arrivals) {
+      expect(r.origin).toBe(ctx.apiOrigin);
+      if (r.kind !== "webhook") expect(r.spec.headers).toMatchObject({ "x-internal-service-key": "internal-test", "x-client-ip": expect.stringMatching(/^10\./) });
+    }
+    const chat = arrivals.find((r) => r.kind === "chat")!;
+    const next = chat.spec.then!();
+    expect([chat.spec.path, next.path]).toEqual(["/api/billing/consume", "/api/billing/capture"]);
+    expect(JSON.parse(next.body ?? "{}").referenceId).toBe(JSON.parse(chat.spec.body ?? "{}").referenceId);
+    expect(arrivals.find((r) => r.kind === "login")!.spec.headers.authorization).toBeUndefined();
+  });
+
+  it("open loop: arrivals keep their schedule while the server is slow; follow-ups are chained; overflow is dropped, not queued", async () => {
+    const seen: string[] = [];
+    const server = http.createServer((req, res) => {
+      seen.push(req.url ?? "");
+      setTimeout(() => res.end("ok"), req.url === "/slow" ? 300 : 0);
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    try {
+      const results: number[] = [];
+      const run = await runOpenLoop({
+        ratePerSec: 50,
+        durationMs: 400,
+        pick: (i: number) => ({ kind: i % 2 ? "slow" : "pair", origin, spec: i % 2 ? { path: "/slow" } : { path: "/a", then: () => ({ path: "/b" }) } }),
+        onResult: (r: { status: number }) => results.push(r.status),
+      });
+      expect(run.total).toBe(20);
+      expect(run.achievedPerSec).toBeGreaterThan(40); // not throttled by the 300 ms answers
+      expect(run.kinds.slow.p50).toBeGreaterThanOrEqual(290);
+      expect(seen.filter((u) => u === "/a").length).toBe(seen.filter((u) => u === "/b").length);
+      expect(results).toEqual(Array(20).fill(200));
+
+      const capped = await runOpenLoop({ ratePerSec: 100, durationMs: 300, maxInFlight: 2, pick: () => ({ kind: "slow", origin, spec: { path: "/slow" } }) });
+      expect(capped.kinds.slow.dropped).toBeGreaterThan(0);
+      expect(stepBroke(capped)).toMatch(/error rate/); // a dropped arrival counts as an error
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  });
+
+  it("a ramp step breaks on > 1 % errors, drops, or a non-chat p95 over 1 s (chat waits for the model)", () => {
+    const kinds = (over: Record<string, unknown> = {}) => ({ page: { p95: 90, dropped: 0 }, chat: { p95: 9000, dropped: 0 }, ...over });
+    expect(stepBroke({ errorRatePct: 0, kinds: kinds() })).toBeNull();
+    expect(stepBroke({ errorRatePct: 1.59, kinds: kinds() })).toMatch(/error rate 1.59/);
+    expect(stepBroke({ errorRatePct: 0, kinds: kinds({ balance: { p95: 3238, dropped: 0 } }) })).toMatch(/balance 3238 ms/);
+  });
+
+  it("process window: summarises only the samples inside the window", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "perf-window-"));
+    const file = path.join(dir, "proc.jsonl");
+    const row = (t: number, elu: number, sockets: number) => JSON.stringify({ t, elu, lagP99: elu * 100, rss: 2 ** 20 * 100 * elu, heapUsed: 2 ** 20 * 10, handles: sockets + 5, sockets });
+    try {
+      fs.writeFileSync(file, [row(1, 0.9, 50), row(2, 0.2, 3), row(3, 0.4, 7), row(4, 1, 99)].join("\n"));
+      expect(processWindow(file, 2, 3)).toEqual({ samples: 2, eluMean: 0.3, eluP90: 0.4, lagP99MaxMs: 40, rssMaxMiB: 40, heapMaxMiB: 10, handlesMax: 12, socketsMax: 7, socketsLast: 7 });
+      expect(processWindow(file, 10, 20)).toBeNull();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

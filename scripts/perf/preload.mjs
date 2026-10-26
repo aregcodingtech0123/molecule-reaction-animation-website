@@ -13,7 +13,7 @@
  *    (Next → Express and Next → Gemini), i.e. the per-hop breakdown of /api/chat. `req` is the load
  *    driver's `x-perf-req` header of the incoming request that caused the call (AsyncLocalStorage), so
  *    hops can be joined to their request exactly.
- *  - PERF_PROC_LOG: one JSON line per second {t, proc, rss, heapUsed, elu, lagP50, lagP99, lagMax}.
+ *  - PERF_PROC_LOG: one JSON line per second {t, proc, rss, heapUsed, elu, lagP50, lagP99, lagMax, handles, sockets}.
  * Lines are buffered and appended asynchronously once a second (and synchronously at exit).
  */
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -119,6 +119,16 @@ if (process.env.PERF_CPU_PROF_DIR) {
   }, after).unref();
 }
 
+// Heap snapshots of one server at fixed times after start (each one runs a full GC first): what grows.
+if (process.env.PERF_HEAP_SNAP_DIR) {
+  const { writeHeapSnapshot } = await import("node:v8");
+  for (const at of (process.env.PERF_HEAP_SNAP_AT_MS || "").split(",").filter(Boolean).map(Number)) {
+    setTimeout(() => {
+      writeHeapSnapshot(`${process.env.PERF_HEAP_SNAP_DIR}/${process.env.PERF_PROC_NAME || process.pid}-${at}.heapsnapshot`);
+    }, at).unref();
+  }
+}
+
 if (process.env.PERF_PROC_LOG) {
   const write = lineWriter(process.env.PERF_PROC_LOG);
   const proc = process.env.PERF_PROC_NAME || String(process.pid);
@@ -138,6 +148,9 @@ if (process.env.PERF_PROC_LOG) {
       lagP50: lag.percentile(50) / 1e6,
       lagP99: lag.percentile(99) / 1e6,
       lagMax: lag.max / 1e6,
+      // Part 3 soak: open handles and sockets (a leak shows as steady growth).
+      handles: process.getActiveResourcesInfo().length,
+      sockets: process.getActiveResourcesInfo().filter((r) => r === "TCPSocketWrap").length,
     });
     lag.reset();
   }, 1000).unref();

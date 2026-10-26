@@ -123,3 +123,137 @@ export async function runClosedLoop(o) {
     windowEnd: Date.now() - (performance.now() - (lastMeasuredAt ?? performance.now())),
   };
 }
+
+/**
+ * Open-loop (fixed arrival rate) driver for Part 3: requests are *scheduled* at `ratePerSec` whatever the
+ * server does, and each latency is measured from its scheduled start — so a stalled server shows up as
+ * growing latency instead of fewer requests (no coordinated omission). Each arrival picks its request
+ * from `pick(index)` → { kind, origin, spec }. Per kind: latency summary, statuses, errors.
+ *
+ * `maxInFlight` bounds client resources: an arrival that finds that many requests outstanding is recorded
+ * as `dropped` (the server is not keeping up) rather than queued in the client. `timeoutMs` aborts a request
+ * (recorded as status 0 / "timeout").
+ *
+ * @param {object} o
+ * @param {number} o.ratePerSec
+ * @param {number} o.durationMs   measured window
+ * @param {number} [o.warmupMs]   discarded window before it (same rate)
+ * @param {(i: number) => { kind: string, origin: string, spec: { method?: string, path: string, headers?: object, body?: string, then?: () => object | null } }} o.pick
+ *   `then` (optional): the next request of the same arrival, sent after a 2xx answer (same origin)
+ * @param {number} [o.maxInFlight]
+ * @param {number} [o.timeoutMs]
+ * @param {(r: { kind: string, status: number, error: string | null, scheduledAt: number, ms: number, measured: boolean }) => void} [o.onResult]
+ *   called once per completed request (timelines around an injected fault)
+ */
+export async function runOpenLoop(o) {
+  const maxInFlight = o.maxInFlight ?? 2000;
+  const timeoutMs = o.timeoutMs ?? 30_000;
+  const agents = new Map();
+  const agentFor = (origin) => {
+    if (!agents.has(origin)) agents.set(origin, new http.Agent({ keepAlive: true, maxSockets: maxInFlight }));
+    return agents.get(origin);
+  };
+  const warmupMs = o.warmupMs ?? 0;
+  const t0 = performance.now();
+  const measureFrom = t0 + warmupMs;
+  const stopAt = measureFrom + o.durationMs;
+  const intervalMs = 1000 / o.ratePerSec;
+  const byKind = new Map();
+  const kind = (k) => {
+    if (!byKind.has(k)) byKind.set(k, { latencies: [], statuses: {}, errors: {}, dropped: 0, n: 0 });
+    return byKind.get(k);
+  };
+  let inFlight = 0;
+  let maxSeenInFlight = 0;
+  let scheduled = 0;
+  const pending = new Set();
+
+  const send = (k, origin, spec, scheduledAt, measured) => {
+    const url = new URL(origin);
+    inFlight += 1;
+    maxSeenInFlight = Math.max(maxSeenInFlight, inFlight);
+    const done = new Promise((resolve) => {
+      const finish = (status, error) => {
+        inFlight -= 1;
+        if (measured) {
+          const s = kind(k);
+          s.n += 1;
+          s.latencies.push(performance.now() - scheduledAt);
+          s.statuses[status] = (s.statuses[status] ?? 0) + 1;
+          if (error) s.errors[error] = (s.errors[error] ?? 0) + 1;
+        }
+        o.onResult?.({ kind: k, status, error: error ?? null, scheduledAt, ms: performance.now() - scheduledAt, measured });
+        resolve();
+      };
+      const fire = (spec) => {
+        const body = spec.body ?? null;
+        const headers = { ...(spec.headers ?? {}) };
+        if (body !== null) headers["content-length"] = Buffer.byteLength(body);
+        const req = http.request(
+          { agent: agentFor(origin), host: url.hostname, port: url.port, method: spec.method ?? "GET", path: spec.path, headers },
+          (res) => {
+            res.on("data", () => {});
+            res.on("end", () => {
+              // A follow-up request of the same arrival (reserve → capture); latency runs to its end.
+              const next = res.statusCode >= 200 && res.statusCode < 300 ? spec.then?.() : null;
+              if (next) fire(next);
+              else finish(res.statusCode);
+            });
+            res.on("error", (err) => finish(0, err.code ?? err.message));
+          },
+        );
+        req.setTimeout(timeoutMs, () => req.destroy(Object.assign(new Error("timeout"), { code: "timeout" })));
+        req.on("error", (err) => finish(0, err.code ?? err.message));
+        if (body !== null) req.write(body);
+        req.end();
+      };
+      fire(spec);
+    });
+    pending.add(done);
+    done.then(() => pending.delete(done));
+  };
+
+  // Dispatch every arrival whose scheduled time has come (timers are coarse on Windows: catch up in batches).
+  await new Promise((resolve) => {
+    const tick = () => {
+      const now = performance.now();
+      // Half-open window [t0, stopAt): rate × duration arrivals exactly.
+      while (t0 + scheduled * intervalMs <= now && t0 + scheduled * intervalMs < stopAt) {
+        const scheduledAt = t0 + scheduled * intervalMs;
+        const measured = scheduledAt >= measureFrom;
+        const { kind: k, origin, spec } = o.pick(scheduled);
+        scheduled += 1;
+        if (inFlight >= maxInFlight) {
+          if (measured) kind(k).dropped += 1;
+          continue;
+        }
+        send(k, origin, spec, scheduledAt, measured);
+      }
+      if (now >= stopAt) resolve();
+      else setTimeout(tick, 2);
+    };
+    tick();
+  });
+  await Promise.all(pending);
+  for (const a of agents.values()) a.destroy();
+
+  const kinds = {};
+  let total = 0;
+  let failed = 0;
+  for (const [k, s] of byKind) {
+    const ok = Object.entries(s.statuses).reduce((a, [st, n]) => a + (Number(st) >= 200 && Number(st) < 400 ? n : 0), 0);
+    total += s.n + s.dropped;
+    failed += s.n - ok + s.dropped;
+    kinds[k] = { ...summarize(s.latencies), statuses: s.statuses, errors: s.errors, dropped: s.dropped, errorRatePct: s.n + s.dropped ? Number((((s.n - ok + s.dropped) / (s.n + s.dropped)) * 100).toFixed(2)) : 0 };
+  }
+  return {
+    ratePerSec: o.ratePerSec,
+    achievedPerSec: Number(((total / o.durationMs) * 1000).toFixed(1)),
+    total,
+    errorRatePct: total ? Number(((failed / total) * 100).toFixed(2)) : 0,
+    maxInFlight: maxSeenInFlight,
+    kinds,
+    windowStart: Date.now() - (performance.now() - measureFrom),
+    windowEnd: Date.now() - (performance.now() - stopAt),
+  };
+}
