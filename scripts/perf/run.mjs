@@ -18,10 +18,11 @@ import { API_ORIGIN, RESULTS_DIR, WEB_ORIGIN, makeSecrets, perfDatabaseUrl, serv
 import { acrossRuns, summarize } from "./lib/stats.mjs";
 import { runClosedLoop } from "./lib/load.mjs";
 import { mintSession } from "./lib/tokens.mjs";
+import { startDbSampler } from "./lib/db-sampler.mjs";
 import { loadPerfUsers, parseSeedArgs, seedPerfDatabase } from "./seed.mjs";
 import { assertFreshBuild, buildAll, configureMock, startStack } from "./stack.mjs";
 
-export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout"];
+export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck"];
 
 export function parseRunArgs(argv) {
   const [scenario, ...rest] = argv;
@@ -111,10 +112,31 @@ function readJsonl(file) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Per-minute heap minimum (≈ after GC = retained) and its least-squares slope in MiB/min. */
+function heapTrend(rows) {
+  const t0 = rows[0].t;
+  const troughs = [];
+  const counts = [];
+  for (const r of rows) {
+    const m = Math.floor((r.t - t0) / 60_000);
+    troughs[m] = Math.min(troughs[m] ?? Infinity, r.heapUsed / 2 ** 20);
+    counts[m] = (counts[m] ?? 0) + 1;
+  }
+  // A minute with few samples (the last, partial one) has no real trough: leave it out.
+  const pts = troughs.map((v, i) => [i, v]).filter(([i, v]) => Number.isFinite(v) && counts[i] >= 30);
+  if (pts.length < 3) return { troughsMiB: pts.map(([, v]) => Number(v.toFixed(1))) };
+  const n = pts.length;
+  const mx = pts.reduce((a, [x]) => a + x, 0) / n;
+  const my = pts.reduce((a, [, y]) => a + y, 0) / n;
+  const slope = pts.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0) / pts.reduce((a, [x]) => a + (x - mx) ** 2, 0);
+  return { troughsMiB: pts.map(([, v]) => Number(v.toFixed(1))), slopeMiBPerMin: Number(slope.toFixed(2)) };
+}
+
 function processSummary(rows) {
   if (!rows.length) return undefined;
   const mib = (v) => Number((v / 2 ** 20).toFixed(1));
   return {
+    heapTrend: heapTrend(rows),
     samples: rows.length,
     rssStartMiB: mib(rows[0].rss),
     rssMaxMiB: mib(Math.max(...rows.map((r) => r.rss))),
@@ -149,14 +171,17 @@ async function main() {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const runDir = path.join(RESULTS_DIR, `${stamp}-${args.scenario}`);
   const stackOptions = scenario.stack ?? {};
-  const stack = await startStack({
-    secrets,
-    runDir,
-    hopLog: stackOptions.hopLog ?? false,
-    procLog: stackOptions.procLog ?? true,
-    apiOverrides: stackOptions.apiOverrides,
-    webOverrides: stackOptions.webOverrides,
-  });
+  // Optional scenario hook before the servers start (e.g. a DB proxy); its cleanup runs after they stop.
+  const prepared = scenario.prepare ? await scenario.prepare() : {};
+  const apiOverrides = { ...(stackOptions.apiOverrides ?? {}), ...(prepared.apiOverrides ?? {}) };
+  const webOverrides = { ...(stackOptions.webOverrides ?? {}), ...(prepared.webOverrides ?? {}) };
+  let stack;
+  try {
+    stack = await startStack({ secrets, runDir, hopLog: stackOptions.hopLog ?? false, procLog: stackOptions.procLog ?? true, apiOverrides, webOverrides });
+  } catch (err) {
+    await prepared.cleanup?.();
+    throw err;
+  }
 
   const result = {
     scenario: args.scenario,
@@ -165,7 +190,7 @@ async function main() {
     build,
     seed,
     options: opts,
-    envOverrides: { api: stackOptions.apiOverrides ?? {}, web: stackOptions.webOverrides ?? {} },
+    envOverrides: { api: apiOverrides, web: webOverrides },
     instrumentation: { hopLog: Boolean(stack.files.hopLog), procLog: Boolean(stack.files.apiProcLog) },
     measurements: {},
     notes: [],
@@ -191,6 +216,9 @@ async function main() {
       session,
       webOrigin: WEB_ORIGIN,
       apiOrigin: API_ORIGIN,
+      /** The BFF's credential for Express's internal metering routes (this run's random secret). */
+      internalKey: secrets.internal,
+      extras: prepared.extras ?? {},
       configureMock,
       note: (text) => result.notes.push(text),
       /** Scenario-specific data that is not a closed-loop measurement. */
@@ -201,9 +229,11 @@ async function main() {
       async measure(name, load) {
         console.log(`[perf] ${name}: warm-up + ${opts.runs} run(s)`);
         await runClosedLoop({ ...load, durationMs: Math.min(opts.durationMs, 5000), warmupMs: 0 });
+        const sampler = load.dbSampler ? await startDbSampler() : null;
         const runs = [];
         for (let r = 0; r < opts.runs; r++) {
           const run = await runClosedLoop({ durationMs: opts.durationMs, warmupMs: opts.warmupMs, ...load });
+          if (sampler) run.db = sampler.summary(run.windowStart, run.windowEnd);
           if (stack.files.hopLog) {
             await sleep(1500); // the preload flushes once a second
             const hops = readJsonl(stack.files.hopLog).filter((h) => h.t >= run.windowStart && h.t <= run.windowEnd);
@@ -225,6 +255,7 @@ async function main() {
               (run.overhead ? `  overhead p50 ${run.overhead.p50} p95 ${run.overhead.p95} (joined ${run.overhead.joined})` : ""),
           );
         }
+        await sampler?.stop();
         const hopNames = [...new Set(runs.flatMap((r) => Object.keys(r.hops ?? {})))];
         result.measurements[name] = {
           summary: acrossRuns(runs),
@@ -249,6 +280,7 @@ async function main() {
     result.error = String(err?.stack ?? err);
   } finally {
     await stack.stop();
+    await prepared.cleanup?.();
     await sleep(500);
     // Only samples inside measured windows: startup and warm-up are not the system under load.
     const windows = Object.values(result.measurements).flatMap((m) => m.runs.map((r) => [r.windowStart - 1000, r.windowEnd + 1000]));

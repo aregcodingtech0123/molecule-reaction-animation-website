@@ -127,11 +127,21 @@ export async function startStack(o) {
     hopLog: o.hopLog ? path.join(o.runDir, "hops.jsonl") : "",
     apiProcLog: o.procLog ? path.join(o.runDir, "proc-api.jsonl") : "",
     webProcLog: o.procLog ? path.join(o.runDir, "proc-web.jsonl") : "",
+    runDir: o.runDir,
   };
   const children = [];
+  // PERF_LOG_VIA=pipe: server stdout/stderr go to a pipe the runner drains into the log file, instead of
+  // the file itself (Node writes stdout to a FILE synchronously, on the event loop) — PERF-18.
+  const viaPipe = process.env.PERF_LOG_VIA === "pipe";
   const launch = (name, args, cwd, env) => {
-    const log = fs.openSync(path.join(o.runDir, `${name}.log`), "a");
+    const logPath = path.join(o.runDir, `${name}.log`);
+    const log = viaPipe ? "pipe" : fs.openSync(logPath, "a");
     const child = spawn(process.execPath, args, { cwd, env, stdio: ["ignore", log, log], detached: process.platform !== "win32" });
+    if (viaPipe) {
+      const out = fs.createWriteStream(logPath, { flags: "a" });
+      child.stdout.pipe(out, { end: false });
+      child.stderr.pipe(out, { end: false });
+    }
     children.push(child);
     return child;
   };

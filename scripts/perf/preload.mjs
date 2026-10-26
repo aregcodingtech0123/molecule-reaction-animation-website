@@ -93,6 +93,25 @@ if (process.env.PERF_FORCE_GC_MS && typeof globalThis.gc === "function") {
   setInterval(() => globalThis.gc(), Number(process.env.PERF_FORCE_GC_MS)).unref();
 }
 
+if (process.env.PERF_CPU_PROF_DIR) {
+  const after = Number(process.env.PERF_CPU_PROF_AFTER_MS || 0);
+  const span = Number(process.env.PERF_CPU_PROF_FOR_MS || 30_000);
+  const { Session } = await import("node:inspector/promises");
+  setTimeout(async () => {
+    const session = new Session();
+    session.connect();
+    await session.post("Profiler.enable");
+    await session.post("Profiler.setSamplingInterval", { interval: 500 });
+    await session.post("Profiler.start");
+    setTimeout(async () => {
+      const { profile } = await session.post("Profiler.stop");
+      const name = `${process.env.PERF_PROC_NAME || process.pid}-${Date.now()}.cpuprofile`;
+      fs.writeFileSync(`${process.env.PERF_CPU_PROF_DIR}/${name}`, JSON.stringify(profile));
+      session.disconnect();
+    }, span).unref();
+  }, after).unref();
+}
+
 if (process.env.PERF_PROC_LOG) {
   const write = lineWriter(process.env.PERF_PROC_LOG);
   const proc = process.env.PERF_PROC_NAME || String(process.pid);
