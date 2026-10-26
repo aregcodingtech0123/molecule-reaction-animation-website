@@ -7,7 +7,6 @@ import {
 import type { ChatRequestBody } from "@/lib/ai/chat-types";
 import { validateAiOutput } from "@/lib/ai/validate-ai-output";
 import { resolveSessionTokenFromRequest } from "@/lib/auth/resolve-session-token";
-import { fetchEmailVerificationStatus } from "@/lib/auth/verification";
 import { isJwtConfigured, verifyJwtToken } from "@/lib/auth/verify-jwt";
 import {
   AI_OPERATION_COSTS,
@@ -84,20 +83,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const verification = await fetchEmailVerificationStatus(bearer);
-  if (!verification.ok) {
-    if (verification.status === 401) {
-      return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
-    }
-    console.error("[api/chat] Unable to resolve email verification status", {
-      userId: session.sub,
-      status: verification.status,
-    });
-    return Response.json({ error: "Server auth is not configured." }, { status: 503 });
-  }
-  if (!verification.isVerified) {
-    return Response.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
-  }
+  // Revocation (logout, token_version) and the verified-email gate are enforced by the reservation call
+  // itself (/consume runs requireAuth + requireVerified before reserving anything): nothing is reserved and
+  // the model is never called for such a session. A separate GET /auth/me before it was a redundant
+  // round trip on every turn (PERF-01).
 
   const distributedRate = await checkChatRateLimit(session.sub);
   if (!distributedRate.allowed) {
@@ -158,6 +147,10 @@ export async function POST(request: Request) {
   });
 
   if (!charge.ok) {
+    if (charge.status === 401) {
+      // Revoked (logout) or superseded (token_version) session.
+      return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
     if (charge.status === 409) {
       // The reference is already reserved/charged: never run the model twice for it.
       console.error("[api/chat] Duplicate operation reference — not calling the model", {
