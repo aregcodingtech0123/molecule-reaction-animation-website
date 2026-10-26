@@ -160,11 +160,10 @@ function ExplorePageContent() {
       <ExploreMobileDrawer {...sidebarProps} />
 
       {/* Compact workbench chrome — stays above the fold */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.05 }}
-        className="relative z-20 flex shrink-0 flex-col items-center gap-2 px-3 pb-2 pt-1 sm:px-4 sm:pb-2.5 md:px-6"
+      {/* CSS entrance (PERF-23): the title is the LCP element and must not wait for hydration. It slides
+          without a fade: an element first painted at opacity 0 is not an LCP candidate at all. */}
+      <header
+        className="relative z-20 flex shrink-0 flex-col items-center gap-2 px-3 pb-2 pt-1 sm:px-4 sm:pb-2.5 md:px-6 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-3 duration-450 delay-50"
       >
           <div className="flex w-full max-w-6xl flex-col items-center gap-2 sm:gap-2.5 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 md:items-start">
@@ -181,7 +180,8 @@ function ExplorePageContent() {
                 )}
                 {activeMode === "explorer" ? t.badge_interactive_studio : t.badge_reaction_animation}
               </div>
-              <AnimatePresence mode="wait">
+              {/* No entrance on first mount (PERF-23); switching modes still cross-fades the title. */}
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.h1
                   key={activeMode + "-title"}
                   initial={{ opacity: 0, y: 6 }}
@@ -208,7 +208,7 @@ function ExplorePageContent() {
               <StudioModeToggle className="shrink-0" />
             </div>
           </div>
-      </motion.header>
+      </header>
 
       {/* Workbench row: sidebars scroll; canvas fills remaining height */}
       <div

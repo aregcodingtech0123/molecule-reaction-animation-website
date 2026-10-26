@@ -17,11 +17,9 @@ export default function PeriodicTablePage() {
   return (
     <main className="min-h-screen pt-24 pb-16">
       <div className="mx-auto max-w-[90rem] px-4 sm:px-6">
-        <motion.header
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 text-center lg:mb-10"
-        >
+        {/* CSS entrance (PERF-23): the heading is the LCP element and must not wait for hydration. It slides
+            without a fade: an element first painted at opacity 0 is not an LCP candidate at all. */}
+        <header className="mb-8 text-center lg:mb-10 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-4 duration-300">
           <div
             className={cn(
               "mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
@@ -40,7 +38,7 @@ export default function PeriodicTablePage() {
             Click any element to reveal its atomic structure, properties, and role in the universe —
             rendered in a living split-view laboratory panel.
           </p>
-        </motion.header>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)] lg:items-start xl:gap-8">
           <motion.section
