@@ -234,8 +234,8 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
       service's SQL contains nothing the pooler forbids (no session advisory locks, `SET`, `PREPARE`, `LISTEN`,
       temp tables) so a pooled URL would work by code review, but that is **untested** — keep direct.
 - [ ] Optional: disable scale-to-zero (paid plans only). Reactivation takes "a few hundred milliseconds" (Neon docs),
-      inside the service's 2 s connect timeout, and the webhook is acknowledged before any database work — so this
-      is about steady latency, not correctness.
+      inside the service's 2 s connect timeout; the webhook stores each delivery with one bounded insert (3 s) and
+      answers `503` if it cannot, so Lemon retries it (R19) — so this is about steady latency, not correctness.
 
 ### 2.2 Rehearsal on a branch (do this before touching production)
 
@@ -245,7 +245,7 @@ same settings:
 ```bash
 cd services/auth-billing-service
 export MIGRATION_DATABASE_URL='postgresql://…<rehearsal branch, direct, no -pooler>…?sslmode=require'
-npm run db:migrate:status      # every file "pending", 14 files (001 … 014)
+npm run db:migrate:status      # every file "pending", 15 files (001 … 015)
 npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=14
 npm run db:migrate             # again → mode=tracked baselined=0 applied=0   (the runner is idempotent)
 npm run db:migrate:status      # all 14 "applied"
@@ -301,7 +301,8 @@ first**, following [`DB_ROLES.md`](../security/DB_ROLES.md):
       `permission denied`.
 - [ ] Production switch: migrations, `db:reconcile` and the cron SQL keep the **owner** URL
       (`MIGRATION_DATABASE_URL`); only the Express `DATABASE_URL` changes. Rollback = point it back at the owner.
-- [ ] Re-run `app-role.sql` after any future migration that adds a table the service uses.
+- [ ] Re-run `app-role.sql` after any future migration that adds a table the service uses (015 added
+      `lemon_webhook_events`: the role needs `SELECT, INSERT, UPDATE` on it, which the current script grants).
 
 ### 2.5 Backups and point-in-time restore
 
@@ -358,8 +359,14 @@ Lemon keeps **test mode and live mode separate**. Work in **live mode** for ever
       (user id, pack, pending order), so attribution falls back to the buyer's email (README).
 - [ ] **3.8 Webhook reachability.** Use the dashboard's test/simulate option if offered, or just look at §4.4: Express
       must log `[Webhook] Acknowledged 200 OK`. Delivery history, payloads and **resend** are on the webhooks settings
-      page. Lemon retries a failed delivery up to three more times (documented example delays 5, 25, 125 s) before
-      giving up.
+      page. Lemon's documented behaviour ([webhook requests](https://docs.lemonsqueezy.com/help/webhooks/webhook-requests),
+      [sync with webhooks](https://docs.lemonsqueezy.com/guides/developer-guide/webhooks)): only a `200` counts as
+      received; any other answer is retried up to three more times with exponential backoff ("e.g. 5 secs, 25 secs,
+      125 secs"), then the delivery is failed and only a manual resend remains. **No response timeout is
+      documented**; Express answers every delivery within ≈ 3 s (`WEBHOOK_STORE_TIMEOUT_MS`). Express stores each
+      delivery before its `200` (R19): a `503` (`[Webhook] NOT STORED`) means the database was unavailable and Lemon
+      will retry — only a delivery Lemon shows as failed after its last retry (≈ 2.5 min of database outage) needs a
+      resend.
 
 ### 3.9 The first real live purchase (minimal pack) and the refund review
 
@@ -374,6 +381,7 @@ Do this with **your own card**, the **Starter** pack ($5, 50 credits), after §4
    SELECT amount, transaction_type, reference_id, provider FROM credit_ledger_transactions
     WHERE user_id = '<uuid>' ORDER BY id DESC LIMIT 1;     -- 50 | CREDIT_PURCHASE | ls_order_<id> | lemonsqueezy
    SELECT status FROM pending_checkout_orders WHERE user_id = '<uuid>' ORDER BY created_at DESC LIMIT 1;   -- completed
+   SELECT status, outcome FROM lemon_webhook_events WHERE provider_order_id = '<order id>';               -- processed | credited
    ```
 4. **Refund it** in the Lemon dashboard (refunding your own test purchase also rehearses the procedure). Expected:
    Express logs `[Webhook] Recorded refund — credits NOT changed; review with db:reconcile`; the balance is **still 50**.
@@ -518,7 +526,7 @@ Nothing in this repository pages you; wire these up before announcing the launch
 
 | Job | Command | Cadence | Alert on |
 | --- | --- | --- | --- |
-| Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`), **1** = the job itself failed — never treat as green |
+| Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
 
 Where to run them: `db:reconcile` needs the service folder with `npm ci` done, Node, and the owner URL; the cron SQL needs
@@ -534,14 +542,16 @@ tell me if you want one written.
 | Where | Substring | Means / action |
 | --- | --- | --- |
 | Express | `[Webhook] Rejected:` | webhook with a bad signature (wrong secret, wrong URL, or an attacker). A burst after a deploy = secret mismatch (§6.1) |
-| Express | `[Webhook] FAILED background credit allocation` | a paid order was **not** credited (DB error) — **resend that delivery from Lemon's webhook log** (idempotent) |
+| Express | `[Webhook] FAILED background credit allocation` | a stored delivery still failed after the service's 10 automatic attempts (≈ 10 min) — its credits are missing. Fix the cause (`last_error` in `db:reconcile`), then run **`npm run webhooks:replay`** on the Express host (idempotent per order). **Page on it** |
+| Express | `[Webhook] NOT STORED — answered 503 so Lemon retries the delivery` | the database could not take the delivery within 3 s; Lemon retries after 5 s, 25 s, 125 s. Alert when it repeats for more than ~2 min: after Lemon's last retry the delivery shows as failed in Lemon's webhook log → **resend** it there |
+| Express | `[Webhook] Processing failed — the event is stored and will be retried` | transient (database slow or down); retried every minute. No action unless it ends in the `FAILED` line above |
 | Express | `Unable to resolve package`, `Amount mismatch`, `Unexpected currency`, `Missing user identity`, `Order from another store`, `Ignoring test-mode order` | a signed order was **not** credited by design — usually mis-set variant ids, prices, store id or a test-mode order; compare with the Lemon order, fix, then resend |
 | Express | `[Webhook] Recorded refund` | a refund arrived — expect `refunded_order_credited` in the next reconcile |
 | Express | `[credits] AI_CAPACITY_REACHED` | the **global** daily AI cap was hit (users get `503 AI_CAPACITY_REACHED`) — raise `AI_DAILY_TURNS_GLOBAL` or investigate |
 | Express | `[credits] CAPTURE_FAILED` | a debit could not be posted (not charged) |
 | Express | `[auth] Failed to send` / `[email] Resend API error` | verification/reset/receipt mail failing — check Resend |
 | Express | `/health` → `503`, `DATABASE_UNAVAILABLE` | database unreachable |
-| Express | `timeout exceeded when trying to connect` | the pool's 20 connections are all busy (slow or saturated database): requests wait 2 s and fail with **500** `INTERNAL_ERROR` (PERF-29 / R18), webhook credit allocations fail too (`[Webhook] FAILED background credit allocation`). Check Neon latency and load (performance Part 3) |
+| Express | `[db] Request failed: database unavailable` (often with `timeout exceeded when trying to connect`) | the database could not serve requests — usually the pool's 20 connections all busy (slow or saturated database): requests wait 2 s and answer **503 `DATABASE_UNAVAILABLE`** with `Retry-After` (R18); webhooks answer 503 and Lemon retries (R19). Check Neon latency and load (performance Part 3) |
 | Next.js | `[billing] CAPTURE_FAILED`, `[billing] RELEASE_FAILED` | a turn went uncharged / a hold will expire uncharged (revenue loss, not customer harm) |
 | Next.js | `[billing] INTERNAL_AUTH_REJECTED` | `INTERNAL_SERVICE_SECRET` differs between the services — AI Lab is down |
 | Next.js | `[billing] BILLING_NOT_CONFIGURED` | `BILLING_SERVICE_URL` / `INTERNAL_SERVICE_SECRET` missing |
@@ -624,10 +634,13 @@ Remove credits only with a compensating `post_credit_transaction(<user>, -n, 'AD
 refused (`UPDATE users SET is_verified = false WHERE id = '<uuid>';` — the owner of the mailbox can re-verify). Neither
 blocks a determined user.
 
-**Webhook failures.** Symptoms: orders paid but no credits, `Rejected:` / `FAILED background credit allocation` logs. Check
-in order: the URL in Lemon is the Express host; `/health` is `ok`; the secret matches (`Rejected:` after a deploy =
-mismatch); the log lines in §5.2; the order in Lemon matches pack price, store id, USD. Fix, then **resend** from
-Lemon's webhook log — fulfilment is idempotent per order (`ls_order_<id>`).
+**Webhook failures.** Symptoms: orders paid but no credits; `Rejected:`, `NOT STORED` or `FAILED background credit
+allocation` logs; `webhook_unprocessed` in `db:reconcile`. Check in order: the URL in Lemon is the Express host;
+`/health` is `ok`; the secret matches (`Rejected:` after a deploy = mismatch); the log lines in §5.2; the order in Lemon
+matches pack price, store id, USD. Then: deliveries Express **stored** (in `lemon_webhook_events`, listed by
+`db:reconcile`) are finished with **`npm run webhooks:replay`** on the Express host; deliveries Lemon shows as **failed**
+(never stored: Express answered 401 or 503 to every attempt) are **resent** from Lemon's webhook log. Both are
+idempotent per order (`ls_order_<id>`).
 
 **AI cost spike.** Levers, fastest first: **(1)** blank `GEMINI_API_KEY` on Next.js and redeploy — every turn is
 released uncharged and answers 503 (tested path); revoke the key at Google if it leaked. **(2)** lower
@@ -641,8 +654,9 @@ only — every delivery is rejected (401) and queued by Lemon's retries, then re
 ### 6.3 Rollback plan
 
 - **Code** — redeploy the previous good commit of **both** services together (runbook §10.3). Express first or together
-  with Next.js, never Next.js alone. Migrations 001–014 are additive: the previous commit works with the current schema
-  (a rollback to a commit *before* migration 013 simply never writes `lemon_order_refunds`). Vercel's Instant Rollback
+  with Next.js, never Next.js alone. Migrations 001–015 are additive: the previous commit works with the current schema
+  (a rollback to a commit *before* migration 013 simply never writes `lemon_order_refunds`; one before 015 acknowledges
+  webhooks before storing them again — run `npm run webhooks:replay` first so nothing stored is left unprocessed). Vercel's Instant Rollback
   restores a previous production deployment but does **not** change environment variables; after a rollback it turns off
   auto-assignment of new pushes until you undo it. Render's rollback behaviour: **(not verified)** — redeploy the previous
   commit from the dashboard.

@@ -231,6 +231,8 @@ base64 above.)
 | `BILLING_RETRY_DELAYS_MS` | optional (`250,1000,3000,8000,15000`) | — | backoff for capture/release retries: ≈ 27 s, so a turn is still charged after a ~30 s billing or database outage (R20; was `250,1000,3000`, ≈ 4 s). The answer waits for the capture, so an outage delays it by up to this much |
 | `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this. Keep it well above `GEMINI_TIMEOUT_MS` + the `BILLING_RETRY_DELAYS_MS` total, or slow successful turns go uncharged |
 | `AI_HOLD_SWEEP_INTERVAL_MS` | — | optional (300000) | in-process settling of expired reservations; `0` disables |
+| `WEBHOOK_STORE_TIMEOUT_MS` | — | optional (3000) | longest the webhook waits to store a delivery before answering 503 so Lemon retries (R19) |
+| `WEBHOOK_RETRY_INTERVAL_MS` | — | optional (60000) | in-process retry of stored webhook events that failed (up to 10 attempts); `0` disables (R19) |
 | `MIGRATION_DATABASE_URL` | — | optional | only for migration/reconcile jobs (direct URL) |
 | `FRONTEND_URL` | **must be exact** | (unchanged) | the public origin, scheme + host, no trailing slash (e.g. `https://moleculestudio.app`). Next.js now refuses **every** browser POST/PUT/PATCH/DELETE whose `Origin` differs (403 `CSRF_REJECTED`) — a wrong value blocks all sign-ins. `www.` and apex are different origins |
 | `CLIENT_IP_HEADER` | **strongly recommended** | — | the header **your platform** sets with the end-user IP (see below). Unset → all users share one rate-limit bucket; Next logs a startup warning |
@@ -408,8 +410,12 @@ In the Lemon dashboard → Settings → Webhooks:
   disputed order on your behalf, whether that also sends `order_refunded` is not documented — check the
   Lemon dashboard for disputes during the weekly review.
 - Use "Send test" (or the dashboard's simulate option, if offered) → expect `200 {"received":true}` and an Express log
-  `[Webhook] Acknowledged 200 OK`. Lemon retries a failed delivery up to three more times (documented example delays
-  5, 25, 125 s); the webhooks settings page lists deliveries and lets you resend them.
+  `[Webhook] Acknowledged 200 OK` with a `storedEventId`. Lemon counts only a `200` as received and retries anything
+  else up to three more times with exponential backoff ("e.g. 5 secs, 25 secs, 125 secs"), then stops; its docs state
+  no response timeout ([webhook requests](https://docs.lemonsqueezy.com/help/webhooks/webhook-requests)). Express
+  stores every verified delivery **before** answering `200` and answers `503` within ≈ 3 s when it cannot
+  (`[Webhook] NOT STORED`), so Lemon retries it (R19). The webhooks settings page lists deliveries and lets you
+  resend them.
 - If the URL pointed at the Next host until now, every purchase since then was rejected (401) and **not
   credited**: re-deliver those orders from Lemon's "Recent deliveries" after fixing the URL (fulfilment is
   idempotent per order).
@@ -456,6 +462,18 @@ Where to run them, which log lines to alert on and how long logs survive on each
   expired order is still credited and the row marked `completed`. Example cron:
   `15 * * * * psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"`.
   Checkouts that fail at Lemon are now marked `failed` immediately.
+- **Stored webhook events not processed** (same job, R19): `webhook_unprocessed` lists deliveries Express stored
+  and acknowledged (Lemon will not resend them) that were still not processed 15 minutes later — their credits may be
+  missing. Express retries them every minute (10 attempts) by itself; when they are listed, fix the cause shown in
+  `last_error`, then on the Express host (service folder, built, the service's own environment):
+
+  ```text
+  npm run webhooks:replay     # processes every stored event not done; exit 0 = none left failing, 2 = some still fail
+  ```
+
+  It is idempotent per order (`ls_order_<id>`) and safe to repeat. To look at one event:
+  `SELECT id, status, attempts, outcome, last_error FROM lemon_webhook_events WHERE provider_order_id = '<order id>';`.
+  Payloads (they hold the buyer's e-mail) are cleared 30 days after processing.
 - **Expired reservations** are settled by Express every 5 minutes. If you run several Express
   instances or disable the timer, schedule `SELECT release_expired_ai_holds();` instead (idempotent).
 
