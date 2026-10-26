@@ -157,6 +157,13 @@ Leave **unset**: `LEMONSQUEEZY_ALLOW_TEST_MODE`, `MOLECULESTUDIO_SKIP_DOTENV`, t
 default `0` unless you have verified exactly one proxy that appends the client IP; with `0` the BFF's `X-Client-IP`
 (authenticated by the internal key) still gives per-user rate limits.
 
+`UV_THREADPOOL_SIZE` (read by Node.js itself at startup, not by our code): password hashing (bcrypt, cost 10) for
+login and registration runs on libuv's thread pool, 4 threads by default, so a 5th concurrent login waits. **First
+check the instance's core count** (in a shell on the Express instance:
+`node -e "console.log(require('node:os').availableParallelism())"`). More than one core → set `UV_THREADPOOL_SIZE` to
+that count, never below `4`; one core or less → leave it unset (more threads than cores do not help). Measured
+locally: 16 concurrent logins 78 → 151 per second with 8 threads (performance finding R6).
+
 **Next.js** (`<site>`)
 
 | Variable | Value |
@@ -482,6 +489,24 @@ Runbook §7.0 in short: open the site exactly as users reach it, sign in.
 - [ ] `npm run db:migrate:status` (all 14 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
       not reviewed yet).
 - [ ] The client-IP test from §A passed (two networks → two different `signup_ip` values).
+
+### 4.7 Latency baseline on the real hosts (after the first deploy)
+
+The local performance measurements (`docs/performance/PERFORMANCE_FINDINGS.md`, recommendation R8) cannot see the two
+network legs that decide production capacity. One AI turn makes **21 sequential database round trips** and **2
+Next.js → Express calls**; a balance read makes 3 and 1. Measure both legs once, on the real instances:
+
+- [ ] **Express → Neon round trip.** In a shell on the Express instance, from the service directory:
+      `node -e "const pg=require('pg');(async()=>{const c=new pg.Client({connectionString:process.env.DATABASE_URL});await c.connect();const t=[];for(let i=0;i<50;i++){const s=performance.now();await c.query('SELECT 1');t.push(performance.now()-s)}t.sort((a,b)=>a-b);console.log('median ms',t[25].toFixed(2));await c.end()})()"`
+      Expect about 1–2 ms in the same region; above ~5 ms, check that Neon and Render are in the same region (§A).
+- [ ] **Vercel → Render.** Confirm in the Vercel project settings that the function region is the region closest to
+      the Express instance (§A). From the Express instance shell,
+      `curl -o /dev/null -s -w "%{time_connect}
+" https://<site>/` gives the TCP connect time ≈ one round trip to
+      Vercel's nearest edge (an approximation of the function's leg — not verified against Vercel's own figures).
+- [ ] **Write the numbers down** and estimate a chat turn's overhead (Gemini excluded) as ≈ 17 ms + 21 × DB round trip
+      + 2 × Vercel → Render round trip. Local reference: a 2.7 ms DB round trip gave 64 ms at one user and about 146
+      turns/s of billing throughput for one Express instance (findings § Part 1). Re-check after any region change.
 
 ---
 

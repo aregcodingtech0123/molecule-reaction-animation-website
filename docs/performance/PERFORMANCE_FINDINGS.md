@@ -91,7 +91,7 @@ Result files: `perf-results/` (gitignored), one folder per run. A difference ins
 | B2 | `/history` p95, c = 10, any page, 100 k rows (< 100 ms) | 13.8–17.4 ms | unchanged | ✔ |
 | B2 | same at 1 M rows (10×) | 14.0–14.5 ms; last page no slower than first | unchanged | ✔ |
 | B3 | balance via BFF p95, c = 10 (< 30 ms) | 11.0 ms [11.0–11.1] | unchanged | ✔ |
-| B4 | login: documented; event-loop lag p99 at c = 16 | 53 ms per login (cost 10); lag p99 25.8 ms | — | met to instrument resolution (see login) |
+| B4 | login: documented; event-loop lag p99 at c = 16 | 53 ms per login (cost 10); lag p99 25.8 ms | — | **not measurable on Windows; re-measure on Linux CI/staging** (event loop free: ELU ≤ 0.17) |
 | B7 | event-loop lag p99, c = 10 (< 50 ms) | ≤ 25.6 ms (Next and Express) | ≤ 35 ms at c = 50 | ✔ |
 | B8 | overload error shape | clean 429 / 503 everywhere tested | — | ✔ (Part 3 completes it) |
 
@@ -290,18 +290,95 @@ milliseconds (Express balance p50 3.77 vs 3; p99 5.57 vs 5). No discrepancy beyo
 | E2E, `next dev` | 49 passed, 1 skipped (by design in dev mode) |
 | E2E, `E2E_NEXT_MODE=production` | **50 / 50 passed** (paid journey incl. AI Lab, desktop + mobile) |
 
+### PERF-22 — single-flight DB reconnect probe (R5, applied after review)
+
+`verifyDatabaseConnection()` replaces the pool on every probe, and `requireDatabase` ran one probe per request while
+the database looked unavailable, so concurrent requests rebuilt the pool for each other. Change (commit in git log):
+callers that arrive during a probe share it (one in-flight promise, cleared when it settles). The 503
+`DATABASE_UNAVAILABLE` mapping and the pool's 2 s connect timeout are unchanged.
+
+Tests (`services/auth-billing-service/tests/api/db-probe-single-flight.test.ts`, against a local black-hole TCP
+server that accepts and never answers): 20 concurrent requests during an outage → one probe, 20 × 503 after ~2 s;
+a request after a failed probe starts a new one; recovery as soon as the database answers, no probe afterwards;
+one connection attempt per outage round (not per request) and no timers left; direct callers share the probe.
+On the old code 4 of the 5 fail (20 probes for 20 requests, 10 sockets for 10).
+
+`dbfaults` scenario, same five outage events (4 cold starts + 10 s down, bursts of 20 / 5 requests), before
+(`09-45-22`) and after (`10-53-13`):
+
+| | Before | After |
+| --- | --- | --- |
+| probes started (`[db:config] ── environment inspection ──`) | 185 | **69** |
+| pool rebuilds (probes that succeeded) | 44 | **6** — startup + exactly one per outage event |
+| failed probes | 141 | **63** |
+| TCP connections the proxy accepted / held for the wake | 163 / 63 | **86 / 7** |
+| responses (cold start 0.3 / 1.5 / 2.5 / 5 s, down 10 s) | 200 / 200 / 503 at 2.06 s / 503 at 2.04 s / 503 ≤ 44 ms | 200 / 200 / 503 at 2.03 s / 503 at 2.03 s / 503 ≤ 10 ms |
+| recovery after the database returns | 5 / 5 / 466 / 2 987 ms; 90 ms | 6 / 5 / 487 / 2 982 ms; 28 ms |
+| pool saturation (B), c = 10 / 20 / 40 / 80 | 42.7 / 81.7 / 83.1 / 78.5 per s | 42.1 / 83.2 / 82.9 / 78.9 per s (noise) |
+
+Observation (pre-existing, identical before and after): when the 2 s connect timeout fires against a server that
+accepted the TCP connection but never answers, `pg` leaves that socket open (still open 7.5 s later in the test).
+With the shared probe this is one socket per outage round instead of one per request; against a real database the
+server side closes it. Not changed.
+
+### Incident — one real request to the Gemini API during an isolation run (Part 1)
+
+While isolating PERF-21, one experiment (`exp-c.mjs` in the session scratchpad, SDK + local mock, run with
+`--expose-gc`) was started **without** the network-guard preload. The `@google/genai` SDK therefore sent one request
+to `https://generativelanguage.googleapis.com/` with the dummy API key `x` and the prompt `hi`; Google answered 400
+"API key not valid". No secret, user data or project data was sent. Cause: the experiment imported the mock in-process
+but nothing checked that the guard was installed — the standing rule relied on remembering the `--import` flag.
+
+Prevention (harness-level, with tests in `tests/api/perf-harness.test.ts`):
+* `scripts/perf/lib/guard.mjs` — `assertNetworkGuard()` throws unless the guard is installed in the process;
+  `createMockGemini()` calls it, so an in-process experiment cannot use the mock without the guard;
+* `scripts/perf/isolate.mjs <experiment.mjs>` — the supported way to run an isolation experiment: installs the guard
+  (and the Gemini redirect when `PERF_GEMINI_ORIGIN` is set), verifies it, then imports the experiment;
+* the runner installs and verifies the guard in its own process before anything else;
+* each perf server's preload prints a marker when it installs the guard, and the stack refuses to measure a server
+  whose log lacks it.
+
+### Login event-loop target (B4)
+
+**Not measurable on Windows; re-measure on Linux CI/staging.** The event-loop delay histogram resolves 10 ms and
+Windows timers tick at ~15.6 ms, so idle runs already read 20–25 ms; a 20 ms target cannot be told apart from the
+instrument's floor here. What was measured: Express's event loop stays free during logins (ELU ≤ 0.17 at c = 16).
+
+### R9 — fewer sequential DB round trips per chat turn (recommendation only, not implemented)
+
+After PERF-01 a chat turn makes 21 sequential round trips. `/consume` (10): C1 revoked `jti`, C2 `token_version`
+(`requireAuth`), C3 `is_verified` (`requireVerified`), C4 BEGIN, C5 advisory lock, C6 find hold `FOR UPDATE`,
+C7 daily caps, C8 available balance, C9 INSERT hold, C10 COMMIT. `/capture` (11): P1–P3 as C1–C3, P4 BEGIN, P5 lock,
+P6 find hold `FOR UPDATE`, P7 SAVEPOINT, P8 `post_credit_transaction`, P9 UPDATE hold → captured, P10 read balance,
+P11 COMMIT. Estimated saving = round trips removed × RTT (not measured; the measured link adds ≈ 2 × the
+per-direction delay, see § DB latency):
+
+| # | Merge | Round trips saved per turn | ≈ at 2.7 ms | ≈ at 11 ms | Risk notes |
+| --- | --- | --- | --- | --- | --- |
+| M1 | C1 + C2 + C3 → one statement (and P1–P3): `users` row with `token_version`, `is_verified` and `EXISTS(revoked jti)` | 4 | 11 ms | 44 ms | Security-critical middleware. Must keep: the in-process revoked-JTI cache, "user row missing" behaviour (requireAuth passes, requireVerified refuses), 401 vs 403 codes. Existing auth suites + the PERF-01 guarantee tests cover it. Low–moderate |
+| M2 | C6 + C7 + C8 → one statement after the lock (a `FOR UPDATE` CTE for the hold plus the two aggregates) | 2 | 5 ms | 22 ms | All reads already happen under the same advisory lock in the same transaction, so no new race. The app still checks in the same order (duplicate → caps → balance). Low |
+| M3 | P9 + P10 → `WITH u AS (UPDATE … RETURNING 1) SELECT balance …` | 1 | 3 ms | 11 ms | Same transaction, reads after `post_credit_transaction`. Low |
+| M4 | P7 + P8 + P9 + P10 → one plpgsql call (the function's EXCEPTION block replaces the explicit SAVEPOINT; records `capture_failed` itself) | 3 (incl. M3) | 8 ms | 33 ms | New migration; `capture_failed` and HOLD_EXPIRED semantics move into SQL; SQLSTATE → HTTP mapping. Moderate |
+| M5 | Whole reservation and whole capture as one SECURITY DEFINER plpgsql call each, like `post_credit_transaction` (no client-side BEGIN/COMMIT) | 13 (supersedes M2–M4) | 35 ms | 143 ms | Largest change: billing logic in SQL (migration 015+), every hold path re-proven at DB level (expiry race, duplicates, caps, insufficient credits). Also shrinks the time the user's lock and a pool connection are held from ~6–7 network round trips to none — the cause of the throughput collapse at 11 ms (83 turns/s). Moderate–high |
+| — | Not mergeable without changing guarantees | — | — | — | the two BFF → Express calls (the model must run between reserve and capture); C5/P5 as separate statements (merging a lock into a data query has no guaranteed evaluation order); BEGIN/COMMIT with parameters (no pipelining in `pg`) |
+
+Low-risk set M1 + M2 + M3: 7 round trips → ≈ 19 ms at 2.7 ms RTT, ≈ 77 ms at 11 ms. With M5 instead of M2–M4:
+17 round trips (21 → 4) → ≈ 46 ms and ≈ 187 ms. Any of these would be its own measured change (A/B with the DB proxy,
+as for PERF-01), not part of the launch.
+
 ### Recommendations (not applied — measured, small, or outside Part 1's remit)
 
 | # | Area | Recommendation | Evidence |
 | --- | --- | --- | --- |
-| R1 | history | Replace `idx_credit_ledger_user_created (user_id, created_at DESC)` with `(user_id, created_at DESC, id DESC)` (matches the ORDER BY; no incremental sort, no plan flip to the global index); drop the redundant `idx_credit_ledger_user_id`. Same write cost, as a new migration. | 10×: 3.88 → expected ~0.2 ms in-DB; end to end only ~0.7 ms — not worth a migration before launch |
+| R1 | history | **Owner: not applied.** Replace `idx_credit_ledger_user_created (user_id, created_at DESC)` with `(user_id, created_at DESC, id DESC)` (matches the ORDER BY; no incremental sort, no plan flip to the global index); drop the redundant `idx_credit_ledger_user_id`. Same write cost, as a new migration. | 10×: 3.88 → expected ~0.2 ms in-DB; end to end only ~0.7 ms — not worth a migration before launch |
 | R2 | daily caps | If `AI_DAILY_TURNS_GLOBAL` is raised far above 3 000, replace the global 24 h `count(*)` with a counter: it runs inside the user's lock on every reservation | 0.33 → 1.07 ms from 1.3 k to 10 k holds in the window, linear |
 | R3 | reconcile | None needed; it is a daily job (246 ms at 3 M rows). Keep it off the request path | EXPLAIN |
 | R4 | holds | Optional: `SET LOCAL lock_timeout` in the reservation transaction so a burst from one user cannot hold many pool connections | one user at c = 20 held 19 connections waiting |
-| R5 | DB pool | Single-flight `verifyDatabaseConnection()` (share one in-flight probe; never end a pool another request just created) | 44 rebuilds / 141 probes in 5 fault events with 20 requests each |
-| R6 | login | On a multi-core Express instance set `UV_THREADPOOL_SIZE` to the core count (≥ 4); on a ≤ 1-CPU instance leave it | 16 concurrent logins: 78 → 151 / s with 8 threads on 16 cores |
+| R5 | DB pool | **Applied as PERF-22** (§ PERF-22). Single-flight `verifyDatabaseConnection()` (share one in-flight probe; never end a pool another request just created) | 44 rebuilds / 141 probes in 5 fault events with 20 requests each |
+| R6 | login | **In the launch checklist §1.4.** On a multi-core Express instance set `UV_THREADPOOL_SIZE` to the core count (≥ 4); on a ≤ 1-CPU instance leave it | 16 concurrent logins: 78 → 151 / s with 8 threads on 16 cores |
 | R7 | Neon | Keep `connectionTimeoutMillis` at 2 s unless staging shows resumes > 1.5 s; prefer a paid plan with scale-to-zero disabled for production | 0.3 / 1.5 s resumes served, 2.5 / 5 s → 503 at 2 s |
-| R8 | production latency | Measure the real Vercel → Render and Render → Neon round trips on staging: each Neon round trip costs a chat turn 21×, each Render hop 2× | 2.7 ms DB RTT: chat overhead 18 → 73 ms (before PERF-01) |
+| R8 | production latency | **In the launch checklist §4.7 (post-deploy).** Measure the real Vercel → Render and Render → Neon round trips on staging: each Neon round trip costs a chat turn 21×, each Render hop 2× | 2.7 ms DB RTT: chat overhead 18 → 73 ms (before PERF-01) |
+| R9 | chat DB round trips | 21 sequential round trips per turn; merges M1–M5 with savings and risks in § R9 (owner: recommendation only) | 2.7 ms RTT: low-risk set ≈ 19 ms, full ≈ 46 ms per turn |
 
 ## Findings log
 
@@ -311,4 +388,5 @@ milliseconds (Express balance p50 3.77 vs 3; p99 5.57 vs 5). No discrepancy beyo
 | PERF-21 | harness | first turn after start hung ~306 s (1 of 3 runs); every turn under forced GC | 504 at 30.0–30.3 s on every turn, with and without forced GC | reproduction table above | see git log | refuted (harness defect, fixed) |
 | PERF-19 | Next memory / tails | c = 50: heap 1 990–2 278 MiB, lag 571–649 ms, p99 655 ms [370–4 057] | heap 302 MiB, lag 35 ms, p99 209 ms [199–225] | chat c = 50, 5 runs; forced-GC floor E1/E2/A1 | `22c2564` | fixed |
 | PERF-01 / PERF-03 | `/api/chat` hop | c = 1 p95 21.35 ms; at 2.73 ms DB RTT c = 10 p95 89.1 ms, 126 / s | c = 1 p95 18.72 ms; at 2.73 ms DB RTT c = 10 p95 75.0 ms, 146 / s | A/B chat, loopback and DB proxy, 5 runs | see git log | fixed |
+| PERF-22 | DB reconnect (R5) | 5 outage events: 185 probes, 44 pool rebuilds, 163 DB connections | 69 probes, 6 rebuilds, 86 connections; same responses | `dbfaults` before/after; 5 new tests | see git log | fixed |
 | PERF-04, 05, 13, 16, 17, 20 | DB, pool, login | § Part 1 | — | metering, dbfaults, explain, login, caps | — | measured — recommendations R1–R8 |
