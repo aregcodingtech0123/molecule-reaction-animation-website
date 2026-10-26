@@ -229,6 +229,16 @@ describe("network guard enforcement (Part 1 incident: no harness run without the
     expect(() => assertServerGuarded("boot\nready", "web")).toThrow(/web server started without the network guard/);
   });
 
+  it("perf servers keep no call log (it grew without bound in the Part 3 soak); stubs and blocking are unchanged", () => {
+    const guard = pathToFileURL(path.join(root, "scripts/test/network-guard.mjs")).href;
+    const probe = `
+      const { externalCalls } = await import(${JSON.stringify(guard)});
+      const lemon = await fetch("https://api.lemonsqueezy.com/v1/checkouts", { method: "POST", body: "{}" });
+      const blocked = await fetch("https://example.com/").then(() => "reached", (e) => e.name);
+      console.log(JSON.stringify({ lemon: lemon.status, blocked, recorded: externalCalls.length }));`;
+    const res = node(["--import", pathToFileURL(path.join(root, "scripts/perf/preload.mjs")).href, "--input-type=module", "-e", probe]);
+    expect(JSON.parse(res.stdout.trim().split(/\r?\n/).at(-1) ?? "{}"), res.stderr).toEqual({ lemon: 201, blocked: "BlockedNetworkError", recorded: 0 });
+  });
 });
 
 describe("bundle budget (Part 2)", () => {

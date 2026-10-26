@@ -25,9 +25,11 @@ import { GEMINI_HOST, geminiRedirect } from "./lib/gemini-redirect.mjs";
 import { GUARD_MARKER, assertNetworkGuard } from "./lib/guard.mjs";
 
 // Build only (`next build` self-hosts next/font files): the same two font hosts E2E allows. Never at runtime.
-installNetworkGuard(
-  process.env.PERF_ALLOW_FONT_HOSTS === "1" ? { allowHosts: ["fonts.googleapis.com", "fonts.gstatic.com"] } : {},
-);
+// No call log: nothing reads it here, and under sustained load it was the only thing that grew (Part 3 soak).
+installNetworkGuard({
+  recordCalls: false,
+  ...(process.env.PERF_ALLOW_FONT_HOSTS === "1" ? { allowHosts: ["fonts.googleapis.com", "fonts.gstatic.com"] } : {}),
+});
 
 assertNetworkGuard("a perf server");
 // The stack refuses to measure a server whose log does not show this line (lib/guard.mjs). stderr, not stdout:
