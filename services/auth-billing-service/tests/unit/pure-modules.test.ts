@@ -4,7 +4,8 @@ import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isAiOperationType, costForOperation, AI_OPERATION_COSTS } from "../../src/config/aiOperations.js";
 import { resolveCreditPackage, CREDIT_PACKAGES } from "../../src/config/packages.js";
-import { lemonVariantForPackage } from "../../src/config/env.js";
+import { env, lemonVariantForPackage } from "../../src/config/env.js";
+import { isDatabaseUnavailableError } from "../../src/db/unavailable.js";
 import {
   packageIdForLemonVariant,
   parseLemonSqueezyEvent,
@@ -292,6 +293,48 @@ describe("errorHandler mapping", () => {
     const res = await request(appThrowing(new Error("x"))).get("/nope");
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ success: false, error: "Route not found." });
+  });
+});
+
+describe("background timers and the webhook store deadline (env)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ["aiHoldSweepIntervalMs", "AI_HOLD_SWEEP_INTERVAL_MS", 300_000],
+    ["webhookRetryIntervalMs", "WEBHOOK_RETRY_INTERVAL_MS", 60_000],
+  ] as const)("%s: default when unset or invalid, 0 disables, an integer is taken as is", (getter, name, fallback) => {
+    for (const [value, expected] of [
+      ["", fallback],
+      ["abc", fallback],
+      ["-1", fallback],
+      ["1.5", fallback],
+      ["0", 0],
+      ["15000", 15_000],
+    ] as const) {
+      vi.stubEnv(name, value);
+      expect(env[getter]).toBe(expected);
+    }
+  });
+
+  it("webhookStoreTimeoutMs: 3 s by default; only a positive integer overrides it (0 cannot remove the deadline)", () => {
+    for (const [value, expected] of [
+      ["", 3_000],
+      ["0", 3_000],
+      ["-5", 3_000],
+      ["x", 3_000],
+      ["1500", 1_500],
+    ] as const) {
+      vi.stubEnv("WEBHOOK_STORE_TIMEOUT_MS", value);
+      expect(env.webhookStoreTimeoutMs).toBe(expected);
+    }
+  });
+
+  it("isDatabaseUnavailableError: anything that is not an error object is not a database outage", () => {
+    for (const value of [null, undefined, "timeout exceeded when trying to connect", 42]) {
+      expect(isDatabaseUnavailableError(value)).toBe(false);
+    }
   });
 });
 

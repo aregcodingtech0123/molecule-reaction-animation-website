@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createApp } from "../../src/app.js";
 import { closePool } from "../../src/db/index.js";
 import { spyConsole, type ConsoleSpies } from "../support/console";
-import { balanceOf, createTestPool, createUser, ledgerOf } from "../support/db";
+import { balanceOf, createTestPool, createUser, ledgerOf, waitFor } from "../support/db";
 import { newOrderId, orderCreatedEvent, sign, signedBody } from "../support/lemon";
 
 const WEBHOOK = "/api/billing/webhooks/lemonsqueezy";
@@ -94,7 +94,16 @@ describe("order_refunded is recorded, never clawed back (SEC-14)", () => {
 
   it("retries and replays of the same refund are no-ops (one row)", async () => {
     const { orderId } = await creditedOrder();
+    // Identical retries: one stored event (R19 inbox), one refund row.
     for (let i = 0; i < 3; i++) await post(refundEvent(orderId));
+    await logs.waitForLine(new RegExp(`Recorded refund .*"orderId":"${orderId}"`));
+    const stored = async () =>
+      (await db.query(`SELECT status FROM lemon_webhook_events WHERE provider_order_id = $1 AND event_name = 'order_refunded'`, [orderId])).rows;
+    await waitFor(async () => (await stored()).every((r) => r.status === "processed"));
+    expect(await stored()).toHaveLength(1);
+    // A replay that differs in any byte reaches the refund recorder, which keeps one row per refund state.
+    const event = refundEvent(orderId);
+    await post({ ...event, meta: { ...event.meta, resent: true } });
     await logs.waitForLine(new RegExp(`Refund already recorded .*"orderId":"${orderId}"`));
     await new Promise((r) => setTimeout(r, 100));
     expect(await refundRows(orderId)).toHaveLength(1);

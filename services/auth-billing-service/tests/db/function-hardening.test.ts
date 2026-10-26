@@ -42,6 +42,7 @@ describe("function hardening (SEC-12)", () => {
       "refunded_orders_to_review()",
       "release_expired_ai_holds()",
       "set_updated_at()",
+      "webhook_events_to_review(interval)",
     ]);
     // The two 001 triggers reference no relation and run with the caller's rights; 001 is frozen.
     expect(fns.filter((f) => !f.config.includes("search_path=public, pg_temp")).map((f) => f.fn)).toEqual([
@@ -132,6 +133,7 @@ describe("a fresh 001→012 apply leaves the ledger functions hardened (TC-41 co
         "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
         "refunded_orders_to_review()",
         "release_expired_ai_holds()",
+        "webhook_events_to_review(interval)",
       ]);
       expect(fns.filter((f) => f.definer).map((f) => f.fn)).toEqual([
         "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",

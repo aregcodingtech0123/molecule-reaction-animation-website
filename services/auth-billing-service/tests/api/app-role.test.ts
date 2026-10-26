@@ -16,7 +16,7 @@ import { releaseExpiredHolds } from "../../src/services/aiCredits.service.js";
 import { TEST_ENV } from "../setup/env";
 import { bearer, freshIp } from "../support/auth";
 import { spyConsole, type ConsoleSpies } from "../support/console";
-import { uniqueEmail } from "../support/db";
+import { uniqueEmail, waitFor } from "../support/db";
 import { googleIdToken, stubGoogleCerts } from "../support/google";
 import { newOrderId, orderCreatedEvent, signedBody } from "../support/lemon";
 import { expectPgError } from "../support/pg-error";
@@ -89,6 +89,7 @@ describe("app role is refused every write around the ledger (SEC-12)", () => {
     ["DELETE a user", `DELETE FROM users WHERE id = $1`],
     ["mark a refund reviewed (owner-only, SEC-14)", `UPDATE lemon_order_refunds SET reviewed_at = NOW() WHERE provider_order_id = $1::text`],
     ["delete refund records", `DELETE FROM lemon_order_refunds WHERE provider_order_id = $1::text`],
+    ["delete stored webhook events (owner-only, R19)", `DELETE FROM lemon_webhook_events WHERE provider_order_id = $1::text`],
   ])("%s → 42501", async (_label, sql) => {
     const id = await ownerUser(5);
     await expectPgError(asApp.query(sql, [id]), "42501");
@@ -221,6 +222,11 @@ describe("the service runs its real flows connected as the app role", () => {
     expect(hook.status).toBe(200);
     await logs.waitForLine(new RegExp(`Credited user .*"orderId":"${orderId}"`));
     expect(await balance(id)).toBe(50);
+    // R19: stored before the 200 and marked processed afterwards — both as the app role.
+    await waitFor(async () => {
+      const { rows } = await owner.query(`SELECT status, outcome FROM lemon_webhook_events WHERE provider_order_id = $1`, [orderId]);
+      return rows[0]?.status === "processed" && rows[0]?.outcome === "credited";
+    });
     const history = await request(app).get("/api/billing/history").set("Authorization", bearer(user));
     expect(history.status).toBe(200);
   });

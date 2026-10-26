@@ -188,7 +188,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–014)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–015)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -461,10 +461,14 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–014 (only if they cause a problem)
+### 10.1 Migrations 008–015 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 015 (first run `npm run webhooks:replay` and check `db:reconcile`: unprocessed stored deliveries would be
+-- lost — Lemon got a 200 for them; export lemon_webhook_events if you need the history)
+DROP FUNCTION IF EXISTS webhook_events_to_review(INTERVAL);
+DROP TABLE IF EXISTS lemon_webhook_events;
 -- 014 (indexes only; the caps are code — roll the code back too, or they just get slower)
 DROP INDEX IF EXISTS idx_ai_credit_holds_user_created;
 DROP INDEX IF EXISTS idx_ai_credit_holds_created;
@@ -493,12 +497,12 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
-                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql');
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql');
 COMMIT;
 ```
 
 The new `post_credit_transaction()` body (sets a transaction-local flag) is harmless without the guard;
-no need to revert it. Rolling back 009 requires the old code (§10.3) — the new code needs the table.
+no need to revert it. Rolling back 009 or 015 requires the old code (§10.3) — the new code needs the tables.
 
 ### 10.2 Baseline only
 

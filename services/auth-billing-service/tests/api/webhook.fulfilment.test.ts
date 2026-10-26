@@ -44,6 +44,13 @@ async function deliver(opts: OrderOptions) {
 
 const credited = (orderId: string) => logs.waitForLine(new RegExp(`Credited user .*"orderId":"${orderId}"`));
 
+/** Stored deliveries of one order, oldest first (R19 inbox). */
+const inboxRows = async (orderId: string) =>
+  (await db.query<{ status: string; outcome: string | null }>(
+    `SELECT status, outcome FROM lemon_webhook_events WHERE provider_order_id = $1 ORDER BY id`,
+    [orderId],
+  )).rows;
+
 describe("user resolution", () => {
   it("credits custom_data.user_id when it is a valid, existing UUID (ignoring a different order email)", async () => {
     const buyer = await createUser(db);
@@ -254,13 +261,25 @@ describe("pending checkout orders", () => {
 });
 
 describe("idempotency", () => {
-  it("the same order delivered twice credits once; the replay is reported as already_processed", async () => {
+  it("the same order delivered twice credits once: an identical re-delivery stops at the inbox, a different one at the ledger", async () => {
     const buyer = await createUser(db);
     const orderId = newOrderId();
     await deliver({ orderId, customData: { user_id: buyer.id, package_id: "starter" } });
     await credited(orderId);
+    await waitFor(async () => (await inboxRows(orderId))[0]?.status === "processed");
+
+    // A Lemon retry or dashboard resend is byte-identical: acknowledged, stored once, not processed again (R19).
     await deliver({ orderId, customData: { user_id: buyer.id, package_id: "starter" } });
+    await logs.waitForLine(new RegExp(`Acknowledged 200 OK .*"orderId":"${orderId}".*"duplicateOf":"processed"`));
+    expect((await inboxRows(orderId)).map((r) => [r.status, r.outcome])).toEqual([["processed", "credited"]]);
+
+    // A delivery of the same order that differs in any byte is a new stored event; the ledger refuses it.
+    const differing = orderCreatedEvent({ orderId, customData: { user_id: buyer.id, package_id: "starter" } });
+    const { raw, signature } = signedBody({ ...differing, meta: { ...differing.meta, resent: true } });
+    expect((await request(app).post(WEBHOOK).set("Content-Type", "application/json").set("X-Signature", signature).send(raw)).status).toBe(200);
     await logs.waitForLine(/Not credited.*already_processed/);
+    await waitFor(async () => (await inboxRows(orderId)).length === 2 && (await inboxRows(orderId))[1]!.status === "processed");
+    expect((await inboxRows(orderId)).map((r) => r.outcome)).toEqual(["credited", "already_processed"]);
 
     expect(await balanceOf(db, buyer.id)).toBe(50);
     expect(await ledgerOf(db, buyer.id)).toHaveLength(1);

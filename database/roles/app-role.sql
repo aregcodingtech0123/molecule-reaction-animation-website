@@ -2,7 +2,7 @@
 -- MoleculeStudio — least-privilege application role (SEC-12, optional hardening)
 --
 -- NOT a migration: the runner never executes this file. Run it by hand as the
--- schema owner, AFTER `node scripts/migrate.mjs` (013 or later), then point the
+-- schema owner, AFTER `node scripts/migrate.mjs` (015 or later), then point the
 -- auth-billing service's DATABASE_URL at the app role. Migrations, db:reconcile
 -- and the scheduled SQL jobs keep using the owner role. See docs/security/DB_ROLES.md.
 --
@@ -52,6 +52,9 @@ GRANT SELECT                         ON credit_ledger_transactions              
 GRANT SELECT, INSERT                 ON user_balances                            TO moleculestudio_app;
 -- Lemon refunds (SEC-14, migration 013): the webhook records them; reviewing them is owner-only.
 GRANT SELECT, INSERT                 ON lemon_order_refunds                      TO moleculestudio_app;
+-- Lemon webhook inbox (R19, migration 015): stored before the 200, then status transitions and the
+-- 30-day payload clean-up. Deleting stored events is owner-only.
+GRANT SELECT, INSERT, UPDATE         ON lemon_webhook_events                     TO moleculestudio_app;
 
 GRANT EXECUTE ON FUNCTION
   post_credit_transaction(uuid, integer, credit_transaction_type, character varying, character varying),

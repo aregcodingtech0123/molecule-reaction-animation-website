@@ -142,6 +142,38 @@ describe("db CLIs", () => {
     }
   });
 
+  it("reconcile exits 2 and lists a stored webhook event not processed after 15 minutes, until it is processed (R19)", async () => {
+    const db = await ScratchDb.create();
+    try {
+      const env = { DATABASE_URL: db.url };
+      run("migrate.mjs", [], env);
+      const store = (hash: string, status: string, ageMinutes: number) =>
+        db.pool.query(
+          `INSERT INTO lemon_webhook_events (body_sha256, event_name, provider_order_id, payload, status, attempts, last_error, received_at, processed_at)
+           VALUES (decode($1, 'hex'), 'order_created', '888', '{}', $2::text, 3, 'timeout exceeded when trying to connect',
+                   NOW() - make_interval(mins => $3::int), CASE WHEN $2::text = 'processed' THEN NOW() END)`,
+          [hash, status, ageMinutes],
+        );
+      await store("aa", "processed", 60); // done
+      await store("bb", "failed", 5); // still inside the 15-minute grace (the service retries it)
+      const ok = run("reconcile.mjs", [], env);
+      expect(ok.code).toBe(0);
+      expect(ok.out).toMatch(/every stored Lemon webhook event is processed/);
+
+      await store("cc", "failed", 20);
+      const res = run("reconcile.mjs", [], env);
+      expect(res.code).toBe(2);
+      expect(res.out).toMatch(/1 stored Lemon webhook event\(s\) not processed \(webhook_unprocessed\)/);
+      expect(res.out).toMatch(/888/);
+      expect(res.out).toMatch(/timeout exceeded when trying to connect/);
+
+      await db.pool.query(`UPDATE lemon_webhook_events SET status = 'processed', processed_at = NOW()`);
+      expect(run("reconcile.mjs", [], env).code).toBe(0);
+    } finally {
+      await db.destroy();
+    }
+  });
+
   it("reconcile exits non-zero (1) when the database cannot be queried — a broken job never looks green", () => {
     const res = run("reconcile.mjs", [], { DATABASE_URL: "postgresql://postgres@127.0.0.1:1/unreachable_test" });
     expect(res.code).toBe(1);
