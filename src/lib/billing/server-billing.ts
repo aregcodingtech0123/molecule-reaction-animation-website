@@ -17,7 +17,9 @@ import type { AiOperationType } from "@/lib/billing/ai-operation-costs";
 import { withDeadline } from "@/lib/http/deadline";
 
 export const INTERNAL_SERVICE_HEADER = "X-Internal-Service-Key";
-const DEFAULT_RETRY_DELAYS_MS = [250, 1000, 3000];
+// ≈ 27 s of retries (6 attempts): a capture or release rides out a billing or database outage of ~30 s
+// instead of ~4 s (R20). The answer waits for the capture, so this is the longest a turn is delayed by an outage.
+const DEFAULT_RETRY_DELAYS_MS = [250, 1000, 3000, 8000, 15000];
 
 function billingServiceBaseUrl(): string | null {
   const raw = process.env.BILLING_SERVICE_URL?.trim();

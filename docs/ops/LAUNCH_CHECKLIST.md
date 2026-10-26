@@ -209,7 +209,7 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
       It prints variable **names** only, never values.
 - [ ] It catches: every boot-time check of both services, `.env.example` placeholders, `INTERNAL_SERVICE_SECRET` /
       `JWT_SECRET` / `FRONTEND_URL` / Google client id differing between the two, `AI_HOLD_TTL_SECONDS` below 2 ×
-      the longest turn (defaults: 600 s against 74.25 s), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
+      the longest turn (defaults: 600 s against 117.25 s — R20), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
       (`true`, `1`, `yes`, `y`, `on`) in the Express file — a `PROBLEM` naming the variable, exit `1`. Unset, empty and
       `false` / `0` / `no` / `off` pass; any other value only warns (the service honours exactly `true`, so it is inert).
 - [ ] The check reads only the file or env you hand it. It cannot see what the **host's dashboard** really holds, so
