@@ -67,11 +67,25 @@ export function getDatabaseErrorCode(): string | null {
   return lastDbErrorCode;
 }
 
+let probeInFlight: Promise<boolean> | null = null;
+
 /**
  * Probes PostgreSQL on startup (or on demand). Never terminates the process.
  * Logs full PG / network error details to the terminal for `.env` debugging.
+ *
+ * Single-flight (PERF-22): callers that arrive while a probe is running share it. Each probe replaces the
+ * pool, so before this every request that found the database "not ready" (requireDatabase) rebuilt the
+ * pool — and ended the one another request had just created — a herd of pools and connection attempts
+ * against a database that is just coming back (44 rebuilds in 5 outage events of 20 requests).
  */
-export async function verifyDatabaseConnection(): Promise<boolean> {
+export function verifyDatabaseConnection(): Promise<boolean> {
+  probeInFlight ??= probeDatabase().finally(() => {
+    probeInFlight = null;
+  });
+  return probeInFlight;
+}
+
+async function probeDatabase(): Promise<boolean> {
   logEnvPresence();
 
   try {
