@@ -3,6 +3,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 interface ParticleFieldProps {
   count?: number;
@@ -44,6 +45,7 @@ export function ParticleField({
   opacity = 0.5,
 }: ParticleFieldProps) {
   const meshRef = useRef<THREE.Points>(null);
+  const reduceMotion = usePrefersReducedMotion();
 
   const { positions, phases } = useMemo(
     () => buildParticleBuffers(count, spread),
@@ -52,7 +54,8 @@ export function ParticleField({
 
   // Animate vertical drift with individual phase offsets
   useFrame((state) => {
-    if (!meshRef.current) return;
+    // Ambient drift stops under reduced motion (R14); the particles stay where they are.
+    if (!meshRef.current || reduceMotion) return;
     const pos = meshRef.current.geometry.attributes.position.array as Float32Array;
     const t = state.clock.elapsedTime * speed;
     for (let i = 0; i < count; i++) {

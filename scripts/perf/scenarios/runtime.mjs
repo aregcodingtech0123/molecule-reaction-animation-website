@@ -4,7 +4,8 @@
  *     desktop (real GPU), mobile profile (4× CPU, real GPU) and low-end (4× CPU + SwiftShader software GL);
  *  2. leak check: 20 client-side navigations "/" → "/periodic-table" → "/explore" (navbar links), heap after a
  *     forced GC every 5 cycles, WebGL contexts created vs released, canvases left in the DOM;
- *  3. reduced motion: WebGL draw calls per second idle on "/" with and without prefers-reduced-motion;
+ *  3. reduced motion: on "/" with and without prefers-reduced-motion, WebGL draw calls per second and whether
+ *     the canvas picture changes between two screenshots 1.5 s apart;
  *  4. React commits (DevTools-hook counter): idle 5 s on /periodic-table and /dashboard, per element click;
  *  5. balance requests per minute per signed-in tab: idle visible, idle hidden, and the post-checkout poll;
  *  6. AI Lab: one long answer with markdown + KaTeX (mock "math" answer): main-thread long tasks from send to
@@ -227,13 +228,49 @@ export async function run(ctx) {
     // 3. Reduced motion.
     results.reducedMotion = {};
     if (step(3)) for (const reduce of [false, true]) {
-      const { context, page } = await open(gpu, ctx, "desktop", "/", { init: [GL_COUNTERS] });
-      if (reduce) await page.emulateMedia({ reducedMotion: "reduce" });
-      await page.waitForTimeout(2000);
+      // The preference is set before the page loads, as an OS setting would be.
+      const { context, page } = await newProfiledPage(gpu, "desktop");
+      await page.addInitScript(GL_COUNTERS);
+      await page.emulateMedia({ reducedMotion: reduce ? "reduce" : "no-preference" });
+      await page.goto(`${ctx.webOrigin}/`, { waitUntil: "load" });
+      await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
+      await page.waitForTimeout(4000);
       const before = await page.evaluate(() => window.__gl.draws);
       await page.waitForTimeout(3000);
       const perSecond = ((await page.evaluate(() => window.__gl.draws)) - before) / 3;
-      results.reducedMotion[reduce ? "reduce" : "no-preference"] = { drawsPerSecond: Math.round(perSecond) };
+      // Does the picture move? Two canvas screenshots 1.5 s apart (R14: identical under reduced motion).
+      const canvas = page.locator("canvas").first();
+      const shots = [];
+      for (let i = 0; i < 3; i++) {
+        if (i) await page.waitForTimeout(1500);
+        shots.push(await canvas.screenshot());
+      }
+      // Share of pixels that differ by more than a small tolerance between consecutive screenshots.
+      const diff = (a, b) =>
+        page.evaluate(
+          async ([x, y]) => {
+            const load = (b64) => new Promise((resolve) => { const img = new Image(); img.onload = () => resolve(img); img.src = `data:image/png;base64,${b64}`; });
+            const [ia, ib] = await Promise.all([load(x), load(y)]);
+            const c = document.createElement("canvas");
+            c.width = ia.width;
+            c.height = ia.height;
+            const g = c.getContext("2d");
+            g.drawImage(ia, 0, 0);
+            const da = g.getImageData(0, 0, c.width, c.height).data;
+            g.clearRect(0, 0, c.width, c.height);
+            g.drawImage(ib, 0, 0);
+            const db = g.getImageData(0, 0, c.width, c.height).data;
+            let changed = 0;
+            for (let i = 0; i < da.length; i += 4) if (Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]) > 24) changed++;
+            return Number(((changed / (da.length / 4)) * 100).toFixed(3));
+          },
+          [a.toString("base64"), b.toString("base64")],
+        );
+      results.reducedMotion[reduce ? "reduce" : "no-preference"] = {
+        drawsPerSecond: Math.round(perSecond),
+        matchesReduce: await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches),
+        changedPixelsPct: [await diff(shots[0], shots[1]), await diff(shots[1], shots[2])],
+      };
       await context.close();
     }
     console.log(`[runtime] draws/s idle on "/": ${JSON.stringify(results.reducedMotion)}`);

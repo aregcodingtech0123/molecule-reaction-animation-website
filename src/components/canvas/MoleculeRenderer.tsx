@@ -11,6 +11,7 @@ import { MeasurementOverlay } from "./MeasurementOverlay";
 import { EspsHullSphere } from "./EspsHullSphere";
 import { useMeasurement } from "@/context/MeasurementContext";
 import { useFocus } from "@/context/FocusContext";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { computeFocusCameraDistance } from "@/lib/molecules/atom-focus";
 
 interface MoleculeRendererProps {
@@ -43,6 +44,7 @@ export function MoleculeRenderer({
   const { measurementMode, selectedAtomIds, selectMeasurementAtom, clearMeasurement } =
     useMeasurement();
   const { focusedAtom, setFocus, clearFocus, focusTargetRef } = useFocus();
+  const reduceMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     clearMeasurement();
@@ -73,9 +75,9 @@ export function MoleculeRenderer({
     [centeredAtoms]
   );
 
-  // Gentle floating animation + keep focus target synced to moving atom
+  // Gentle floating animation (not under reduced motion, R14) + keep focus target synced to moving atom
   useFrame((state) => {
-    if (groupRef.current && enableFloat) {
+    if (groupRef.current && enableFloat && !reduceMotion) {
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.6) * 0.15;
       groupRef.current.rotation.y += 0.001;
     }
