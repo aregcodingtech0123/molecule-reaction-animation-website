@@ -7,7 +7,8 @@
  * Behaviour is set at runtime (no restart):
  *   POST /__config  { latency: {kind:"fixed",ms} | {kind:"uniform",min,max} | {kind:"lognormal",median,p95},
  *                     failureRate: 0..1, failureMode: "500"|"503"|"hang"|"empty"|"reset",
- *                     answerChars: number, seed: number }
+ *                     answerChars: number, answerKind: "plain"|"math", seed: number }
+ * "math" answers are markdown with headings, lists, code and KaTeX formulas (the chat renderer's heavy path).
  *   GET  /__stats   { served, failed, byMode, config }
  *   POST /__reset-stats
  * "hang" never answers (exercises GEMINI_TIMEOUT_MS); "empty" answers 200 with no text (→ 502 + release);
@@ -32,7 +33,25 @@ export function preciseSleep(ms) {
   });
 }
 
-const DEFAULTS = { latency: { kind: "fixed", ms: 0 }, failureRate: 0, failureMode: "500", answerChars: 600, seed: 1 };
+const MATH_BLOCK = String.raw`## Benzene and aromaticity
+
+Benzene ($\mathrm{C_6H_6}$) satisfies Hückel's rule with $4n + 2 = 6$ π electrons ($n = 1$).
+
+- Resonance energy: $\Delta H \approx -150\ \mathrm{kJ\,mol^{-1}}$
+- Bond length: $r_{\mathrm{C\!-\!C}} = 139.5\ \mathrm{pm}$
+
+$$E_n = \alpha + 2\beta \cos\left(\frac{2\pi n}{6}\right), \quad n = 0, \pm 1, \pm 2, 3$$
+
+` + "```text\nC6H6 + Br2 --FeBr3--> C6H5Br + HBr\n```\n\n";
+
+/** Markdown with headings, lists, inline and display math and code, repeated to `chars`. */
+export function mathAnswer(chars) {
+  let out = "";
+  while (out.length < chars) out += MATH_BLOCK;
+  return out;
+}
+
+const DEFAULTS = { latency: { kind: "fixed", ms: 0 }, failureRate: 0, failureMode: "500", answerChars: 600, answerKind: "plain", seed: 1 };
 
 /**
  * @param {{ standalone?: boolean }} [options] `standalone` only for this file's own process (the stack's mock
@@ -113,7 +132,7 @@ export function createMockGemini(options = {}) {
 
     stats.served += 1;
     json(200, {
-      candidates: [{ content: { role: "model", parts: [{ text: answer(config.answerChars) }] }, finishReason: "STOP", index: 0 }],
+      candidates: [{ content: { role: "model", parts: [{ text: config.answerKind === "math" ? mathAnswer(config.answerChars) : answer(config.answerChars) }] }, finishReason: "STOP", index: 0 }],
       usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 150, totalTokenCount: 200 },
     });
   });

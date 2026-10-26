@@ -93,6 +93,9 @@ jobs:
       # Production build: catches build failures and type errors anywhere in the tsconfig program
       # (Next.js 16.4 type-checks test files too). Needs no secrets: instrumentation skips during build.
       - run: npx next build
+      # Bundle budget (performance phase, Part 2): per-route initial JS ceilings, and no 3D / markdown /
+      # non-English locale code in initial loads. Deterministic (Next's own analyzer), so it can block.
+      - run: npm run perf:bundle-budget
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

@@ -24,7 +24,7 @@ import { assertFreshBuild, buildAll, configureMock, startStack } from "./stack.m
 import { installNetworkGuard } from "../test/network-guard.mjs";
 import { assertNetworkGuard } from "./lib/guard.mjs";
 
-export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck"];
+export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck", "webvitals", "lighthouse", "runtime"];
 
 export function parseRunArgs(argv) {
   const [scenario, ...rest] = argv;
@@ -221,6 +221,7 @@ async function main() {
       session,
       webOrigin: WEB_ORIGIN,
       apiOrigin: API_ORIGIN,
+      runDir,
       /** The BFF's credential for Express's internal metering routes (this run's random secret). */
       internalKey: secrets.internal,
       extras: prepared.extras ?? {},
