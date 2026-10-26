@@ -455,7 +455,22 @@ framer-motion 57 KiB (used on most pages).
 | R13 | Low-end devices | Offer a reduced 3D mode (lower DPR, no post-processing, `frameloop="demand"`) when the device tier is low or WebGL reports a software renderer. | 8.5–9 fps with software GL |
 | R14 | Reduced motion | **Applied** (`8e3a68c`: camera auto-rotate, idle spin / float, particle drift and the orbiting light stop; canvas pixels changing between frames 13 % → 0.04–0.09 %). Was: stop auto-rotate / idle animation when `prefers-reduced-motion: reduce`. | 5 430 draws/s with reduce |
 | R15 | KaTeX | **Applied (owner decision): KaTeX removed; maths shown as monospace source** (`src/lib/ai/math-as-code.ts`; the renderer's async chunk ~81 KiB smaller; the KaTeX advisory is gone). Was: either let the sanitiser keep KaTeX's output (a security review of the schema) or drop math rendering; today its work is discarded (owner decision, SEC-15). | 0 MathML / `.katex` nodes after sanitising |
-| R16 | three.js DFG leak upstream | Report the shared-resource listener leak to three.js / R3F / @react-three/postprocessing; remove `CanvasRendererRelease` once fixed upstream (the budget check and runtime step 10 will show it). | PERF-27 |
+| R16 | three.js DFG leak upstream | **Kept as a recommendation** (filing upstream issues is an outward action for the owner; draft text below). Report the shared-resource listener leak to three.js / R3F / @react-three/postprocessing; remove `CanvasRendererRelease` once fixed upstream (the budget check and runtime step 10 will show it). | PERF-27 |
+
+### R16 — draft upstream report (not filed)
+
+> **Title:** WebGLRenderer instances are retained after unmount through dispose listeners on module-level shared
+> resources (`DFG_LUT`, postprocessing's `fullscreenGeometry`)
+>
+> three 0.184's `getDFGLUT()` and postprocessing 6.39's `Pass.fullscreenGeometry` are module-level singletons.
+> Every WebGLRenderer that uploads them adds a `dispose` listener (WebGLTextures / WebGLGeometries) that closes over
+> the renderer's internal state. @react-three/fiber 9's `unmountComponentAtNode` forces a context loss but never
+> calls `renderer.dispose()`, and nothing disposes the singletons, so each unmounted canvas keeps its renderer, its
+> property table (textures such as environment maps) and, through the WebGL context, the canvas and its DOM.
+> Measured: ~4 MiB of ArrayBuffers and ~400–800 DOM nodes per mount/unmount cycle, unbounded. Workaround: on a real
+> unmount, `getDFGLUT().dispose()` (via a material's `dfgLUT` uniform), `Pass.fullscreenGeometry.dispose()`, then
+> `renderer.dispose()`. Possible fixes: R3F calling `gl.dispose()` on unmount; three removing a renderer's listeners
+> from shared resources in `WebGLRenderer.dispose()`.
 
 ### Part 2 verification
 
