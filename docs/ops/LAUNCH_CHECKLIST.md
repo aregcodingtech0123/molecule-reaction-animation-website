@@ -541,6 +541,7 @@ tell me if you want one written.
 | Express | `[credits] CAPTURE_FAILED` | a debit could not be posted (not charged) |
 | Express | `[auth] Failed to send` / `[email] Resend API error` | verification/reset/receipt mail failing — check Resend |
 | Express | `/health` → `503`, `DATABASE_UNAVAILABLE` | database unreachable |
+| Express | `timeout exceeded when trying to connect` | the pool's 20 connections are all busy (slow or saturated database): requests wait 2 s and fail with **500** `INTERNAL_ERROR` (PERF-29 / R18), webhook credit allocations fail too (`[Webhook] FAILED background credit allocation`). Check Neon latency and load (performance Part 3) |
 | Next.js | `[billing] CAPTURE_FAILED`, `[billing] RELEASE_FAILED` | a turn went uncharged / a hold will expire uncharged (revenue loss, not customer harm) |
 | Next.js | `[billing] INTERNAL_AUTH_REJECTED` | `INTERNAL_SERVICE_SECRET` differs between the services — AI Lab is down |
 | Next.js | `[billing] BILLING_NOT_CONFIGURED` | `BILLING_SERVICE_URL` / `INTERNAL_SERVICE_SECRET` missing |

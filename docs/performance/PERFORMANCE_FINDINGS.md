@@ -485,6 +485,190 @@ framer-motion 57 KiB (used on most pages).
 | E2E `E2E_NEXT_MODE=production` | **50 / 50 passed** (paid journey incl. AI Lab, desktop + mobile) |
 | ESLint (whole repo, harness output ignored) | 26 errors, 21 warnings — `main`: 27 / 21 (the documented React Compiler backlog; none new) |
 
+## Part 3 — load, soak and failure injection (branch `perf/load`)
+
+Same machine, builds and guards as Parts 1–2 (production `next start` + Express `dist`, mock Gemini lognormal
+1.5 s / 4 s, PostgreSQL 18.6 in the project's test container, network guard verified in both servers on every run).
+New in the harness: an **open-loop** driver (fixed arrival rate, latency from each arrival's scheduled time — no
+coordinated omission) and a production-like **mixed traffic** profile, per 100 arrivals: 35 anonymous pages,
+25 balance reads, 10 history reads, 10 chat turns, 8 logins (bcrypt cost 10), 6 checkouts (Lemon mocked), 6 signed
+`order_created` webhooks straight to Express. Every arrival has its own client IP; users rotate over 5 000 seeded
+accounts. This mix is deliberately login- and chat-heavy compared with real traffic. Result folders:
+`perf-results/` (gitignored); commands: README §2.
+
+**Repetitions.** A ramp step is one 30 s window, so each breaking point was measured in 5 separate stack runs
+(the full ramp, a rerun of the top steps, three runs of the boundary steps — table below). The soak (15 min) and the
+failure run (~9 min plus settling) ran twice each; the first run of each exposed a harness defect (PERF-28, and a
+mock reset that dropped the model latency) and the second is the one reported. Their results are counts and
+invariants, not latency comparisons.
+
+### Ramp through the BFF (browser → Next → Express)
+
+| req/s | errors % | page | balance | history | login | checkout | webhook | chat | Next ELU / lag p99 ms | Express ELU / lag | RSS MiB Next / Express | sockets Next / Express | DB active / idle-in-tx |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 25 | 0 | 24 | 21 | 22 | 71 | 23 | 16 | 4 436 | 0.10 / 30 | 0.03 / 33 | 289 / 94 | 18 / 8 | 0 / 1 |
+| 50 | 0 | 27 | 23 | 24 | 70 | 23 | 18 | 3 649 | 0.19 / 34 | 0.05 / 35 | 289 / 96 | 28 / 8 | 1 / 0 |
+| 100 | 0 | 25 | 24 | 22 | 72 | 22 | 15 | 3 866 | 0.32 / 34 | 0.07 / 34 | 386 / 114 | 49 / 8 | 1 / 1 |
+| 150 | 0 | 26 | 23 | 22 | 69 | 23 | 15 | 4 114 | 0.46 / 33 | 0.11 / 32 | 418 / 144 | 69 / 12 | 1 / 2 |
+| 200 | 0 | 30 | 22 | 22 | 69 | 24 | 11 | 4 289 | 0.58 / 29 | 0.13 / 34 | 425 / 148 | 96 / 13 | 1 / 1 |
+| 300 | 0 | 96 | 47 | 48 | 95 | 47 | 8 | 3 954 | 0.84 / 75 | 0.19 / 21 | 510 / 210 | 181 / 43 | 1 / 2 |
+| **400** | **1.59** | 2 203 | 3 238 | 3 111 | 3 513 | 3 127 | 15 | 9 227 | **1.00** / 281 | 0.24 / 25 | 574 / 223 | 1 511 / 464 | 6 / 13 |
+| 600 | 33.3 | 2 536 | 3 994 | 3 818 | 3 982 | 4 556 | 15 | 11 593 | 1.00 / 309 | 0.25 / 29 | 629 / 239 | 1 958 / 614 | 9 / 8 |
+| recovery 300 | 0 | 61 | 32 | 31 | 81 | 31 | 7 | 3 797 | 0.83 / 31 | 0.19 / 21 | | | 2 / 2 |
+
+p95 in ms; one full ramp (25 → 600 req/s); the recovery row is from the rerun.
+
+* **Breaking point: ≈ 400 req/s of this mix; saturation from 350** (5 runs, table below). 300 req/s is clean
+  (worst non-chat p95 88 ms median, 194 ms in the slowest run); at 400 (3 of 5 runs) the error rate passes 1 % or Next-served p95s reach 1–7 s.
+* **First bottleneck: the Next process's CPU** (event-loop utilisation 0.84 at 300 → 1.00 at 400, lag p99 281 ms).
+  Express is at ELU 0.24, the database shows no lock waits and ≤ 9 active backends, and webhooks — served by
+  Express directly — keep a 15 ms p95 throughout. Next spends ≈ 2.8 ms of CPU per mixed request (ELU 0.84 / 300).
+* **Error behaviour: connection refusals only.** Every error at 400 / 600 req/s is `ECONNREFUSED` at Next (its
+  accept queue overflows while the event loop is saturated): no 5xx, no crash, no hang, no restart. On Windows a
+  full accept backlog refuses connections; on Linux the same overload is more likely to show as SYN retries
+  (connect latency) — re-check the shape on staging.
+* **Recovery:** back at 300 req/s right after 30 s at 600, the next 30 s window has 0 errors and normal p95s.
+* **Charges:** after the ramp, every reservation captured, none held, 0 CAPTURE_FAILED, `db:reconcile` exit 0.
+
+### Ramp straight to Express (what one Express instance can take)
+
+On Vercel, Next scales out; Express on Render is a single process (in-memory limiters, in-process sweeper —
+LAUNCH_CHECKLIST §A). The same mix minus pages, sent exactly as the BFF sends it (internal key, `X-Client-IP`;
+a chat turn = `/consume` then `/capture` on the same reservation, without the model wait):
+
+| req/s | errors % | balance | history | chat (consume + capture) | login | checkout | webhook | Express ELU / lag p99 | RSS MiB | sockets | DB active / idle-in-tx |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 200 | 0 | 15 | 18 | 32 | 65 | 11 | 15 | 0.19 / 34 | 142 | 14 | 2 / 1 |
+| 400 | 0 | 10 | 10 | 25 | 63 | 10 | 6 | 0.34 / 22 | 214 | 22 | 3 / 2 |
+| 600 | 0 | 8 | 7 | 28 | 347 | 10 | 5 | 0.52 / 12 | 240 | 48 | 3 / 3 |
+| **800** | 0 | 8 | 8 | 36 | **11 538** | 10 | 4 | 0.68 / 13 | 298 | 942 | 5 / 6 |
+| 1 000 | 9.05 | 10 | 10 | 55 | 19 355 | 14 | 4 | 0.79 / 13 | 342 | 1 520 | 6 / 9 |
+| recovery 600 | 0 | 8 | 7 | 27 | 111 | 10 | 5 | 0.51 / 12 | | | 3 / 3 |
+
+(RSS in this run still includes PERF-28's harness call log; the recovery row is from the rerun.)
+
+* **Breaking point: between 600 and 700 req/s of this mix, and it is login** (5 runs, table below). 8 % of 700 =
+  56 logins/s already queue under mixed load; in isolation (Part 1) bcrypt managed 74–78/s on libuv's 4 threads. Logins queue (p95 0.35 s at 600, 11.5 s at 800,
+  19 s at 1 000) while every other route stays ≤ 14 ms p95 and the event loop is free (ELU ≤ 0.79, lag ≤ 13 ms).
+* **Error behaviour: none from Express** — it never answers 5xx or refuses; the 9 % at 1 000 req/s are arrivals the
+  driver dropped at its own 1 500 in-flight cap (sockets 1 520). The hazard is the **unbounded login queue**:
+  through the BFF a queued login is answered 504 after the gateway's 10 s timeout, while Express still performs
+  the hash it queued (R17).
+* Without logins Express's CPU allows ≈ 1 150 req/s of the rest of the mix (ELU 0.52 at 600 incl. logins).
+* **Recovery:** clean (0 errors, login p95 111 ms) in the first 30 s at 600 after the 1 000 req/s step.
+
+### Breaking points over 5 runs
+
+Each boundary step measured in 5 separate stack runs (3 for the intermediate 350 / 700 req/s steps); median
+[min–max]. "Breaks" = > 1 % errors, dropped arrivals, or a non-chat p95 > 1 s.
+
+| Target | req/s | runs broken | errors % | worst non-chat p95 (ms) | ELU of the bottleneck process |
+| --- | --- | --- | --- | --- | --- |
+| BFF | 300 | **0 / 5** | 0 [0–0.01] | 88 [77–194] | Next 0.86 [0.84–0.90] |
+| BFF | 350 | 0 / 3 | 0 [0–0.03] | 228 [120–229] | Next **1.00** [0.96–1.00] |
+| BFF | 400 | **3 / 5** | 0.01 [0–3.38] | 1 106 [492–7 219] | Next 1.00 |
+| BFF | 600 | 2 / 2 | 33.3 [33.3–34.9] | 4 556 [4 556–4 976] | Next 1.00 |
+| Express | 600 | **0 / 5** | 0 | 80 [66–347] (login) | Express 0.49 [0.48–0.52] |
+| Express | 700 | **3 / 3** | 0 | 4 376 [4 349–4 551] (login) | Express 0.55 [0.55–0.56] |
+| Express | 800 | 5 / 5 | 0 | 11 192 [9 969–11 538] (login) | Express 0.66 [0.64–0.69] |
+| Express | 1 000 | 2 / 2 | 9.05 [9.05–9.68] (driver's in-flight cap) | 19 355 [19 355–19 382] (login) | Express 0.79 [0.79–0.82] |
+
+So: **the BFF is clean to 300 req/s, saturates from 350 (Next's event loop 96–100 % busy, p95 ≈ 0.2 s) and breaks
+at ≈ 400; one Express is clean to 600 req/s and breaks at ≈ 700 — on logins only** (56 logins/s queue under mixed
+load, against 74–78/s with nothing else running in Part 1). Express answered no request with an error in any run.
+
+### Soak: 15 minutes of mixed traffic at 200 req/s through the BFF (half the breaking rate)
+
+180 000 requests, 15 one-minute windows (per-minute ranges):
+
+| Measure | Range over 15 minutes |
+| --- | --- |
+| errors | 0 in 14 windows; 1 page + 1 chat in minute 15 (status 0: a client-side transport error; the code was not kept in this run — the scenario keeps it now), right after the second deliberate heap snapshot paused Express ≈ 0.7 s; the first soak had one (1 chat, minute 6). 3 transport errors in 360 000 requests over both soaks; neither server logged an error |
+| p95 page / balance / history / checkout / webhook / login | 24–31 / 20–24 / 20–25 / 20–28 / 10–15 / 67–70 ms — no drift |
+| p95 chat (model 1.5 s / 4 s lognormal) | 3.7–4.3 s — no drift |
+| Next: heap / RSS / open handles / sockets / ELU / lag p99 | 275–310 MiB / 496–522 MiB / 139–231 / 92–173 / 0.50–0.55 / 25–38 ms — flat |
+| Express: heap / RSS / open handles / sockets / ELU / lag p99 | 26–49 MiB / 115–160 MiB / 19–26 (151 around a snapshot) / 13–19 (130 around a snapshot) / 0.12–0.14 / 24–36 ms (670 ms: the snapshot itself) — flat; heap after full GC 21.2 MiB at 1.5 min → 24.2 MiB at 15.5 min |
+| DB backends (active / idle / idle in transaction) | 1–2 / 5–7 / 1–3; idle 20 and idle-in-transaction up to 14 only around the two heap snapshots (minutes 1, 14–15), when requests queued behind the paused Express |
+| After: reservations | 18 599 created, **18 599 captured**, 0 held, 0 held past expiry |
+| After: CAPTURE_FAILED (BFF / Express logs) | **0 / 0** |
+| After: `db:reconcile` | **exit 0** (balances = SUM(ledger), no failed or unsettled captures, no unreviewed refunds) |
+
+The +3 MiB that remain on Express's heap after full GCs are ≈ 13 800 `Date` + `Object` pairs: the login limiter's
+in-memory store (one key per IP + email for its 15-minute window — bounded by the window, ≈ 0.2 KiB per key).
+
+### PERF-28 — the soak's Express heap grew ≈ 7 MiB/min (harness defect, fixed)
+
+The first soak showed Express's heap after GC rising linearly, 14 → 135 MiB in 15 minutes (RSS 148 → 332 MiB).
+Heap snapshots 4 minutes apart (new preload option `PERF_HEAP_SNAP`, new `scripts/perf/heap-diff.mjs`): +28 MiB
+of strings, ≈ 3 700 pairs of ~1 KB JSON bodies held by a module-level array — `externalCalls` in
+`scripts/test/network-guard.mjs`, which records every stubbed external call (here the mocked Lemon checkout API)
+so tests can assert on them. The perf servers never read it. Production does not load the guard: **not an
+application leak.** Fix: `installNetworkGuard({ recordCalls: false })` in the perf preload — blocking and stubbing
+unchanged, tests keep recording by default; a new test checks that a perf server still stubs Lemon, still blocks
+other hosts and records nothing. After: heap after GC 21 → 24 MiB over 15 min (table above).
+
+### Failure injection under load (100 req/s, reservations TTL 180 s, sweep every 30 s)
+
+Mixed traffic at a quarter of the breaking rate, through consecutive phases; DB faults through the harness proxy
+between Express and PostgreSQL, "billing unavailable" through a second proxy between Next and Express (every
+connection dropped, new ones refused). TTL 180 s ≥ 2 × the longest turn with the production BFF defaults.
+
+| Phase | Errors | What the user sees | Notes |
+| --- | --- | --- | --- |
+| baseline 60 s | 0 % | — | chat p95 3.9 s |
+| Gemini 5xx on 50 % of model calls, 60 s | 5.0 % (= every failed turn) | chat **502** at once (p95 3.9 s for the answered half); nothing else affected | all 301 failed turns **released** (`ai_generation_error`) |
+| Gemini hangs on 50 %, 60 s | 5.0 % | chat **504** at 30.0 s (`GEMINI_TIMEOUT_MS`, max 30.07 s); in-flight turns 174 | all 301 **released** (`gemini_timeout`); other routes unaffected (p95 ≤ 74 ms) |
+| DB +20 ms per direction, 60 s | 0 % | slower: balance / history p95 140 ms, checkout 222 ms, chat overhead +0.8 s | 17 idle + 12 idle-in-transaction backends (connections held across round trips) |
+| **DB +100 ms per direction (200 ms RTT), 30 s** | **41.6 %** | balance / history / login / checkout **500 `INTERNAL_ERROR`** after ≈ 6 s; chat **503** (reservation refused) | the pool's 20 connections are all held; requests wait 2 s for one and fail with pg-pool's "timeout exceeded when trying to connect" — mapped to **500, not 503** (PERF-29, R18). Pages and webhook acks unaffected |
+| billing unavailable 30 s (inside a 90 s phase) | 19.7 % (= every BFF → Express call during the 30 s) | balance, history, login, checkout, chat **503** at once (p95 ≤ 26 ms); pages fine | turns already past the reservation when billing went away: their capture retries (4 attempts in ≈ 4.3 s) fail → **CAPTURE_FAILED**, turn answered **uncharged** |
+| recovery 60 s | 0 % | — | normal p95s in the first window |
+
+Every phase failed fast and cleanly: no hang beyond the configured timeouts (longest turn 39 s, in the DB spike),
+Express's event loop ELU ≤ 0.08 throughout, Next's ≤ 0.32, no crash or restart, full recovery in the first window.
+
+**Charges afterwards** (all reservations settled 60 s after the last phase; `perf-results/…-faults`):
+
+| Check | Result |
+| --- | --- |
+| reservations still `held` / held past expiry | **0 / 0** |
+| answered turns (HTTP 200) vs `CREDIT_CONSUMPTION` rows | 3 042 answered = **3 020 charged + 22 uncharged**; no turn charged twice; every failed turn released (602) |
+| the 22 uncharged turns | 22 `CAPTURE_FAILED` lines in the BFF log (4 × 500 `INTERNAL_ERROR` during the DB spike, 18 × 503 unreachable during the billing outage, each after 4 attempts) = **22 reservations expired by the sweeper** |
+| `db:reconcile` | **exit 2: 22 × `hold_expired_unsettled`**, nothing else — every cached balance equals SUM(ledger); no `capture_failed`. This is the reconcile doing its job: an expired reservation means "answered, never charged — correlate with CAPTURE_FAILED" (migration 009). The brief's "exit 0 after failure injection" is **not met**, and cannot be with today's design whenever the capture path is down longer than the BFF's ≈ 4 s retry window (R20) |
+| webhooks acknowledged 200 vs purchases credited | 2 520 acknowledged = **2 419 credited + 101 lost**; no order credited twice. The 101 arrived during the DB spike: the webhook is acknowledged **before** the database work (by design), the background allocation then failed on the pool timeout (`[Webhook] FAILED background credit allocation — replay this event manually`, 101 lines) and Lemon will not redeliver an acknowledged event. LAUNCH_CHECKLIST §5 already says to resend such deliveries from Lemon's dashboard; **56 % of the purchases arriving during a 30 s DB degradation** (101 of 180) needed it (R19) |
+
+A first run of this scenario reset the mock's latency model to 0 ms after the first phase (`/__config` replaces the
+configuration); it was fixed and rerun, and only the rerun is reported. Its integrity results were the same in kind
+(8 uncharged turns, 117 webhooks to replay, reconcile exit 2 with only `hold_expired_unsettled`).
+
+### Capacity guidance (local estimates — re-validate on staging)
+
+Local means one desktop core per process at 4.6 GHz boost and loopback networking; cloud vCPUs are usually slower
+per core and every hop costs a real round trip (README §2). Treat each figure as an upper bound and re-run the same
+scenarios against staging (R8) before relying on them.
+
+| Component | Local single-process limit (this mix) | First limit | Guidance |
+| --- | --- | --- | --- |
+| Next (BFF + pages), per instance | **≈ 300 req/s** clean; saturates from 350, breaks ≈ 400 | CPU (≈ 2.8 ms per mixed request) | On Vercel, instances scale with load: a single instance's ceiling is not the site's. What matters is Express behind it (next row). Set Upstash so the per-user chat limiter holds across instances (LAUNCH_CHECKLIST §A) |
+| Express, single instance | **≈ 600 req/s** of the BFF's calls clean; logins queue from ≈ 56/s under mixed load | **bcrypt** on libuv's 4 threads (≈ 50 logins/s under mixed load, 74–78/s alone); then CPU at ≈ 1 150 req/s of the rest | Must stay **one instance** (in-memory limiters and sweeper). On a 1-vCPU instance bcrypt competes with the event loop for the one core: one local core hashes ≈ 19 logins/s, a cloud vCPU fewer — plan for ≈ 10/s and measure on staging. `UV_THREADPOOL_SIZE` = core count only with > 4 cores (R6). Logins are the first thing to watch (R17) |
+| Chat turns | DB-bound: Part 1 measured ≈ 250 reserve + capture per second at a 2.7 ms DB round trip | DB round trips × RTT (21 per turn) | Far above the business cap: `AI_DAILY_TURNS_GLOBAL` = 3 000 per day (≈ 0.03 turns/s on average). Gemini's own quota and latency are the practical limit |
+| PostgreSQL (Neon) | no lock waits; ≤ 9 active backends at the BFF's breaking point | pool of 20 per Express; RTT | Under a 200 ms RTT spike the pool saturates within seconds (R18, R19). Watch connection count and RTT |
+| Memory | Express RSS 115–160 MiB at 200 req/s; Next RSS ≈ 500 MiB at 200 req/s on one instance | — | A 512 MiB Express instance fits; size Next per platform defaults |
+
+### Part 3 verification
+
+Full suites on PostgreSQL 18.6 after the last code change: PERFORMANCE_SUMMARY § 9 (service 657 passed, 91.48 % /
+80.14 %; root 556 passed, BFF 94.83 %; type checks clean; `next build` and bundle budget OK; E2E dev 49 + 1 skipped
+twice, production 50 / 50; lint unchanged from `main`).
+
+### Recommendations (Part 3)
+
+| # | Area | Recommendation | Evidence |
+| --- | --- | --- | --- |
+| R17 | login under load | Bound concurrent password hashing in Express (a small semaphore, e.g. 2 × the thread-pool size) and answer **503 + `Retry-After`** when more are waiting, instead of an unbounded queue; optionally skip the hash when the client has gone. Auth flow: owner decision. | 64 logins/s: p95 11.5 s, 19 s at 80/s; through the BFF a 504 at 10 s while Express still hashes |
+| R18 | DB pool exhaustion | **Ready to apply on approval** (small, in the error handler): map pg-pool's acquire timeout ("timeout exceeded when trying to connect") and connection errors to **503 `DATABASE_UNAVAILABLE` + `Retry-After`**, like `requireDatabase` already does when the database is known to be down. The BFF already retries captures and releases on any 5xx, so retries are unchanged; users and monitors see the correct class of error. | 1 293 × 500 `INTERNAL_ERROR` in 30 s at 200 ms DB RTT |
+| R19 | webhook durability | Store the verified event before acknowledging (an inbox table written in one INSERT, processed with retries), or acknowledge only after the allocation commits so Lemon redelivers (confirm Lemon's retry policy first). Until then: **page on `[Webhook] FAILED background credit allocation`** (post-launch monitoring). Money flow: owner decision. | 101 of 180 purchases during a 30 s DB spike acknowledged but not credited |
+| R20 | uncharged turns in billing outages | Today a capture that fails for ≈ 4.3 s leaves the turn uncharged (reported by reconcile). Options: a longer capture backoff inside the reservation TTL, or a durable capture outbox. Or accept it as bounded revenue leakage and review `hold_expired_unsettled` daily (it is already the reconcile's job). Billing semantics: owner decision. | 22 uncharged turns: a 30 s billing outage and a 30 s DB spike |
+
 ## Findings log
 
 | ID | Area | Baseline | After | Method | Commit | Status |
@@ -500,3 +684,8 @@ framer-motion 57 KiB (used on most pages).
 | PERF-25 | bundle (three.js) | +96.5 KiB on non-3D routes | 0 | Next analyzer | `d53b0db` | fixed |
 | PERF-26 | bundle (locales) | 109.6 KiB on every route | 8.5 KiB (English) | Next analyzer + production check | `bf3a487` | fixed |
 | PERF-04, 05, 13, 16, 17, 20 | DB, pool, login | § Part 1 | — | metering, dbfaults, explain, login, caps | — | measured — recommendations R1–R8 |
+| PERF-28 | harness (soak) | Express heap after GC +7 MiB/min (14 → 135 MiB in 15 min): the test network guard's call log | 21 → 24 MiB in 15 min (login limiter store, bounded) | `soakmix` + heap snapshots, `heap-diff.mjs` | `e83eda4` | fixed (harness only) |
+| PERF-29 | DB pool exhaustion | 200 ms DB RTT for 30 s: 500 `INTERNAL_ERROR` on balance / history / login / checkout | — | `faults` | — | measured — R18 (ready on approval) |
+| PERF-30 | webhooks under DB degradation | 101 of 180 acknowledged purchases not credited during a 30 s DB spike (manual resend) | — | `faults` + ledger count | — | measured — R19 |
+| PERF-31 | login under overload | 64 logins/s on one Express: p95 11.5 s, unbounded queue | — | `ramp` (Express-direct) | — | measured — R17 |
+| — | capacity | BFF clean to 300 req/s, breaks ≈ 400 (Next CPU); Express clean to 600, breaks ≈ 700 (bcrypt); clean recovery; soak flat; failures fast and clean; charges exact (22 uncharged turns and 101 webhooks reported, none double) | — | `ramp`, `soakmix`, `faults` | — | measured (§ Part 3) |
