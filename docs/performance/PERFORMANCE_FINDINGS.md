@@ -453,8 +453,8 @@ framer-motion 57 KiB (used on most pages).
 | R11 | Fonts | Lighthouse's simulated LCP (3.3–3.6 s) waits on the font request on a 150 ms link. Consider preloading only the display font weight used above the fold, or `font-display: optional` for it (visual trade-off). | Lighthouse vs Playwright LCP gap |
 | R12 | Environment maps | Serve `/hdri/*` with a long `Cache-Control` (version the file name when it changes) and start loading them after first paint on mobile; 1.5 MB per 3D route competes with JavaScript on slow links. | `max-age=0, must-revalidate`; 1.5 MB per 3D route |
 | R13 | Low-end devices | Offer a reduced 3D mode (lower DPR, no post-processing, `frameloop="demand"`) when the device tier is low or WebGL reports a software renderer. | 8.5–9 fps with software GL |
-| R14 | Reduced motion | Stop auto-rotate / idle animation when `prefers-reduced-motion: reduce`. | 5 430 draws/s with reduce |
-| R15 | KaTeX | Either let the sanitiser keep KaTeX's output (a security review of the schema) or drop math rendering; today its work is discarded (owner decision, SEC-15). | 0 MathML / `.katex` nodes after sanitising |
+| R14 | Reduced motion | **Applied** (`8e3a68c`: camera auto-rotate, idle spin / float, particle drift and the orbiting light stop; canvas pixels changing between frames 13 % → 0.04–0.09 %). Was: stop auto-rotate / idle animation when `prefers-reduced-motion: reduce`. | 5 430 draws/s with reduce |
+| R15 | KaTeX | **Applied (owner decision): KaTeX removed; maths shown as monospace source** (`src/lib/ai/math-as-code.ts`; the renderer's async chunk ~81 KiB smaller; the KaTeX advisory is gone). Was: either let the sanitiser keep KaTeX's output (a security review of the schema) or drop math rendering; today its work is discarded (owner decision, SEC-15). | 0 MathML / `.katex` nodes after sanitising |
 | R16 | three.js DFG leak upstream | Report the shared-resource listener leak to three.js / R3F / @react-three/postprocessing; remove `CanvasRendererRelease` once fixed upstream (the budget check and runtime step 10 will show it). | PERF-27 |
 
 ### Part 2 verification

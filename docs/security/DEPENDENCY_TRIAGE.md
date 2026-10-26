@@ -10,7 +10,7 @@ the declared ranges** (`npm update <names>`); no `package.json` range changed, n
 | Package | Before | After |
 | --- | --- | --- |
 | `services/auth-billing-service` | 3 (1 critical, 1 high, 1 moderate) | **0** |
-| root (Next.js app) | 25 (3 critical, 12 high, 5 moderate, 5 low) | **4 low** (the KaTeX chain — decision needed, below) |
+| root (Next.js app) | 25 (3 critical, 12 high, 5 moderate, 5 low) | **4 low** (the KaTeX chain — decision needed, below). **Now: 3 moderate**, dev-only (autocannon, below); the KaTeX chain is gone (KaTeX removed, R15) |
 
 "Runtime" below means code that runs in the deployed Next.js server or browser bundle or in Express. "Reachable"
 means an attacker-controlled input can meet the advisory's precondition in this project.
@@ -54,7 +54,13 @@ two versions: lines 1–95 are identical; 4.22.1 only appends `scroll-fade-*` / 
 only when a class uses them), `@property` declarations and one `.shimmer` rule under `prefers-reduced-motion`. No file
 in `src/` uses `shimmer` or `scroll-fade`, so rendering is unchanged.
 
-## Root package — KaTeX chain (4 low) — **accepted and tracked** (owner decision, 2026-10-25)
+## Root package — KaTeX chain (4 low) — **resolved: KaTeX removed** (owner decision R15, performance phase, 2026-10-26)
+
+`katex`, `rehype-katex` and `remark-math` (and with it `micromark-extension-math`) were uninstalled; AI answers show
+maths as source text in monospace (`src/lib/ai/math-as-code.ts`). `npm audit` no longer reports
+GHSA-238p-pmpm-9mq7. The analysis below is kept for the record.
+
+### Before R15 — accepted and tracked (owner decision, 2026-10-25)
 
 > **Re-check trigger:** any new release of `rehype-katex` or `micromark-extension-math` (check whether its
 > `katex` dependency range reaches ≥ 0.18.2), or a new KaTeX advisory. Until then the advisory stays accepted:

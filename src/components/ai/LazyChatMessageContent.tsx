@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import type { ChatMessageContentVariant } from "@/components/ai/ChatMessageContent";
 
 /**
- * Chat message rendering without the markdown / KaTeX stack in the shared bundle (PERF-24).
+ * Chat message rendering without the markdown stack in the shared bundle (PERF-24).
  *
- * The assistant chat is mounted on every page (root providers), and its renderer — react-markdown, remark-math,
- * rehype-katex, rehype-sanitize and KaTeX's CSS — was ~129 KiB of compressed JavaScript in every route's initial
+ * The assistant chat is mounted on every page (root providers), and its renderer (react-markdown and
+ * rehype-sanitize; KaTeX until R15 removed it) was ~129 KiB of compressed JavaScript in every route's initial
  * load, needed only once a chat has an assistant answer. That renderer (ChatMessageContent, unchanged and still
  * the only place assistant output is turned into HTML) now loads on demand: AiChatPanel prefetches it when a
  * panel mounts, and until it has loaded an answer shows as plain text (React-escaped, never parsed).

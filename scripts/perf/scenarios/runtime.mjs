@@ -343,11 +343,11 @@ export async function run(ctx) {
         const visibleMs = Date.now() - t0;
         await page.waitForTimeout(1000);
         const lt = await page.evaluate(() => window.__lt);
-        runs.push({ visibleMs, longTaskTotal: Math.round(lt.reduce((a, b) => a + b, 0)), longestTask: Math.round(Math.max(0, ...lt)), katexNodes: await page.locator("main math").count() });
+        runs.push({ visibleMs, longTaskTotal: Math.round(lt.reduce((a, b) => a + b, 0)), longestTask: Math.round(Math.max(0, ...lt)), katexNodes: await page.locator("main math").count(), codeNodes: await page.locator("main .chat-markdown code").count() });
         await context.close();
       }
       results.aiLongAnswer = { summary: acrossRuns(runs, ["visibleMs", "longTaskTotal", "longestTask"]), katexNodes: runs[0]?.katexNodes, runs };
-      console.log(`[runtime] AI long answer: ${JSON.stringify(results.aiLongAnswer.summary)} MathML nodes ${runs[0]?.katexNodes}`);
+      console.log(`[runtime] AI long answer: ${JSON.stringify(results.aiLongAnswer.summary)} MathML nodes ${runs[0]?.katexNodes}, code nodes in the answer ${runs[0]?.codeNodes}`);
     }
     await ctx.configureMock({ latency: { kind: "fixed", ms: 0 }, answerKind: "plain", answerChars: 600 });
 

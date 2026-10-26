@@ -1,10 +1,7 @@
 import type { ReactNode } from "react";
-// KaTeX's stylesheet travels with the renderer (PERF-24): this module loads on demand, not on every page.
-import "katex/dist/katex.min.css";
 import ReactMarkdown, { type Components } from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { mathToCode } from "@/lib/ai/math-as-code";
 import { cn } from "@/lib/utils";
 
 export type ChatMessageContentVariant = "assistant" | "user";
@@ -88,12 +85,9 @@ export function ChatMessageContent({
 
   return (
     <div className={cn("chat-markdown", themeClass, className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex, [rehypeSanitize, sanitizeSchema]]}
-        components={assistantComponents}
-      >
-        {content}
+      {/* Math is shown as monospace source, not rendered (R15: KaTeX removed; mathToCode). */}
+      <ReactMarkdown rehypePlugins={[[rehypeSanitize, sanitizeSchema]]} components={assistantComponents}>
+        {mathToCode(content)}
       </ReactMarkdown>
     </div>
   );

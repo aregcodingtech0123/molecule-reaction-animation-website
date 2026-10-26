@@ -390,7 +390,7 @@ html[data-theme="white-lab"] {
     scrollbar-width: none;
   }
 
-  /* AI Lab Assistant — markdown + KaTeX (theme-aware) */
+  /* AI Lab Assistant — markdown (theme-aware); math is shown as monospace source (R15) */
   .chat-markdown {
     @apply text-sm leading-relaxed break-words max-w-none;
   }
@@ -443,14 +443,6 @@ html[data-theme="white-lab"] {
     @apply font-semibold;
   }
 
-  .chat-markdown .katex-display {
-    @apply my-3 overflow-x-auto py-1;
-  }
-
-  .chat-markdown .katex {
-    font-size: 1.05em;
-  }
-
   .chat-markdown--light {
     @apply text-neutral-800;
   }
@@ -459,40 +451,12 @@ html[data-theme="white-lab"] {
     @apply border-indigo-300 text-neutral-700;
   }
 
-  .chat-markdown--light .katex,
-  .chat-markdown--light .katex .mord,
-  .chat-markdown--light .katex .mop,
-  .chat-markdown--light .katex .mbin,
-  .chat-markdown--light .katex .mrel,
-  .chat-markdown--light .katex .mopen,
-  .chat-markdown--light .katex .mclose,
-  .chat-markdown--light .katex .mpunct,
-  .chat-markdown--light .katex .minner {
-    color: #0f172a;
-  }
-
   .chat-markdown--dark {
     @apply text-gray-200;
   }
 
   .chat-markdown--dark blockquote {
     @apply border-indigo-400/50 text-gray-300;
-  }
-
-  .chat-markdown--dark .katex,
-  .chat-markdown--dark .katex .mord,
-  .chat-markdown--dark .katex .mop,
-  .chat-markdown--dark .katex .mbin,
-  .chat-markdown--dark .katex .mrel,
-  .chat-markdown--dark .katex .mopen,
-  .chat-markdown--dark .katex .mclose,
-  .chat-markdown--dark .katex .mpunct,
-  .chat-markdown--dark .katex .minner {
-    color: #f1f5f9;
-  }
-
-  .chat-markdown--dark .katex .mspace {
-    color: transparent;
   }
 
   .canvas-touch-surface {
