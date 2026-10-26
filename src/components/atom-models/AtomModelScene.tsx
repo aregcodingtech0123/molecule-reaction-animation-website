@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { CameraRig } from "@/components/canvas/CameraRig";
 import { CanvasRaycasterConfig } from "@/components/canvas/CanvasRaycasterConfig";
+import { CanvasRendererRelease } from "@/components/canvas/CanvasRendererRelease";
 import { SceneStage } from "@/components/canvas/SceneStage";
 import { CanvasLoadingFallback } from "@/components/canvas/CanvasLoadingFallback";
 import { useDeviceTier } from "@/hooks/useDeviceTier";
@@ -59,6 +60,7 @@ export function AtomModelScene({ modelId, className }: AtomModelSceneProps) {
         style={{ background: "transparent", touchAction: "none" }}
       >
         <CanvasRaycasterConfig />
+        <CanvasRendererRelease />
         <Suspense fallback={<CanvasLoadingFallback label="Loading atom model…" />}>
           <SceneStage accentColor={meta.accentColor} reduceEffects={deviceTier.isMobile}>
             <CameraRig autoRotate enableZoom enablePan cameraDistance={6} />

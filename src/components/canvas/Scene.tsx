@@ -15,6 +15,7 @@ import { useMeasurement } from "@/context/MeasurementContext";
 import { useFocus } from "@/context/FocusContext";
 import { useDeviceTier, resolveSphereSegments } from "@/hooks/useDeviceTier";
 import { CanvasRaycasterConfig } from "@/components/canvas/CanvasRaycasterConfig";
+import { CanvasRendererRelease } from "@/components/canvas/CanvasRendererRelease";
 import { cn } from "@/lib/utils";
 
 interface MoleculeSceneProps {
@@ -127,6 +128,7 @@ export function MoleculeScene({
           onPointerMissed={handlePointerMissed}
         >
           <CanvasRaycasterConfig />
+          <CanvasRendererRelease />
           <SceneStage
             reduceEffects={reduceEffects ?? deviceTier.isMobile}
             accentColor={accentColor}
