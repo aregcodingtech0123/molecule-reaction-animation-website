@@ -39,6 +39,40 @@ export async function holdSummary({ url = perfDatabaseUrl(), since = null } = {}
   }
 }
 
+/**
+ * Money and webhook state since `since` (a Date): ledger rows by type, and stored webhook events by
+ * status / outcome (R19 inbox; absent before migration 015).
+ */
+export async function ledgerAndInboxSince(since, url = perfDatabaseUrl()) {
+  assertTestDatabaseUrl(url);
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const { rows: ledger } = await client.query(
+      `SELECT transaction_type::text AS type, count(*)::int AS n FROM credit_ledger_transactions WHERE created_at >= $1 GROUP BY 1 ORDER BY 1`,
+      [since],
+    );
+    const { rows: dup } = await client.query(
+      `SELECT count(*)::int AS n FROM (SELECT 1 FROM credit_ledger_transactions WHERE created_at >= $1 AND reference_id IS NOT NULL
+         GROUP BY reference_id, transaction_type HAVING count(*) > 1) d`,
+      [since],
+    );
+    const out = { ledger: Object.fromEntries(ledger.map((r) => [r.type, r.n])), duplicateReferences: dup[0].n };
+    const { rows: present } = await client.query(`SELECT to_regclass('public.lemon_webhook_events') IS NOT NULL AS present`);
+    if (present[0].present) {
+      const { rows: inbox } = await client.query(
+        `SELECT status || COALESCE('/' || outcome, '') AS k, count(*)::int AS n FROM lemon_webhook_events WHERE received_at >= $1 GROUP BY 1 ORDER BY 1`,
+        [since],
+      );
+      out.inbox = Object.fromEntries(inbox.map((r) => [r.k, r.n]));
+      out.inboxOpen = inbox.filter((r) => !r.k.startsWith("processed")).reduce((a, r) => a + r.n, 0);
+    }
+    return out;
+  } finally {
+    await client.end();
+  }
+}
+
 export function runReconcile(url = perfDatabaseUrl()) {
   assertTestDatabaseUrl(url);
   const res = spawnSync(

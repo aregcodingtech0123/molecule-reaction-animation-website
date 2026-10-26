@@ -142,8 +142,8 @@ export async function runClosedLoop(o) {
  *   `then` (optional): the next request of the same arrival, sent after a 2xx answer (same origin)
  * @param {number} [o.maxInFlight]
  * @param {number} [o.timeoutMs]
- * @param {(r: { kind: string, status: number, error: string | null, scheduledAt: number, ms: number, measured: boolean }) => void} [o.onResult]
- *   called once per completed request (timelines around an injected fault)
+ * @param {(r: { kind: string, status: number, error: string | null, scheduledAt: number, ms: number, measured: boolean, origin: string, spec: object }) => void} [o.onResult]
+ *   called once per completed request (timelines around an injected fault; `spec` is the arrival's first request)
  */
 export async function runOpenLoop(o) {
   const maxInFlight = o.maxInFlight ?? 2000;
@@ -182,7 +182,7 @@ export async function runOpenLoop(o) {
           s.statuses[status] = (s.statuses[status] ?? 0) + 1;
           if (error) s.errors[error] = (s.errors[error] ?? 0) + 1;
         }
-        o.onResult?.({ kind: k, status, error: error ?? null, scheduledAt, ms: performance.now() - scheduledAt, measured });
+        o.onResult?.({ kind: k, status, error: error ?? null, scheduledAt, ms: performance.now() - scheduledAt, measured, origin, spec });
         resolve();
       };
       const fire = (spec) => {
