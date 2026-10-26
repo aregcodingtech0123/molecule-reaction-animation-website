@@ -19,6 +19,7 @@ import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
 import { crossSiteRejection, isCrossSiteRequest } from "@/lib/security/csrf";
 import { boundConversation, geminiMaxOutputTokens, geminiTimeoutMs } from "@/lib/ai/gemini-limits";
+import { withDeadline } from "@/lib/http/deadline";
 
 const MAX_MESSAGES = 24;
 
@@ -215,17 +216,20 @@ export async function POST(request: Request) {
   let response;
   try {
     const ai = new GoogleGenAI({ apiKey });
-    response = await ai.models.generateContent({
-      model,
-      contents,
-      config: {
-        systemInstruction: LAB_ASSISTANT_SYSTEM_INSTRUCTION,
-        temperature: 0.7,
-        maxOutputTokens: geminiMaxOutputTokens(),
-        // FINDING-21: a hung model call must not hold a reserved turn open forever.
-        abortSignal: AbortSignal.timeout(geminiTimeoutMs()),
-      },
-    });
+    // FINDING-21: a hung model call must not hold a reserved turn open forever. The deadline is cleared as
+    // soon as the call settles (PERF-19: an AbortSignal.timeout kept every finished turn alive for 30 s).
+    response = await withDeadline(geminiTimeoutMs(), (abortSignal) =>
+      ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          systemInstruction: LAB_ASSISTANT_SYSTEM_INSTRUCTION,
+          temperature: 0.7,
+          maxOutputTokens: geminiMaxOutputTokens(),
+          abortSignal,
+        },
+      }),
+    );
   } catch (err) {
     if (isAbortError(err)) {
       console.error("[api/chat] Gemini timed out — releasing the reservation", {

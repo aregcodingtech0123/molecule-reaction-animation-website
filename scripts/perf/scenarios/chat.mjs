@@ -13,7 +13,13 @@ import { browserRequest, rotatingUser } from "../lib/requests.mjs";
 export const defaults = { seedArgs: "--users 5000 --rows 20", concurrency: [1, 10, 50], duration: 15, warmup: 3, gemini: "fixed:0" };
 // PERF_CHAT_HOPLOG=0 runs without the hop log (measures the instrumentation's own cost).
 const hopLog = process.env.PERF_CHAT_HOPLOG !== "0";
-export const stack = { hopLog, procLog: true, apiOverrides: { AI_DAILY_TURNS_GLOBAL: "100000000" } };
+// PERF-19 experiments: PERF_CHAT_FORCE_GC_MS forces full GCs in Next (heap troughs = retained memory);
+// PERF_CHAT_GEMINI_TIMEOUT_MS overrides GEMINI_TIMEOUT_MS (does retention scale with the timeout?).
+const webOverrides = {
+  ...(process.env.PERF_CHAT_FORCE_GC_MS ? { PERF_FORCE_GC_MS: process.env.PERF_CHAT_FORCE_GC_MS } : {}),
+  ...(process.env.PERF_CHAT_GEMINI_TIMEOUT_MS ? { GEMINI_TIMEOUT_MS: process.env.PERF_CHAT_GEMINI_TIMEOUT_MS } : {}),
+};
+export const stack = { hopLog, procLog: true, apiOverrides: { AI_DAILY_TURNS_GLOBAL: "100000000" }, webOverrides };
 
 export async function run(ctx) {
   ctx.note(`Gemini mock latency: ${JSON.stringify(ctx.opts.gemini)}`);
