@@ -6,10 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { getDictionary } from "@/lib/i18n/localize";
+import { loadContentBundle } from "@/lib/i18n/content";
 import {
   DEFAULT_LOCALE,
   isLocale,
@@ -35,18 +37,34 @@ function readStoredLocale(): Locale {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   /** Match SSR defaults on first render to avoid hydration mismatch. */
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const latestRequest = useRef(0);
+
+  /**
+   * Switches once the locale's content has loaded (PERF-26: only English is built in), so a page never shows a
+   * mix of the new UI strings and English content. If loading fails the switch still happens and content falls
+   * back to English. Only the most recent request applies when several are in flight.
+   */
+  const applyLocale = useCallback((next: Locale) => {
+    const request = ++latestRequest.current;
+    const apply = () => {
+      if (request !== latestRequest.current) return;
+      setLocaleState(next);
+      document.documentElement.lang = next;
+    };
+    loadContentBundle(next).then(apply, apply);
+  }, []);
 
   useEffect(() => {
-    const stored = readStoredLocale();
-    setLocaleState(stored);
-    document.documentElement.lang = stored;
-  }, []);
+    applyLocale(readStoredLocale());
+  }, [applyLocale]);
 
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
-    document.documentElement.lang = next;
-  }, []);
+  const setLocale = useCallback(
+    (next: Locale) => {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+      applyLocale(next);
+    },
+    [applyLocale],
+  );
 
   useEffect(() => {
     document.documentElement.lang = locale;

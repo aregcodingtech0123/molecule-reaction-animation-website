@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useTheme } from "@/context/ThemeContext";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 /**
  * Theme-aware lighting rig — low-light observatory (night-lab) vs bright lab (white-lab).
@@ -11,9 +12,11 @@ import { useTheme } from "@/context/ThemeContext";
 export function SceneLighting() {
   const { scene } = useTheme();
   const accentRef = useRef<THREE.PointLight>(null);
+  const reduceMotion = usePrefersReducedMotion();
 
   useFrame((state) => {
-    if (accentRef.current) {
+    // The orbiting accent light is ambient motion: it stays put under reduced motion (R14).
+    if (accentRef.current && !reduceMotion) {
       const t = state.clock.elapsedTime * 0.3;
       accentRef.current.position.x = Math.sin(t) * 6;
       accentRef.current.position.z = Math.cos(t) * 6;

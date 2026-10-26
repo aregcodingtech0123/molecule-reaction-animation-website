@@ -17,13 +17,13 @@ measured) · `refuted` (the code does not do it) · `measured` · `fixed` · `re
 | PERF-03 | `/api/chat` | — (found in Part 0) | `fetchEmailVerificationStatus` (`GET /auth/me`) has **no timeout**, unlike the billing calls (`BILLING_CALL_TIMEOUT_MS`, SEC-17). A stalled Express holds the chat request until undici's default 300 s headers timeout. Robustness more than speed; would disappear with PERF-01's change. | **fixed** by PERF-01 (the call is gone) | Part 1 ✔ |
 | PERF-04 | Ledger / holds | Advisory-lock contention for one hot user | `reserve`, `capture`, `release` each take `pg_advisory_xact_lock(hashtext(user_id))`; `post_credit_transaction` takes the same lock inside `capture` (re-entrant). One user's turns are fully serialised through those transactions; different users only share the pool. The global daily-cap count is deliberately not serialised (SEC-16). | measured — recommendation (§ Part 1) | Part 1 ✔ |
 | PERF-05 | `/history` | Query plan and cursor pages at large row counts | Index `idx_credit_ledger_user_created (user_id, created_at DESC)`; the query orders by `created_at DESC, id DESC` with a row comparison `(created_at, id) < (…)`, so `id` is not in the index (ties need a sort). Harness check: flat ~4 ms from page 1 to page 1 000 at 100 k rows (1 run). EXPLAIN at 100 k and 1 M rows decides whether anything is needed. | measured — within budget at 1 M rows; recommendation (index) | Part 1 ✔ |
-| PERF-06 | Dashboard | Balance polling frequency × users | **Refuted as stated.** There is no steady polling. `useBalanceAutoRefresh` refreshes once on window focus / visibility, and polls every 3 s for at most 30 s (≤ 10 requests) only after a return from checkout, stopping as soon as credits arrive. The poll does not pause while the tab is hidden (bounded at 30 s). Requests per tab per minute will be counted in Part 2. | refuted | Part 2 (count) |
-| PERF-07 | Bundle (3D) | 3D bundle size / first load on mobile | No `next/dynamic` or `React.lazy` anywhere in `src/`. `FocusProvider` — mounted in the root providers on **every** page — imports `three`; the landing page imports the 3D `Scene` directly. `three` is therefore very likely in every route's client JS. To confirm with `next analyze`. | verified-code | Part 2 |
-| PERF-08 | Bundle (AI chat) | — (found in Part 0) | `LabAssistantChat` is mounted globally (root providers) and statically imports `AiChatPanel` → `ChatMessageContent` → `react-markdown`, `remark-math`, `rehype-katex`, `rehype-sanitize`. `katex.min.css` (and its fonts) is imported in `globals.css`. The markdown/KaTeX stack is likely on every page. | verified-code | Part 2 |
-| PERF-09 | Bundle (i18n) | Do all 12 locales ship to every user? | `src/lib/i18n/content/index.ts` statically imports all 12 locale JSON files (the i18n folder is ~505 KB of source). Very likely all locales ship. | verified-code | Part 2 |
-| PERF-10 | CLS | Theme flash on 48 components (FINDING-26 partial) | A pre-hydration script applies the stored theme before first paint (FINDING-26). `<body>` has `transition-colors duration-500`, so components whose classes change at hydration animate for 500 ms. Colour changes are not layout shift; whether any of them shift layout is a measurement question. | verified-code | Part 2 |
-| PERF-11 | Caching | Nonce CSP makes every route dynamic | Confirmed: the root layout reads `headers()` for the nonce; the build prerenders only `/_global-error` and `/favicon.ico`. Every HTML response is rendered per request. The proxy matcher excludes `api/`, `_next/static`, `_next/image`, `favicon.ico` and `hdri/`, so static assets keep their own caching. | verified-code | Part 2 (TTFB) |
-| PERF-12 | Assets | Environment maps | `public/hdri`: two 1k `.hdr` maps, 3.1 MB together. Cache headers on `public/` (and on Vercel) to be checked. | verified-code | Part 2 |
+| PERF-06 | Dashboard | Balance polling frequency × users | **Refuted as stated.** There is no steady polling. `useBalanceAutoRefresh` refreshes once on window focus / visibility, and polls every 3 s for at most 30 s (≤ 10 requests) only after a return from checkout, stopping as soon as credits arrive. The poll does not pause while the tab is hidden (bounded at 30 s). Requests per tab per minute will be counted in Part 2. | measured — no steady polling; post-checkout poll bounded (§ Part 2) | Part 2 ✔ |
+| PERF-07 | Bundle (3D) | 3D bundle size / first load on mobile | No `next/dynamic` or `React.lazy` anywhere in `src/`. `FocusProvider` — mounted in the root providers on **every** page — imports `three`; the landing page imports the 3D `Scene` directly. `three` is therefore very likely in every route's client JS. To confirm with `next analyze`. | **fixed** for non-3D routes (PERF-25); 3D routes need three | Part 2 ✔ |
+| PERF-08 | Bundle (AI chat) | — (found in Part 0) | `LabAssistantChat` is mounted globally (root providers) and statically imports `AiChatPanel` → `ChatMessageContent` → `react-markdown`, `remark-math`, `rehype-katex`, `rehype-sanitize`. `katex.min.css` (and its fonts) is imported in `globals.css`. The markdown/KaTeX stack is likely on every page. | **fixed** (PERF-24) | Part 2 ✔ |
+| PERF-09 | Bundle (i18n) | Do all 12 locales ship to every user? | `src/lib/i18n/content/index.ts` statically imports all 12 locale JSON files (the i18n folder is ~505 KB of source). Very likely all locales ship. | **fixed** (PERF-26) | Part 2 ✔ |
+| PERF-10 | CLS | Theme flash on 48 components (FINDING-26 partial) | A pre-hydration script applies the stored theme before first paint (FINDING-26). `<body>` has `transition-colors duration-500`, so components whose classes change at hydration animate for 500 ms. Colour changes are not layout shift; whether any of them shift layout is a measurement question. | measured — CLS 0–0.01 everywhere; no shift from the theme | Part 2 ✔ |
+| PERF-11 | Caching | Nonce CSP makes every route dynamic | Confirmed: the root layout reads `headers()` for the nonce; the build prerenders only `/_global-error` and `/favicon.ico`. Every HTML response is rendered per request. The proxy matcher excludes `api/`, `_next/static`, `_next/image`, `favicon.ico` and `hdri/`, so static assets keep their own caching. | measured — kept (nonce CSP); TTFB p50 5–10 ms locally | Part 2 ✔ |
+| PERF-12 | Assets | Environment maps | `public/hdri`: two 1k `.hdr` maps, 3.1 MB together. Cache headers on `public/` (and on Vercel) to be checked. | measured — recommendation R12 | Part 2 ✔ |
 | PERF-13 | DB connect | Neon cold start vs pool connect timeout | Pool `max` 20, `idleTimeoutMillis` 30 s, `connectionTimeoutMillis` 2 s. `requireDatabase` answers 503 `DATABASE_UNAVAILABLE` while the DB is not ready. Neon documents a wake-up of a few hundred ms (checklist), which is under 2 s; slower networks or retries are to be simulated. | measured — clean 503; recommendation (single-flight probe, timeout) | Part 1 ✔ |
 | PERF-14 | Memory | In-memory limiters | Express: `express-rate-limit` memory stores on auth routes only (5 limiters). BFF chat: an in-memory `Map` per user that **never deletes expired buckets** — one entry per user ever seen until restart (small, but unbounded). Revoked-JTI cache: purged every 256 checks. Sizes to be measured over a soak. | measured — no growth in a 10-min soak | Part 1 ✔, Part 3 |
 | PERF-15 | Express | Body parsing and compression | `express.json` 32 kB; webhook `express.raw` 256 kB (HMAC needs raw bytes). No compression on Express (small JSON, mostly BFF-to-service). `next start` compresses by default; Vercel compresses at its edge. Expect no action; response sizes will be recorded. | no action (responses ≤ a few kB; nothing to gain) | Part 1 ✔ |
@@ -380,6 +380,111 @@ as for PERF-01), not part of the launch.
 | R8 | production latency | **In the launch checklist §4.7 (post-deploy).** Measure the real Vercel → Render and Render → Neon round trips on staging: each Neon round trip costs a chat turn 21×, each Render hop 2× | 2.7 ms DB RTT: chat overhead 18 → 73 ms (before PERF-01) |
 | R9 | chat DB round trips | 21 sequential round trips per turn; merges M1–M5 with savings and risks in § R9 (owner: recommendation only) | 2.7 ms RTT: low-risk set ≈ 19 ms, full ≈ 46 ms per turn |
 
+## Part 2 — frontend (branch `perf/frontend`)
+
+Method: production build on the perf stack; guarded Chromium (nothing but localhost resolves); Lighthouse-like
+profiles — **mobile** = 412×823 @1.75, 4× CPU, 150 ms RTT, 1.6 Mbps; **desktop** = 1350×940, 40 ms, 10 Mbps
+(CDP throttling); WebGL on the real GPU (AMD RX 6600 via ANGLE/D3D11) unless stated. Every figure is the median
+of 5 cold loads (fresh context) after a discarded warm-up, [min–max]. Lighthouse 13.5.0 (simulated throttling)
+is the cross-check; Playwright measures what the throttled browser actually does. Bundle sizes come from Next's
+own analyzer (deterministic, compressed). Result files: `perf-results/` (gitignored).
+
+### Budgets (B5, B6) — before → after
+
+| Route (mobile) | LCP, Playwright | LCP, Lighthouse | Lighthouse score | CLS | INP proxy | TBT proxy, Playwright | JS transferred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/` | 7 280 → **1 332 ms** | 15 618 → **3 608 ms** | 50 → **66** | 0 → 0 | 96 → 88 ms | 1 312 → 1 103 ms | 956 → 870 KiB |
+| `/explore` | 6 868 → **1 176 ms** | 15 618 → **3 458 ms** | 57 → **77** | 0 → 0 | 88 → 80 ms | 841 → 775 ms | 971 → 769 KiB |
+| `/periodic-table` | 4 684 → **1 172 ms** | 5 898 → **3 307 ms** | 76 → **91** | 0 → 0 | 80 → 72 ms | 412 → **128 ms** | 600 → **296 KiB** |
+| `/ai-lab` (signed in) | 6 640 → 5 868 ms | 15 469 → **7 944 ms** | 58 → 58 | 0 → 0 | 96 → 96 ms | 774 → 805 ms | 951 → 865 KiB |
+| `/dashboard` (signed in) | 5 232 → **3 252 ms** | 6 066 → **4 392 ms** | 75 → **83** | 0 → 0 | 48 → 40 ms | 553 → 381 ms | 591 → **287 KiB** |
+
+Desktop (Lighthouse score / LCP): `/` 81 → **97** / 2 738 → 729 ms; `/explore` 83 → **99** / 2 778 → 687 ms;
+`/periodic-table` 98 → **100**; `/ai-lab` 83 → 84 (Playwright LCP 1 588 → 312 ms); `/dashboard` 97 → 99.
+
+* **B5 LCP < 2.5 s (mobile):** met in the browser on `/`, `/explore`, `/periodic-table` (LCP now = first paint);
+  **not met** on `/ai-lab` (5.9 s: the phone layout's LCP element is the chat greeting, which only exists after
+  hydration) and `/dashboard` (3.3 s: the signed-in page renders after client-side auth state). Lighthouse's
+  simulated LCP is 3.3–3.6 s on the public routes — it models the font and CSS requests on a 150 ms RTT link
+  before the text can paint (recommendations R10–R12).
+* **CLS < 0.1:** 0–0.01 everywhere, before and after. The theme handling (FINDING-26) causes **no** layout shift.
+* **INP < 200 ms:** proxy 16–104 ms everywhere (scripted menu / element clicks; a lab proxy, not field INP).
+* **B6 landing JS:** documented; ceiling = after + 10 % (`scripts/perf/bundle-budget.json`, checked in CI).
+
+### Bundle composition (Next analyzer, compressed client JS loaded up front)
+
+| Route group | Baseline | After | What left the initial load |
+| --- | --- | --- | --- |
+| Non-3D routes (`/login`, `/pricing`, `/periodic-table`, `/dashboard`, …) | 673–690 KiB | **344–362 KiB (−49 %)** | markdown + KaTeX 128.7, all 12 locales 109.6 → 8.5, three.js 96.5 |
+| 3D routes (`/`, `/explore`, `/atom-models`, `/ai-lab`) | 1 007–1 059 KiB | **775–827 KiB (−22 %)** | markdown + KaTeX, 11 locales |
+
+Initial CSS 33.7 → 30.1 KiB (KaTeX). New async chunks: the chat renderer (131 KiB, only when a chat panel exists)
+and one locale file (only for a non-English visitor). Lighthouse "unused JavaScript" on `/periodic-table`:
+182 → 26 KiB. Remaining weight on 3D routes: three / R3F / drei / postprocessing ≈ 358 KiB, React/Next 165 KiB,
+framer-motion 57 KiB (used on most pages).
+
+### Changes
+
+| ID | Change | Commit | Evidence |
+| --- | --- | --- | --- |
+| PERF-23 | Above-the-fold entrances (hero / page headers on `/`, `/explore`, `/periodic-table`, `/ai-lab`, `/dashboard`, and the AI Lab panel) in CSS (`tw-animate-css`) instead of framer-motion's `opacity: 0` initial state, which kept the LCP text invisible until all JavaScript had hydrated. LCP elements slide/scale **without a fade**: a first attempt with a fade made Chrome drop the hero as an LCP candidate (an element first painted at opacity 0 is never one) and reported other elements — the measurement caught it and the fade was removed. `motion-reduce:animate-none` now honours reduced motion (framer-motion did not). | `2d953f4`, `3a1cb37` | LCP table above |
+| PERF-27 | **Memory leak across navigations.** Every visit to a 3D page leaked its whole WebGLRenderer: two module-level GPU resources shared by all renderers — three 0.184's `DFG_LUT` texture and postprocessing's full-screen triangle — collected one `dispose` listener per renderer, and R3F's unmount never calls `renderer.dispose()`. Each listener kept the renderer's property table (environment maps, 4 MiB each) and, through the WebGL context, the unmounted page's canvas and DOM. Found with heap snapshots and retainer paths (runtime steps 9–11). `CanvasRendererRelease` (in all three `<Canvas>`es) disposes both shared resources once and then the renderer on a real unmount. | `4565148` | ArrayBuffers per visit `/` 8.02 → 0–0.2 MiB, `/explore` 4.01 → 0.67 MiB; DOM nodes / listeners retained per visit 777 / 37 → 0 / 0; JS heap after 20 cycles 46.3 MiB rising → 19.4 MiB flat |
+| PERF-24 | Chat markdown / KaTeX renderer (and KaTeX CSS) on demand: `LazyChatMessageContent` (React.lazy, prefetched when a chat panel mounts; escaped plain-text fallback; `ChatMessageContent` and its SEC-15 tests unchanged). | `6ea332a` | −129 to −131 KiB on every route |
+| PERF-25 | No three.js in `FocusProvider` (every page): a plain `Vector3Like` point. | `d53b0db` | −96.5 KiB on non-3D routes |
+| PERF-26 | Locale content on demand: English built in; others load before the switch (TC-49). | `bf3a487` | −101 KiB on every route; production check: stored `de` switches with one extra request |
+
+### Other Part 2 measurements (no change needed)
+
+| Area | Result |
+| --- | --- |
+| 3D frame time (`/`, `/explore`) | Desktop and mobile profile on a real GPU: 60 fps idle and orbiting, ≤ 4 frames > 33 ms in 4 s. **Low-end proxy (4× CPU + SwiftShader software GL): 8.5–9 fps on `/`, 16–17 fps on `/explore`** — a pessimistic stand-in for GPU-less devices (R13). |
+| Reduced motion | `prefers-reduced-motion: reduce` does not stop the 3D scene: 5 430 draw calls/s idle on `/` either way (auto-rotate keeps running). Accessibility rather than speed (R14). |
+| React re-renders | 0 commits while idle on `/periodic-table` and `/dashboard`; 2.4 commits per element click. No unnecessary re-render loop. |
+| Balance polling (PERF-06) | Per signed-in tab: 3 requests on a dashboard load, then **none** while idle (visible or hidden); after a checkout ~11 polls in 30 s, then stops (also while hidden — bounded). |
+| AI Lab long answer (6 000 chars, markdown + math) | On screen in ~240 ms (desktop), one long task ~100 ms. **No KaTeX output survives `rehype-sanitize`** (class names and MathML are stripped — the accepted SEC-15 rendering loss), so KaTeX's processing currently produces nothing visible (R15). |
+| Ledger table (`/dashboard`, 100 rows, mobile) | 1 005 DOM nodes, 101 rows — virtualisation not needed at this size. |
+| Caching / TTFB | Pages `private, no-store` (required by the per-request nonce CSP — kept); `/_next/static/*` `public, max-age=31536000, immutable`; `public/` files (incl. the 3.2 MB of environment maps) `public, max-age=0, must-revalidate` (revalidated on every visit — R12). TTFB of dynamic pages p50 5–10 ms locally. |
+
+### Recommendations (Part 2)
+
+| # | Area | Recommendation | Evidence |
+| --- | --- | --- | --- |
+| R10 | LCP on `/dashboard`, `/ai-lab` mobile | Server-render the signed-in page header and the AI Lab greeting (they render after client-side auth / chat state today), or make the greeting static markup. | LCP 3.3 s / 5.9 s; element = signed-in header / chat greeting |
+| R11 | Fonts | Lighthouse's simulated LCP (3.3–3.6 s) waits on the font request on a 150 ms link. Consider preloading only the display font weight used above the fold, or `font-display: optional` for it (visual trade-off). | Lighthouse vs Playwright LCP gap |
+| R12 | Environment maps | Serve `/hdri/*` with a long `Cache-Control` (version the file name when it changes) and start loading them after first paint on mobile; 1.5 MB per 3D route competes with JavaScript on slow links. | `max-age=0, must-revalidate`; 1.5 MB per 3D route |
+| R13 | Low-end devices | Offer a reduced 3D mode (lower DPR, no post-processing, `frameloop="demand"`) when the device tier is low or WebGL reports a software renderer. | 8.5–9 fps with software GL |
+| R14 | Reduced motion | **Applied** (`8e3a68c`: camera auto-rotate, idle spin / float, particle drift and the orbiting light stop; canvas pixels changing between frames 13 % → 0.04–0.09 %). Was: stop auto-rotate / idle animation when `prefers-reduced-motion: reduce`. | 5 430 draws/s with reduce |
+| R15 | KaTeX | **Applied (owner decision): KaTeX removed; maths shown as monospace source** (`src/lib/ai/math-as-code.ts`; the renderer's async chunk ~81 KiB smaller; the KaTeX advisory is gone). Was: either let the sanitiser keep KaTeX's output (a security review of the schema) or drop math rendering; today its work is discarded (owner decision, SEC-15). | 0 MathML / `.katex` nodes after sanitising |
+| R16 | three.js DFG leak upstream | **Kept as a recommendation** (filing upstream issues is an outward action for the owner; draft text below). Report the shared-resource listener leak to three.js / R3F / @react-three/postprocessing; remove `CanvasRendererRelease` once fixed upstream (the budget check and runtime step 10 will show it). | PERF-27 |
+
+### R16 — draft upstream report (not filed)
+
+> **Title:** WebGLRenderer instances are retained after unmount through dispose listeners on module-level shared
+> resources (`DFG_LUT`, postprocessing's `fullscreenGeometry`)
+>
+> three 0.184's `getDFGLUT()` and postprocessing 6.39's `Pass.fullscreenGeometry` are module-level singletons.
+> Every WebGLRenderer that uploads them adds a `dispose` listener (WebGLTextures / WebGLGeometries) that closes over
+> the renderer's internal state. @react-three/fiber 9's `unmountComponentAtNode` forces a context loss but never
+> calls `renderer.dispose()`, and nothing disposes the singletons, so each unmounted canvas keeps its renderer, its
+> property table (textures such as environment maps) and, through the WebGL context, the canvas and its DOM.
+> Measured: ~4 MiB of ArrayBuffers and ~400–800 DOM nodes per mount/unmount cycle, unbounded. Workaround: on a real
+> unmount, `getDFGLUT().dispose()` (via a material's `dfgLUT` uniform), `Pass.fullscreenGeometry.dispose()`, then
+> `renderer.dispose()`. Possible fixes: R3F calling `gl.dispose()` on unmount; three removing a renderer's listeners
+> from shared resources in `WebGLRenderer.dispose()`.
+
+### Part 2 verification
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck:tests` | 0 errors |
+| Root `vitest` with coverage | 32 files, **542 passed**; BFF set **94.83 %** lines (floor 94.33 %) |
+| Service `vitest` with coverage | 37 files, **657 passed**; **91.48 %** lines, **80.14 %** branches (floors 91.31 / 79.72; service unchanged in Part 2) |
+| `next build` | OK |
+| `npm run perf:bundle-budget` | OK (every route 9–10 % under its ceiling) |
+| E2E `next dev` | 49 passed, 1 skipped (needs the production build, by design) |
+| E2E `E2E_NEXT_MODE=production` | **50 / 50 passed** (paid journey incl. AI Lab, desktop + mobile) |
+| ESLint (whole repo, harness output ignored) | 26 errors, 21 warnings — `main`: 27 / 21 (the documented React Compiler backlog; none new) |
+
 ## Findings log
 
 | ID | Area | Baseline | After | Method | Commit | Status |
@@ -389,4 +494,9 @@ as for PERF-01), not part of the launch.
 | PERF-19 | Next memory / tails | c = 50: heap 1 990–2 278 MiB, lag 571–649 ms, p99 655 ms [370–4 057] | heap 302 MiB, lag 35 ms, p99 209 ms [199–225] | chat c = 50, 5 runs; forced-GC floor E1/E2/A1 | `22c2564` | fixed |
 | PERF-01 / PERF-03 | `/api/chat` hop | c = 1 p95 21.35 ms; at 2.73 ms DB RTT c = 10 p95 89.1 ms, 126 / s | c = 1 p95 18.72 ms; at 2.73 ms DB RTT c = 10 p95 75.0 ms, 146 / s | A/B chat, loopback and DB proxy, 5 runs | see git log | fixed |
 | PERF-22 | DB reconnect (R5) | 5 outage events: 185 probes, 44 pool rebuilds, 163 DB connections | 69 probes, 6 rebuilds, 86 connections; same responses | `dbfaults` before/after; 5 new tests | see git log | fixed |
+| PERF-23 | LCP (frontend) | mobile LCP / 7 280, /explore 6 868, /periodic-table 4 684 ms | 1 332 / 1 176 / 1 172 ms (Lighthouse 15 618 / 15 618 / 5 898 → 3 608 / 3 458 / 3 307 ms) | webvitals + lighthouse, 5 runs | `2d953f4`, `3a1cb37` | fixed (3 routes); /ai-lab, /dashboard → R10 |
+| PERF-27 | 3D memory leak | +8.02 MiB ArrayBuffers and 777 DOM nodes per visit to /; heap 46.3 MiB rising after 20 cycles | 0–0.2 MiB, 0 nodes; heap 19.4 MiB flat | runtime steps 2, 9–11 | `4565148` | fixed |
+| PERF-24 | bundle (chat renderer) | +128.7 KiB on every route | 0 (131 KiB async chunk) | Next analyzer | `6ea332a` | fixed |
+| PERF-25 | bundle (three.js) | +96.5 KiB on non-3D routes | 0 | Next analyzer | `d53b0db` | fixed |
+| PERF-26 | bundle (locales) | 109.6 KiB on every route | 8.5 KiB (English) | Next analyzer + production check | `bf3a487` | fixed |
 | PERF-04, 05, 13, 16, 17, 20 | DB, pool, login | § Part 1 | — | metering, dbfaults, explain, login, caps | — | measured — recommendations R1–R8 |

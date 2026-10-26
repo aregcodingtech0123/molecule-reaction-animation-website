@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated output (E2E distDir, coverage, Playwright reports, compiled service).
     ".next-e2e/**",
+    // Performance harness output (docs/performance/README.md): perf build, analyzer build, results.
+    ".next-perf/**",
+    ".next-analyze/**",
+    "perf-results/**",
     "**/coverage/**",
     "playwright-report/**",
     "test-results/**",

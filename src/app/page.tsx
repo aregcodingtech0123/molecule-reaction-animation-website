@@ -43,44 +43,38 @@ export default function Home() {
         <Scene />
 
         <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-5xl mx-auto mt-20 pointer-events-none">
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+          {/* Entrance animations are CSS (PERF-23): framer-motion's initial opacity 0 kept the hero — the
+              page's LCP element — invisible until all JavaScript had loaded and hydrated. The title only
+              slides (no fade): an element first painted at opacity 0 is not an LCP candidate at all. */}
+          <p
             className={cn(
               "home-kicker mb-8 inline-flex items-center gap-3 border px-3 py-1.5 rounded-sm",
+              "animate-in fade-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-bottom-2 duration-800",
               ui.accent.heroBadge,
             )}
           >
             <span className={cn("h-px w-6", ui.accent.heroBadgeRule)} aria-hidden />
             {t.hero_badge}
-          </motion.p>
+          </p>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="home-hero-title text-5xl md:text-7xl lg:text-[5.5rem] mb-8"
+          <h1
+            className="home-hero-title text-5xl md:text-7xl lg:text-[5.5rem] mb-8 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-bottom-8 duration-800 delay-200"
           >
             {t.hero_title_prefix} <br className="hidden md:block" />
             <span className={ui.accent.headline}>{t.hero_title_highlight}</span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className={cn("text-lg md:text-xl max-w-2xl mb-12 font-light leading-relaxed", ui.typography.subtitle)}
+          <p
+            className={cn(
+              "text-lg md:text-xl max-w-2xl mb-12 font-light leading-relaxed",
+              "animate-in fade-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-bottom-5 duration-800 delay-400",
+              ui.typography.subtitle,
+            )}
           >
             {t.hero_subtitle}
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 pointer-events-auto"
-          >
+          <div className="flex flex-col sm:flex-row gap-4 pointer-events-auto animate-in fade-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-bottom-5 duration-800 delay-600">
             <Link
               href="/explore"
               className={cn(
@@ -102,7 +96,7 @@ export default function Home() {
             >
               {t.hero_view_showcase}
             </Link>
-          </motion.div>
+          </div>
         </div>
 
         <motion.div

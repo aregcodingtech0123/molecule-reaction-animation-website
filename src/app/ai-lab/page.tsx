@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useAiChat } from "@/hooks/useAiChat";
 import { AiChatPanel } from "@/components/ai/AiChatPanel";
@@ -24,11 +23,9 @@ export default function AiLabPage() {
   return (
     <main className="min-h-screen flex flex-col">
       <div className="flex-shrink-0 pt-24 pb-4 px-6 max-w-[1600px] mx-auto w-full">
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-end justify-between gap-4"
-        >
+        {/* CSS entrance (PERF-23): the header text is the LCP element and must not wait for hydration. It slides
+            without a fade: an element first painted at opacity 0 is not an LCP candidate at all. */}
+        <div className="flex flex-wrap items-end justify-between gap-4 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-3 duration-300">
           <div>
             <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs mb-3", ui.panel.badge)}>
               <Sparkles className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
@@ -43,16 +40,15 @@ export default function AiLabPage() {
             </p>
           </div>
           <StudioContextPills className="justify-end" />
-        </motion.div>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 px-4 md:px-6 pb-6 max-w-[1600px] mx-auto w-full">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
+        {/* CSS entrance (PERF-23): the empty-state hint in here is the mobile LCP element. Scale only, no fade. */}
+        <div
           className={cn(
             "h-[calc(100vh-12rem)] min-h-[480px] grid lg:grid-cols-[minmax(0,26rem)_1fr] gap-0 rounded-3xl border overflow-hidden",
+            "animate-in zoom-in-98 duration-300 delay-100 ease-out fill-mode-both motion-reduce:animate-none",
             ui.borders.subtle,
             isWhiteLab ? "bg-white shadow-lg shadow-slate-200/50" : "bg-neutral-950/80 shadow-2xl",
           )}
@@ -86,7 +82,7 @@ export default function AiLabPage() {
             loading={chat.loading}
             className="min-h-[280px] lg:min-h-0 h-full rounded-none border-0"
           />
-        </motion.div>
+        </div>
       </div>
     </main>
   );

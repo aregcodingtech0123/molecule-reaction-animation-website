@@ -109,6 +109,8 @@ Scope, method and threat model: see `THREAT_MODEL.md` (Part 2). Local test stack
   `shadcn` 4.7.0 → 4.22.1 ships additional CSS utilities only; none is used by `src/` (diffed).
 * **Deferred:** the KaTeX chain (4 low, GHSA-238p-pmpm-9mq7) — no plugin release uses a patched KaTeX yet; every
   available change breaks chat math rendering. Options and impact in DEPENDENCY_TRIAGE.md; decision pending.
+  **Resolved in the performance phase (R15):** KaTeX, `rehype-katex` and `remark-math` were removed; the advisory is
+  gone from `npm audit`.
 * **Verification:** root suite 403/403, `tsc` 0 errors, `next build` passes on the updated lockfile.
 
 ## SEC-04 — Low — CI workflow supply-chain hardening
@@ -442,6 +444,10 @@ Evidence is the named test, or the code reference where a test would only restat
   classes and MathML are stripped and maths in answers renders as garbled plain text. Making it render needs either
   sanitize-before-KaTeX (KaTeX's own output then becomes trusted; `trust` stays off) or a schema that allows
   KaTeX's classes, inline `style` and MathML. Both widen what model output can produce — a deliberate choice.
+* **Update (performance phase, R15 — owner decision):** KaTeX is removed. Maths is shown as its TeX source in
+  monospace (`src/lib/ai/math-as-code.ts` turns `$…$` / `$$…$$` into code before react-markdown); the renderer is
+  now react-markdown → rehype-sanitize. Every SEC-15 payload test (including the KaTeX `\href` / `\url` /
+  `\htmlStyle` ones, now plain code text) is unchanged and passes.
 
 ## SEC-16 — Medium — AI Lab spend had no ceiling
 

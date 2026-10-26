@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { useFocus } from "@/context/FocusContext";
 import { applyMobileOrbitControls } from "@/lib/three/orbit-touch";
 import { useDeviceTier } from "@/hooks/useDeviceTier";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 interface CameraRigProps {
   autoRotate?: boolean;
@@ -38,6 +39,7 @@ export function CameraRig({
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
   const { focusTargetRef, focusActiveRef, focusCameraDistanceRef, isFocused } = useFocus();
+  const reduceMotion = usePrefersReducedMotion();
   const { isMobile } = useDeviceTier();
 
   const bindControls = useCallback(
@@ -84,7 +86,8 @@ export function CameraRig({
   return (
     <DreiOrbitControls
       ref={bindControls}
-      autoRotate={autoRotate && !isFocused}
+      // No camera auto-rotate when the visitor asked for reduced motion (R14).
+      autoRotate={autoRotate && !isFocused && !reduceMotion}
       autoRotateSpeed={autoRotateSpeed}
       enableZoom={enableZoom}
       enablePan={enablePan}

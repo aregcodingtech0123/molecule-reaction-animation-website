@@ -130,11 +130,9 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen pt-24 pb-16 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto space-y-8">
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-3"
-        >
+        {/* CSS entrance (PERF-23): the heading is the LCP element and must not wait for hydration. It slides
+            without a fade: an element first painted at opacity 0 is not an LCP candidate at all. */}
+        <header className="space-y-3 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-3 duration-300">
           <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs", ui.panel.badge)}>
             <User className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
             {t.dashboard_badge ?? "Account Dashboard"}
@@ -248,7 +246,7 @@ export default function DashboardPage() {
               );
             })}
           </div>
-        </motion.header>
+        </header>
 
         <motion.section
           initial={{ opacity: 0, y: 12 }}

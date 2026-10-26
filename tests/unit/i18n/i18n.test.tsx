@@ -1,6 +1,6 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CONTENT_BY_LOCALE } from "@/lib/i18n/content";
+import { loadContentBundle, type LocaleContentBundle } from "@/lib/i18n/content";
 import { ATOM_MODELS_BY_LOCALE } from "@/lib/atom-models/content";
 import { getUiExtensions } from "@/lib/i18n/ui-extensions";
 import { formatMessage, getDictionary } from "@/lib/i18n/localize";
@@ -10,6 +10,12 @@ import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 
 const SOURCE: Locale = "en";
 const OTHERS = LOCALES.filter((l) => l !== SOURCE);
+
+// Locale content loads on demand (PERF-26). The parity checks use the bundles the loader returns — never the
+// English fallback — so a locale that failed to load fails them instead of passing as English.
+const CONTENT_BY_LOCALE = Object.fromEntries(
+  await Promise.all(LOCALES.map(async (l) => [l, await loadContentBundle(l)] as const)),
+) as Record<Locale, LocaleContentBundle>;
 
 type Flat = Map<string, unknown>;
 function flatten(value: unknown, prefix = "", out: Flat = new Map()): Flat {
@@ -118,7 +124,7 @@ describe("language switching", () => {
     );
   }
 
-  it("defaults to English, switches, persists to localStorage and updates <html lang>", () => {
+  it("defaults to English, switches, persists to localStorage and updates <html lang>", async () => {
     const { unmount } = render(
       <LanguageProvider>
         <Switcher />
@@ -128,7 +134,8 @@ describe("language switching", () => {
     const english = screen.getByTestId("sample").textContent;
 
     act(() => screen.getByRole("button", { name: "de" }).click());
-    expect(screen.getByTestId("locale")).toHaveTextContent("de");
+    // The switch applies once German content has loaded (PERF-26).
+    await waitFor(() => expect(screen.getByTestId("locale")).toHaveTextContent("de"));
     expect(screen.getByTestId("sample").textContent).not.toBe(english);
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("de");
     expect(document.documentElement.lang).toBe("de");
@@ -140,16 +147,17 @@ describe("language switching", () => {
         <Switcher />
       </LanguageProvider>,
     );
-    expect(screen.getByTestId("locale")).toHaveTextContent("de");
+    await waitFor(() => expect(screen.getByTestId("locale")).toHaveTextContent("de"));
   });
 
-  it("ignores an invalid persisted locale", () => {
+  it("ignores an invalid persisted locale", async () => {
     localStorage.setItem(LOCALE_STORAGE_KEY, "klingon");
     render(
       <LanguageProvider>
         <Switcher />
       </LanguageProvider>,
     );
+    await act(async () => {}); // let the (English, built-in) load settle
     expect(screen.getByTestId("locale")).toHaveTextContent("en");
   });
 });

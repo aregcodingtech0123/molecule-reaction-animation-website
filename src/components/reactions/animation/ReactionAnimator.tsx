@@ -11,6 +11,7 @@ import {
 import { getReactionCentroid, offsetPosition } from "@/lib/reactions/animation/center";
 import { AnimatedAtom } from "./AnimatedAtom";
 import { AnimatedBond } from "./AnimatedBond";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 export interface ReactionAnimatorProps {
   definition: ReactionAnimationDefinition;
@@ -37,6 +38,7 @@ export function ReactionAnimator({
   autoRotate = true,
 }: ReactionAnimatorProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const reduceMotion = usePrefersReducedMotion();
   const positionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
   const reactantBondOpacityRef = useRef(1);
   const productBondOpacityRef = useRef(0);
@@ -115,7 +117,8 @@ export function ReactionAnimator({
   }, [playSignal, applyReactantLayout]);
 
   useFrame((state, delta) => {
-    if (autoRotate && groupRef.current) {
+    // Idle spin and bob stop under reduced motion (R14); the reaction itself still plays when started.
+    if (autoRotate && !reduceMotion && groupRef.current) {
       groupRef.current.rotation.y += 0.0012;
       if (!playingRef.current) {
         groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.08;

@@ -1,0 +1,27 @@
+{
+  "_comment": "Ceilings = compressed initial client JS after Part 2 (2026-10-26, perf26 analysis) + 10 %. Raise only on purpose, with the reason in the commit.",
+  "routes": {
+    "/": 889,
+    "/ai-lab": 882,
+    "/atom-models": 853,
+    "/dashboard": 385,
+    "/explore": 910,
+    "/forgot-password": 381,
+    "/learn": 379,
+    "/login": 381,
+    "/periodic-table": 398,
+    "/pricing": 381,
+    "/profile": 384,
+    "/reset-password": 381,
+    "/showcase": 379,
+    "/signup": 381,
+    "/verify-email": 381
+  },
+  "routesWith3d": [
+    "/",
+    "/ai-lab",
+    "/atom-models",
+    "/explore"
+  ],
+  "englishLocaleMaxKiB": 12
+}

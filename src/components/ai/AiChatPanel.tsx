@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { Bot, Loader2, Send } from "lucide-react";
 import type { ChatMessage } from "@/lib/ai/chat-types";
 import type { UseAiChatReturn } from "@/hooks/useAiChat";
 import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
-import { ChatMessageContent } from "@/components/ai/ChatMessageContent";
+import { LazyChatMessageContent, preloadChatRenderer } from "@/components/ai/LazyChatMessageContent";
 
 export type AiChatPanelVariant = "compact" | "embedded" | "full";
 
@@ -40,6 +41,8 @@ export function AiChatPanel({
 }: AiChatPanelProps) {
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
+  // The markdown renderer is a separate chunk (PERF-24): fetch it as soon as a chat panel exists.
+  useEffect(() => preloadChatRenderer(), []);
   const {
     messages,
     input,
@@ -187,7 +190,7 @@ function MessageBubble({
               ),
         )}
       >
-        <ChatMessageContent
+        <LazyChatMessageContent
           content={message.content}
           variant={isUser ? "user" : "assistant"}
           isWhiteLab={isWhiteLab}

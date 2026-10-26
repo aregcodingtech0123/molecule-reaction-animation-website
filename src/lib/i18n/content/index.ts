@@ -1,16 +1,5 @@
 import type { Locale } from "../types";
 import en from "./en.json";
-import tr from "./tr.json";
-import de from "./de.json";
-import es from "./es.json";
-import pt from "./pt.json";
-import ko from "./ko.json";
-import ja from "./ja.json";
-import fr from "./fr.json";
-import ru from "./ru.json";
-import zh from "./zh.json";
-import it from "./it.json";
-import hi from "./hi.json";
 
 export interface MoleculeContentI18n {
   name: string;
@@ -52,21 +41,42 @@ export interface LocaleContentBundle {
   ui: Record<string, string>;
 }
 
-export const CONTENT_BY_LOCALE: Record<Locale, LocaleContentBundle> = {
-  en: en as LocaleContentBundle,
-  tr: tr as LocaleContentBundle,
-  de: de as LocaleContentBundle,
-  es: es as LocaleContentBundle,
-  pt: pt as LocaleContentBundle,
-  ko: ko as LocaleContentBundle,
-  ja: ja as LocaleContentBundle,
-  fr: fr as LocaleContentBundle,
-  ru: ru as LocaleContentBundle,
-  zh: zh as LocaleContentBundle,
-  it: it as LocaleContentBundle,
-  hi: hi as LocaleContentBundle,
+/**
+ * Locale content is loaded on demand (PERF-26): English is built in; each other locale is its own chunk, fetched
+ * by LanguageProvider before it switches to that locale. Before, all 12 locales (~110 KiB compressed) were in
+ * every route's initial load for every visitor.
+ */
+const LOADERS: Record<Exclude<Locale, "en">, () => Promise<{ default: unknown }>> = {
+  tr: () => import("./tr.json"),
+  de: () => import("./de.json"),
+  es: () => import("./es.json"),
+  pt: () => import("./pt.json"),
+  ko: () => import("./ko.json"),
+  ja: () => import("./ja.json"),
+  fr: () => import("./fr.json"),
+  ru: () => import("./ru.json"),
+  zh: () => import("./zh.json"),
+  it: () => import("./it.json"),
+  hi: () => import("./hi.json"),
 };
 
+const loaded: Partial<Record<Locale, LocaleContentBundle>> = { en: en as LocaleContentBundle };
+
+/** The locale's content if it has been loaded, otherwise English (synchronous, safe during render). */
 export function getContentBundle(locale: Locale): LocaleContentBundle {
-  return CONTENT_BY_LOCALE[locale] ?? CONTENT_BY_LOCALE.en;
+  return loaded[locale] ?? (loaded.en as LocaleContentBundle);
+}
+
+export function isContentBundleLoaded(locale: Locale): boolean {
+  return loaded[locale] !== undefined;
+}
+
+/** Fetches a locale's content once; later calls resolve immediately. */
+export async function loadContentBundle(locale: Locale): Promise<LocaleContentBundle> {
+  const ready = loaded[locale];
+  if (ready) return ready;
+  const imported = await LOADERS[locale as Exclude<Locale, "en">]();
+  const bundle = imported.default as LocaleContentBundle;
+  loaded[locale] = bundle;
+  return bundle;
 }

@@ -11,6 +11,7 @@ import { getReactionCameraDistance } from "@/lib/reactions/animation/center";
 import { StudioFloor } from "@/components/canvas/StudioFloor";
 import { SceneStage } from "@/components/canvas/SceneStage";
 import { CanvasRaycasterConfig } from "@/components/canvas/CanvasRaycasterConfig";
+import { CanvasRendererRelease } from "@/components/canvas/CanvasRendererRelease";
 import { useDeviceTier } from "@/hooks/useDeviceTier";
 import { cn } from "@/lib/utils";
 import { ReactionAnimator } from "./ReactionAnimator";
@@ -59,6 +60,7 @@ export function ReactionAnimationScene({
         style={{ background: "transparent", touchAction: "none" }}
       >
         <CanvasRaycasterConfig />
+        <CanvasRendererRelease />
         <SceneStage
           accentColor={accentColor}
           reduceEffects={deviceTier.isMobile}

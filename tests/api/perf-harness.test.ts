@@ -10,6 +10,8 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { GEMINI_HOST, geminiRedirect } from "../../scripts/perf/lib/gemini-redirect.mjs";
 import { GUARD_MARKER, assertNetworkGuard, assertServerGuarded } from "../../scripts/perf/lib/guard.mjs";
+import { checkBudget } from "../../scripts/perf/bundle-budget.mjs";
+import { bucket } from "../../scripts/perf/bundle-report.mjs";
 import { acrossRuns, percentile, summarize } from "../../scripts/perf/lib/stats.mjs";
 import { latencySampler, seededRandom } from "../../scripts/perf/lib/random.mjs";
 import { clientIp, rotatingUser } from "../../scripts/perf/lib/requests.mjs";
@@ -217,5 +219,35 @@ describe("network guard enforcement (Part 1 incident: no harness run without the
     expect(res.stdout).not.toContain(GUARD_MARKER); // stdout stays clean for tools that parse it
     expect(() => assertServerGuarded(`boot\n${GUARD_MARKER}\nready`, "api")).not.toThrow();
     expect(() => assertServerGuarded("boot\nready", "web")).toThrow(/web server started without the network guard/);
+  });
+});
+
+describe("bundle budget (Part 2)", () => {
+  const budget = { routes: { "/": 900, "/login": 380 }, routesWith3d: ["/"], englishLocaleMaxKiB: 12 };
+  const route = (js: number, groups: Record<string, number> = {}) => ({ jsCompressedKiB: js, byGroupKiB: groups });
+
+  it("passes the measured state", () => {
+    const report = { "/": route(808, { "three / @react-three / postprocessing": 358, "locale content (12 locales)": 8.5 }), "/login": route(345, { "locale content (12 locales)": 8.5 }) };
+    expect(checkBudget(report, budget)).toEqual([]);
+  });
+
+  it("catches each regression Part 2 removed", () => {
+    const report = {
+      "/": route(950, { "markdown + KaTeX": 128.7 }),
+      "/login": route(374, { "three / @react-three / postprocessing": 96.5, "locale content (12 locales)": 109.6 }),
+    };
+    const problems = checkBudget(report, budget).join(" | ");
+    expect(problems).toMatch(/\/: initial JS 950 KiB > ceiling 900 KiB/);
+    expect(problems).toMatch(/\/: 128.7 KiB of the markdown \/ KaTeX renderer/);
+    expect(problems).toMatch(/\/login: 96.5 KiB of three.js/);
+    expect(problems).toMatch(/\/login: 109.6 KiB of locale content/);
+    expect(checkBudget({ "/": route(800) }, budget)).toEqual(["/login: missing from the analysis"]);
+  });
+
+  it("buckets module paths as the budget rules expect", () => {
+    expect(bucket("[project]/node_modules/three/build/three.core.js")).toBe("three / @react-three / postprocessing");
+    expect(bucket("[project]/node_modules/react-markdown/lib/index.js")).toBe("markdown + KaTeX");
+    expect(bucket("[project]/src/lib/i18n/content/de.json")).toBe("locale content (12 locales)");
+    expect(bucket("[project]/src/app/page.tsx")).toBe("app code (src)");
   });
 });
