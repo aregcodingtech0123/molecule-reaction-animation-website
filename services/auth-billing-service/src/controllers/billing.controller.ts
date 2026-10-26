@@ -3,10 +3,9 @@ import * as billingService from "../services/billing.service.js";
 import { captureOperation, releaseOperation, reserveCreditsForOperation } from "../services/aiCredits.service.js";
 import { AI_OPERATION_COSTS, isAiOperationType } from "../config/aiOperations.js";
 import { createUnifiedCheckout } from "../services/checkout.service.js";
-import {
-  processLemonSqueezyEvent,
-  verifyAndParseLemonEvent,
-} from "../services/webhook.service.js";
+import { verifyAndParseLemonEvent } from "../services/webhook.service.js";
+import { processStoredWebhookEvent, storeWebhookEvent } from "../services/webhookInbox.service.js";
+import { env } from "../config/env.js";
 import { AppError } from "../types/index.js";
 
 export async function getBalance(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -167,22 +166,30 @@ export async function refundCredits(req: Request, res: Response, next: NextFunct
   }
 }
 
-/** Lemon Squeezy — raw JSON + X-Signature HMAC-SHA256 */
+/** Reject after `ms` (the work itself keeps running; its late result is ignored). */
+function withTimeout<T>(ms: number, work: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`not stored within ${ms} ms`)), ms);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
- * Lemon Squeezy webhook — fast-acknowledge architecture.
+ * Lemon Squeezy webhook — store, then acknowledge (R19).
  *
  * Stage 1 (synchronous): verify the `X-Signature` HMAC over the raw body.
  *   Invalid or missing signature -> 401 immediately, no database contact.
- * Stage 2 (synchronous): acknowledge with 200 so the delivery never sits in
- *   "Pending" while Postgres is queried.
- * Stage 3 (background): allocate credits. Any failure is caught and logged —
- *   it can neither crash the process nor hold the HTTP connection open.
- *
- * NOTE: because stage 2 already returned 200, Lemon Squeezy will NOT retry a
- * stage 3 failure. Failures are logged with the [Webhook] FAILED prefix and
- * must be replayed manually from the Lemon Squeezy dashboard.
+ * Stage 2: store the verified delivery in `lemon_webhook_events` (one INSERT, bounded by
+ *   WEBHOOK_STORE_TIMEOUT_MS, default 3 s), THEN answer 200. If it cannot be stored in time
+ *   (database down, resuming or saturated) the answer is 503 and Lemon retries the delivery
+ *   (up to three more times: 5 s, 25 s, 125 s — Lemon's webhook docs). A slow database
+ *   therefore never holds Lemon's request open longer than the deadline.
+ * Stage 3 (background): process the stored event. A failure is recorded on the row and retried
+ *   by the service (retryStoredWebhookEvents) — never lost: before R19 the 200 came first and a
+ *   failed allocation needed a manual resend from Lemon's dashboard.
  */
-export function lemonSqueezyWebhook(req: Request, res: Response): void {
+export async function lemonSqueezyWebhook(req: Request, res: Response): Promise<void> {
   const rawBody = req.rawBody ?? (Buffer.isBuffer(req.body) ? req.body : null);
   if (!rawBody?.length) {
     res.status(400).json({ error: "Webhook requires raw request body." });
@@ -206,28 +213,43 @@ export function lemonSqueezyWebhook(req: Request, res: Response): void {
     return;
   }
 
-  // ── Stage 2: acknowledge BEFORE any database work ──────────────────────────
+  const orderId = event.data?.id ?? null;
+  const eventName = event.meta?.event_name ?? "unknown";
+
+  // ── Stage 2: store the delivery, then acknowledge ──────────────────────────
+  let stored;
+  try {
+    stored = await withTimeout(env.webhookStoreTimeoutMs, storeWebhookEvent(rawBody, event));
+  } catch (err) {
+    console.error("[Webhook] NOT STORED — answered 503 so Lemon retries the delivery", {
+      event: eventName,
+      orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.setHeader("Retry-After", "5");
+    res.status(503).json({ error: "Webhook temporarily unavailable" });
+    return;
+  }
+
   res.status(200).json({ received: true });
   console.log("[Webhook] Acknowledged 200 OK", {
-    event: event.meta?.event_name ?? "unknown",
-    orderId: event.data?.id ?? null,
+    event: eventName,
+    orderId,
+    storedEventId: stored.id,
+    ...(stored.inserted ? {} : { duplicateOf: stored.status }),
   });
 
-  // ── Stage 3: background fulfilment (never awaited by the request) ──────────
+  // ── Stage 3: background processing of the stored event ─────────────────────
+  if (stored.status === "processed") return;
+  const id = stored.id;
   setImmediate(() => {
-    void (async () => {
-      try {
-        await processLemonSqueezyEvent(event);
-      } catch (err) {
-        console.error(
-          "[Webhook] FAILED background credit allocation — replay this event manually:",
-          {
-            orderId: event.data?.id ?? null,
-            error: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
-          },
-        );
-      }
-    })();
+    void processStoredWebhookEvent(id).catch((err) =>
+      // Only the claim itself can throw here (database gone): the row stays stored and is retried.
+      console.warn("[Webhook] Processing deferred — the event is stored and will be retried", {
+        storedEventId: id,
+        orderId,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
   });
 }

@@ -39,14 +39,18 @@ export class BlockedNetworkError extends Error {
 }
 
 /**
- * @param {{ allowHosts?: string[] }} [options] extra non-secret hosts passed through
- *   (E2E only: Google Fonts for next/font, so pages render as in production).
+ * @param {{ allowHosts?: string[], recordCalls?: boolean }} [options]
+ *   allowHosts: extra non-secret hosts passed through (E2E only: Google Fonts for next/font, so pages render
+ *   as in production).
+ *   recordCalls (default true): keep every stubbed or blocked call in `externalCalls` for test assertions.
+ *   The perf servers pass false: under hours of load the list only grew (Part 3 soak); blocking is unchanged.
  */
 export function installNetworkGuard(options = {}) {
   if (realFetch) return;
   realFetch = globalThis.fetch;
   globalThis[INSTALLED] = true;
   const allowed = new Set(options.allowHosts ?? []);
+  const record = options.recordCalls !== false;
   globalThis.fetch = async function guardedFetch(input, init = {}) {
     const url = toUrl(input);
     if (LOOPBACK.has(url.hostname) || allowed.has(url.hostname)) {
@@ -56,7 +60,7 @@ export function installNetworkGuard(options = {}) {
     const request = new Request(input, init);
     const body = init.body == null ? null : typeof init.body === "string" ? init.body : await request.clone().text();
     const headers = Object.fromEntries(request.headers.entries());
-    externalCalls.push({ url: url.toString(), method: request.method, headers, body });
+    if (record) externalCalls.push({ url: url.toString(), method: request.method, headers, body });
 
     for (const stub of [...stubs].reverse()) {
       if (stub.match(url, init)) {

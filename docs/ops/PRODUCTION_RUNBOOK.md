@@ -188,7 +188,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–014)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–015)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -228,9 +228,11 @@ base64 above.)
 | --- | --- | --- | --- |
 | `INTERNAL_SERVICE_SECRET` | **required** | **required** | identical on both; ≥ 32 chars, random. Both services refuse to start without it |
 | `GEMINI_TIMEOUT_MS` | optional (30000) | — | a timed-out turn is released (not charged) |
-| `BILLING_RETRY_DELAYS_MS` | optional (`250,1000,3000`) | — | backoff for capture/release retries |
+| `BILLING_RETRY_DELAYS_MS` | optional (`250,1000,3000,8000,15000`) | — | backoff for capture/release retries: ≈ 27 s, so a turn is still charged after a ~30 s billing or database outage (R20; was `250,1000,3000`, ≈ 4 s). The answer waits for the capture, so an outage delays it by up to this much |
 | `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this. Keep it well above `GEMINI_TIMEOUT_MS` + the `BILLING_RETRY_DELAYS_MS` total, or slow successful turns go uncharged |
 | `AI_HOLD_SWEEP_INTERVAL_MS` | — | optional (300000) | in-process settling of expired reservations; `0` disables |
+| `WEBHOOK_STORE_TIMEOUT_MS` | — | optional (3000) | longest the webhook waits to store a delivery before answering 503 so Lemon retries (R19) |
+| `WEBHOOK_RETRY_INTERVAL_MS` | — | optional (60000) | in-process retry of stored webhook events that failed (up to 10 attempts); `0` disables (R19) |
 | `MIGRATION_DATABASE_URL` | — | optional | only for migration/reconcile jobs (direct URL) |
 | `FRONTEND_URL` | **must be exact** | (unchanged) | the public origin, scheme + host, no trailing slash (e.g. `https://moleculestudio.app`). Next.js now refuses **every** browser POST/PUT/PATCH/DELETE whose `Origin` differs (403 `CSRF_REJECTED`) — a wrong value blocks all sign-ins. `www.` and apex are different origins |
 | `CLIENT_IP_HEADER` | **strongly recommended** | — | the header **your platform** sets with the end-user IP (see below). Unset → all users share one rate-limit bucket; Next logs a startup warning |
@@ -288,7 +290,7 @@ production: every boot-time check of both services (SEC-08), `.env.example` plac
 `INTERNAL_SERVICE_SECRET` / `JWT_SECRET` / `FRONTEND_URL` / the Google client id differing between the two,
 `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value on the service (`true`, `1`, `yes`, `y`, `on`; unset / `false` /
 `0` / `no` / `off` pass), and `AI_HOLD_TTL_SECONDS` below **2 ×** the longest turn (`GEMINI_TIMEOUT_MS` + sum of `BILLING_RETRY_DELAYS_MS`
-+ capture attempts × `BILLING_CALL_TIMEOUT_MS`) — with the defaults 600 s against 2 × 74.25 s. Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
++ capture attempts × `BILLING_CALL_TIMEOUT_MS`) — with the defaults 600 s against 2 × 117.25 s (30 s + 27.25 s of retries + 6 attempts × 10 s; R20). Warnings (exit `0`): `HOST`, `CLIENT_IP_HEADER`, `GOOGLE_CLIENT_ID` unset.
 Delete the exported files afterwards.
 
 **Rollback 5:** remove the variables (old code ignores them).
@@ -408,8 +410,12 @@ In the Lemon dashboard → Settings → Webhooks:
   disputed order on your behalf, whether that also sends `order_refunded` is not documented — check the
   Lemon dashboard for disputes during the weekly review.
 - Use "Send test" (or the dashboard's simulate option, if offered) → expect `200 {"received":true}` and an Express log
-  `[Webhook] Acknowledged 200 OK`. Lemon retries a failed delivery up to three more times (documented example delays
-  5, 25, 125 s); the webhooks settings page lists deliveries and lets you resend them.
+  `[Webhook] Acknowledged 200 OK` with a `storedEventId`. Lemon counts only a `200` as received and retries anything
+  else up to three more times with exponential backoff ("e.g. 5 secs, 25 secs, 125 secs"), then stops; its docs state
+  no response timeout ([webhook requests](https://docs.lemonsqueezy.com/help/webhooks/webhook-requests)). Express
+  stores every verified delivery **before** answering `200` and answers `503` within ≈ 3 s when it cannot
+  (`[Webhook] NOT STORED`), so Lemon retries it (R19). The webhooks settings page lists deliveries and lets you
+  resend them.
 - If the URL pointed at the Next host until now, every purchase since then was rejected (401) and **not
   credited**: re-deliver those orders from Lemon's "Recent deliveries" after fixing the URL (fulfilment is
   idempotent per order).
@@ -456,15 +462,31 @@ Where to run them, which log lines to alert on and how long logs survive on each
   expired order is still credited and the row marked `completed`. Example cron:
   `15 * * * * psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"`.
   Checkouts that fail at Lemon are now marked `failed` immediately.
+- **Stored webhook events not processed** (same job, R19): `webhook_unprocessed` lists deliveries Express stored
+  and acknowledged (Lemon will not resend them) that were still not processed 15 minutes later — their credits may be
+  missing. Express retries them every minute (10 attempts) by itself; when they are listed, fix the cause shown in
+  `last_error`, then on the Express host (service folder, built, the service's own environment):
+
+  ```text
+  npm run webhooks:replay     # processes every stored event not done; exit 0 = none left failing, 2 = some still fail
+  ```
+
+  It is idempotent per order (`ls_order_<id>`) and safe to repeat. To look at one event:
+  `SELECT id, status, attempts, outcome, last_error FROM lemon_webhook_events WHERE provider_order_id = '<order id>';`.
+  Payloads (they hold the buyer's e-mail) are cleared 30 days after processing.
 - **Expired reservations** are settled by Express every 5 minutes. If you run several Express
   instances or disable the timer, schedule `SELECT release_expired_ai_holds();` instead (idempotent).
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–014 (only if they cause a problem)
+### 10.1 Migrations 008–015 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 015 (first run `npm run webhooks:replay` and check `db:reconcile`: unprocessed stored deliveries would be
+-- lost — Lemon got a 200 for them; export lemon_webhook_events if you need the history)
+DROP FUNCTION IF EXISTS webhook_events_to_review(INTERVAL);
+DROP TABLE IF EXISTS lemon_webhook_events;
 -- 014 (indexes only; the caps are code — roll the code back too, or they just get slower)
 DROP INDEX IF EXISTS idx_ai_credit_holds_user_created;
 DROP INDEX IF EXISTS idx_ai_credit_holds_created;
@@ -493,12 +515,12 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
-                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql');
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql');
 COMMIT;
 ```
 
 The new `post_credit_transaction()` body (sets a transaction-local flag) is harmless without the guard;
-no need to revert it. Rolling back 009 requires the old code (§10.3) — the new code needs the table.
+no need to revert it. Rolling back 009 or 015 requires the old code (§10.3) — the new code needs the tables.
 
 ### 10.2 Baseline only
 

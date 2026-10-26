@@ -4,7 +4,8 @@ import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isAiOperationType, costForOperation, AI_OPERATION_COSTS } from "../../src/config/aiOperations.js";
 import { resolveCreditPackage, CREDIT_PACKAGES } from "../../src/config/packages.js";
-import { lemonVariantForPackage } from "../../src/config/env.js";
+import { env, lemonVariantForPackage } from "../../src/config/env.js";
+import { isDatabaseUnavailableError } from "../../src/db/unavailable.js";
 import {
   packageIdForLemonVariant,
   parseLemonSqueezyEvent,
@@ -253,10 +254,87 @@ describe("errorHandler mapping", () => {
     expect(res.body.success).not.toBe(true);
   });
 
+  // PERF-29 / R18: "the database cannot serve this now" is a 503 with Retry-After, not a 500.
+  const unavailable: Array<[string, unknown]> = [
+    ["pool saturated / connect timeout (pg-pool)", new Error("timeout exceeded when trying to connect")],
+    ["connect timeout (pg client)", new Error("Connection terminated due to connection timeout")],
+    ["connection lost", new Error("Connection terminated unexpectedly")],
+    ["refused while connecting", Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED", syscall: "connect" })],
+    ["host not resolvable", Object.assign(new Error("getaddrinfo ENOTFOUND db"), { code: "ENOTFOUND", syscall: "getaddrinfo" })],
+    ["57P03 cannot_connect_now (resuming compute)", Object.assign(new Error("the database system is starting up"), { code: "57P03", severity: "FATAL" })],
+    ["53300 too_many_connections", Object.assign(new Error("sorry, too many clients already"), { code: "53300", severity: "FATAL" })],
+    ["08006 connection_failure", Object.assign(new Error("connection failure"), { code: "08006", severity: "FATAL" })],
+  ];
+  it.each(unavailable)("%s → 503 DATABASE_UNAVAILABLE with Retry-After", async (_label, err) => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const res = await request(appThrowing(err)).get("/boom");
+    expect(res.status).toBe(503);
+    expect(res.headers["retry-after"]).toBe("5");
+    expect(res.body).toEqual({ success: false, error: "Database is temporarily unavailable.", code: "DATABASE_UNAVAILABLE" });
+  });
+
+  const notUnavailable: Array<[string, unknown, number]> = [
+    ["a socket reset outside connect (not from pg)", Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }), 500],
+    ["a failed fetch to another service", Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } }), 500],
+    ["an errno-looking code without a pg severity", Object.assign(new Error("x"), { code: "57P03" }), 500],
+    ["a query error (syntax)", Object.assign(new Error("syntax error"), { code: "42601", severity: "ERROR" }), 500],
+    ["insufficient credits (P0001)", Object.assign(new Error("insufficient credits"), { code: "P0001", severity: "ERROR" }), 402],
+    ["unique violation", Object.assign(new Error("duplicate key"), { code: "23505", severity: "ERROR" }), 409],
+  ];
+  it.each(notUnavailable)("%s keeps its status (%s)", async (_label, err, status) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const res = await request(appThrowing(err)).get("/boom");
+    expect(res.status).toBe(status);
+    expect(res.headers["retry-after"]).toBeUndefined();
+  });
+
   it("unknown routes → 404 JSON", async () => {
     const res = await request(appThrowing(new Error("x"))).get("/nope");
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ success: false, error: "Route not found." });
+  });
+});
+
+describe("background timers and the webhook store deadline (env)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ["aiHoldSweepIntervalMs", "AI_HOLD_SWEEP_INTERVAL_MS", 300_000],
+    ["webhookRetryIntervalMs", "WEBHOOK_RETRY_INTERVAL_MS", 60_000],
+  ] as const)("%s: default when unset or invalid, 0 disables, an integer is taken as is", (getter, name, fallback) => {
+    for (const [value, expected] of [
+      ["", fallback],
+      ["abc", fallback],
+      ["-1", fallback],
+      ["1.5", fallback],
+      ["0", 0],
+      ["15000", 15_000],
+    ] as const) {
+      vi.stubEnv(name, value);
+      expect(env[getter]).toBe(expected);
+    }
+  });
+
+  it("webhookStoreTimeoutMs: 3 s by default; only a positive integer overrides it (0 cannot remove the deadline)", () => {
+    for (const [value, expected] of [
+      ["", 3_000],
+      ["0", 3_000],
+      ["-5", 3_000],
+      ["x", 3_000],
+      ["1500", 1_500],
+    ] as const) {
+      vi.stubEnv("WEBHOOK_STORE_TIMEOUT_MS", value);
+      expect(env.webhookStoreTimeoutMs).toBe(expected);
+    }
+  });
+
+  it("isDatabaseUnavailableError: anything that is not an error object is not a database outage", () => {
+    for (const value of [null, undefined, "timeout exceeded when trying to connect", 42]) {
+      expect(isDatabaseUnavailableError(value)).toBe(false);
+    }
   });
 });
 

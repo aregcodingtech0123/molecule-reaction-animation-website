@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "db:migrate:baseline": "node scripts/migrate.mjs --baseline",
-    "db:reconcile": "node scripts/reconcile.mjs"
+    "db:reconcile": "node scripts/reconcile.mjs",
+    "webhooks:replay": "node dist/scripts/replayWebhooks.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -74,10 +74,10 @@ describe("checkConfig", () => {
   });
 
   it(`hold TTL must be ≥ ${TTL_MARGIN}× (GEMINI_TIMEOUT_MS + Σ BILLING_RETRY_DELAYS_MS + attempts × BILLING_CALL_TIMEOUT_MS)`, () => {
-    // Defaults: 30 000 + (250 + 1 000 + 3 000) + 4 × 10 000 = 74 250 ms → at least 148.5 s.
-    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "149" }), webEnv())).toMatchObject({ problems: [], turnMs: 74_250 });
-    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "148" }), webEnv()).problems).toEqual([
-      expect.stringMatching(/AI_HOLD_TTL_SECONDS \(148 s\) must be at least 2× .*74\.25 s → ≥ 149 s/),
+    // Defaults (R20): 30 000 + (250 + 1 000 + 3 000 + 8 000 + 15 000) + 6 × 10 000 = 117 250 ms → at least 234.5 s.
+    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "235" }), webEnv())).toMatchObject({ problems: [], turnMs: 117_250 });
+    expect(checkConfig(serviceEnv({ AI_HOLD_TTL_SECONDS: "234" }), webEnv()).problems).toEqual([
+      expect.stringMatching(/AI_HOLD_TTL_SECONDS \(234 s\) must be at least 2× .*117\.25 s → ≥ 235 s/),
     ]);
     // Values the operator sets on the web side count too: 300 s + 2 s + 3 × 5 s = 317 s → ≥ 634 s.
     const slow = webEnv({ GEMINI_TIMEOUT_MS: "300000", BILLING_RETRY_DELAYS_MS: "1000,1000", BILLING_CALL_TIMEOUT_MS: "5000" });

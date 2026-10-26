@@ -15,13 +15,14 @@ servers run behind the same fail-closed network guard as the E2E suite.
 | Preload | `scripts/perf/preload.mjs` | Loaded into both servers: network guard (`scripts/test/network-guard.mjs`); Gemini **redirected to the mock** by rewriting the URL only, so the caller's `init` and abort signal are untouched (`lib/gemini-redirect.mjs`, PERF-21); `PERF_FORCE_GC_MS` forces GCs for PERF-21 checks only; Lemon checkout and Resend stubbed; optional instrumentation (below) |
 | Mock Gemini | `scripts/perf/mock-gemini.mjs` | Gemini REST shape; latency `fixed` / `uniform` / `lognormal(median, p95)`; failure rate and mode `500`/`503`/`hang`/`empty`/`reset`; seeded RNG; reconfigured at runtime (`POST /__config`) |
 | Seed | `scripts/perf/seed.mjs` | Recreates the DB with the production migration runner, then a deterministic dataset in SQL (below); checks `ledger_reconciliation()` is empty |
-| Load driver | `scripts/perf/lib/load.mjs` | Dependency-free closed-loop HTTP driver: N virtual users on keep-alive sockets, warm-up discarded, latency to the end of the body |
-| Scenarios | `scripts/perf/scenarios/*.mjs` | Part 0: `smoke`, `balance`, `history`, `chat`. Part 1: `gemini-timeout` (PERF-21), `metering` (reserve→capture on Express, one user / many users, DB sampler), `caps` (daily-cap boundary with production caps), `dbfaults` (DB latency, pool saturation via a harness-only `pg_sleep` trigger, cold start, DB down), `login` (bcrypt), `soak` (10-min mixed), `crosscheck` (in-repo driver vs autocannon) |
+| Load driver | `scripts/perf/lib/load.mjs` | Dependency-free HTTP driver. Closed loop: N virtual users on keep-alive sockets, warm-up discarded, latency to the end of the body. **Open loop** (`runOpenLoop`, Part 3): arrivals at a fixed rate whatever the server does, latency from each arrival's *scheduled* time (no coordinated omission), an in-flight cap that records `dropped` arrivals instead of queueing them in the client, optional chained follow-up request (reserve → capture) and per-request callback |
+| Scenarios | `scripts/perf/scenarios/*.mjs` | Part 0: `smoke`, `balance`, `history`, `chat`. Part 1: `gemini-timeout` (PERF-21), `metering` (reserve→capture on Express, one user / many users, DB sampler), `caps` (daily-cap boundary with production caps), `dbfaults` (DB latency, pool saturation via a harness-only `pg_sleep` trigger, cold start, DB down), `login` (bcrypt), `soak` (10-min mixed), `crosscheck` (in-repo driver vs autocannon). Part 3: `ramp` (mixed traffic at rising fixed rates until it breaks, one step beyond, then a recovery step at the last good rate; `PERF_RAMP_TARGET=api` drives Express directly), `soakmix` (15 min mixed at a fixed rate, per-minute drift, integrity checks after), `faults` (failure injection under load, then integrity checks) |
+| Mixed traffic (Part 3) | `scripts/perf/lib/mixed.mjs`, `lib/window.mjs`, `lib/integrity.mjs` | Per 100 arrivals, interleaved: 35 anonymous pages, 25 balance, 10 history, 10 chat turns, 8 logins, 6 checkouts (Lemon mocked), 6 signed `order_created` webhooks straight to Express; a client IP per arrival, users rotating over the seed. Target `api`: the same calls the BFF makes, straight to Express (no pages). Process windows (ELU, lag, RSS / heap, open handles, sockets) from the per-second samples. Integrity: reservations by status and held past expiry, CAPTURE_FAILED lines in both logs, and the real `db:reconcile` run against the perf DB only (`MOLECULESTUDIO_SKIP_DOTENV=1` + the dotenv stub) |
 | DB tools | `scripts/perf/explain.mjs`, `lib/db-sampler.mjs`, `lib/tcp-proxy.mjs` | `EXPLAIN (ANALYZE, BUFFERS)` of every hot query (writes rolled back; function internals via session-only `auto_explain`); backend/lock sampler; a 127.0.0.1-only TCP proxy in its own process (precise latency, suspend/resume, down) |
 | Frontend (Part 2) | `scripts/perf/lib/browser.mjs`; scenarios `webvitals`, `lighthouse`, `runtime` | Guarded Chromium: `--host-resolver-rules` lets nothing but localhost resolve (also in the Chrome Lighthouse launches). Lighthouse-like profiles: mobile = 412×823 @1.75, 4× CPU, 150 ms RTT, 1.6 Mbps; desktop = 1350×940, 40 ms, 10 Mbps (CDP throttling). In-page LCP (+ element), CLS (+ sources), Event Timing (INP proxy from scripted, non-navigating interactions), long tasks (TBT proxy), first WebGL draw, bytes by type. WebGL on the real GPU (`--use-angle=d3d11`) or SwiftShader (low-end proxy). `runtime` steps (`PERF_RT_STEPS`): 1 frame time, 2 navigation leak, 3 reduced motion, 4 React commits, 5 balance polling, 6 long AI answer, 7 ledger table, 8 cache headers / TTFB, 9 heap-snapshot diff, 10 leak per page pair, 11 retainer paths, 12 locale switching |
 | Bundles (Part 2) | `scripts/perf/bundle-report.mjs`, `bundle-budget.mjs` + `bundle-budget.json`, `npm run perf:bundle-budget` | Per-route composition from Next's own analyzer (`next analyze --output` / `export`, in `.next-analyze`): compressed client JS loaded up front (initial chunk groups), async chunks separately, grouped by package. The budget check runs in CI (web job): per-route ceilings, no three.js on non-3D routes, no markdown / KaTeX renderer and no non-English locale content in initial loads |
 | CPU profile | `PERF_CPU_PROF=api\|web` + `PERF_CPU_PROF_AFTER_MS` / `_FOR_MS`, `scripts/perf/cpu-top.mjs` | inspector profile of one server over a window (the preload writes it; servers are killed, so `--cpu-prof` would never flush); self time per function and package |
-| Tests | `tests/api/perf-harness.test.ts` | Statistics, seeded randomness (lognormal hits its median/p95), argument parsing, the DB guard, mock failure modes |
+| Tests | `tests/api/perf-harness.test.ts` | Statistics, seeded randomness (lognormal hits its median/p95), argument parsing, the DB guard, mock failure modes, network-guard enforcement, bundle budget; Part 3: mix weights and webhook signatures, the Express-direct mix, the open-loop driver (schedule kept under a slow server, chaining, drops), the ramp's break rule, process windows |
 
 **Network guard is mandatory (enforced since the Part 1 incident).** The runner installs and verifies it in its
 own process; each server's preload announces it on stderr and the stack refuses to measure a server whose log lacks
@@ -82,7 +83,15 @@ node scripts/perf/run.mjs chat --gemini fixed:200 --gemini-failure 0.1:hang
 Scenario switches (environment): `PERF_CHAT_HOPLOG=0` (chat without the hop log), `PERF_CHAT_FORCE_GC_MS`,
 `PERF_CHAT_GEMINI_TIMEOUT_MS`, `PERF_DB_PROXY_LATENCY_MS` (chat through the DB proxy with that delay per direction),
 `PERF_REPRO_TIMEOUT_MS` / `PERF_REPRO_FORCE_GC_MS` (gemini-timeout), `PERF_UV_THREADPOOL_SIZE` (login),
-`PERF_LOG_VIA=pipe` (server output through a pipe instead of a file).
+`PERF_LOG_VIA=pipe` (server output through a pipe instead of a file). Part 3: `PERF_RAMP_STEPS=25,50,…` (req/s),
+`PERF_RAMP_TARGET=api`, `PERF_SOAK_RATE` (req/s, default 100), `PERF_FAULT_RATE` (req/s, default 100).
+
+```bash
+node scripts/perf/run.mjs ramp --runs 1                                   # BFF, 30 s per step
+PERF_RAMP_TARGET=api PERF_RAMP_STEPS=200,400,600,800,1000 node scripts/perf/run.mjs ramp --runs 1
+PERF_SOAK_RATE=200 node scripts/perf/run.mjs soakmix --runs 1             # 15 min + integrity checks
+PERF_FAULT_RATE=100 node scripts/perf/run.mjs faults --runs 1             # ~8 min + settle (≤ 5 min)
+```
 
 Timing precision on Windows: timers fire in ~15.6 ms steps, so every harness delay below 20 ms (mock Gemini,
 DB proxy) uses a precise scheduler (coarse timer, then `setImmediate` polling); see PERFORMANCE_FINDINGS § Part 1.
@@ -105,8 +114,8 @@ median with its spread (min, max, (max−min)/median), per-hop summaries, and pr
   database share these 16 threads: at high concurrency they compete for CPU, which the process figures show.
 * **Local is a lower bound for network cost.** Locally Next → Express and Express → PostgreSQL are loopback
   (sub-millisecond). In the planned hosting, every Next → Express call crosses the internet (Vercel → Render) and
-  every query crosses Render → Neon. A chat turn makes **3** sequential Next → Express calls and **24**
-  sequential DB round trips (`/auth/me` 3, `/consume` 10, `/capture` 11 — PERF-01); a balance read makes 1 and 3. Local numbers must be scaled by these
+  every query crosses Render → Neon. A chat turn makes **2** sequential Next → Express calls and **21**
+  sequential DB round trips (`/consume` 10, `/capture` 11; before PERF-01 also `/auth/me`: 3 calls, 24 round trips); a balance read makes 1 and 3. Local numbers must be scaled by these
   counts × the real RTT, which is a staging measurement.
 * **Closed loop:** a stalled virtual user stops sending, so tails are under-reported under stalls (coordinated
   omission). Parts 1–2 use it for cost per request; Part 3 adds an open-loop (fixed arrival rate) mode.

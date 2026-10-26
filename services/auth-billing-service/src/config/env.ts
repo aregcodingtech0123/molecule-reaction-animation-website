@@ -101,6 +101,22 @@ export const env = {
     return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 300_000;
   },
 
+  // ── Lemon Squeezy webhook inbox (R19) ─────────────────────────────────────
+  /**
+   * Longest the webhook waits to store a delivery before answering 503 (Lemon then retries it after 5 s,
+   * 25 s, 125 s). Keeps a slow or resuming database from holding Lemon's request open.
+   */
+  get webhookStoreTimeoutMs() {
+    const v = Number(readEnv("WEBHOOK_STORE_TIMEOUT_MS"));
+    return Number.isInteger(v) && v > 0 ? v : 3_000;
+  },
+  /** How often stored events that failed (or never ran) are processed again. 0 disables the timer. */
+  get webhookRetryIntervalMs() {
+    const raw = readEnv("WEBHOOK_RETRY_INTERVAL_MS");
+    const v = Number(raw);
+    return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 60_000;
+  },
+
   // ── Email (Resend) ────────────────────────────────────────────────────────
   get resendApiKey() {
     return readEnv("RESEND_API_KEY");

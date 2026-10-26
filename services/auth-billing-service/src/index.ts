@@ -5,6 +5,7 @@ import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index
 import { weakSecretReason } from "./config/secretStrength.js";
 import { productionConfigProblems } from "./config/productionConfig.js";
 import { releaseExpiredHolds } from "./services/aiCredits.service.js";
+import { clearOldWebhookPayloads, retryStoredWebhookEvents } from "./services/webhookInbox.service.js";
 
 const PORT = env.port;
 
@@ -51,6 +52,37 @@ function startExpiredHoldSweeper(): void {
         if (n > 0) console.warn(`[credits] Settled ${n} expired AI reservation(s) as not charged (see db:reconcile).`);
       })
       .catch((err) => console.error("[credits] Expired-hold sweep failed:", err instanceof Error ? err.message : err));
+  }, intervalMs);
+  timer.unref();
+}
+
+/**
+ * Periodically process stored Lemon webhook events that failed or were never picked up (R19), and clear
+ * the payload of events processed more than 30 days ago.
+ */
+function startWebhookRetryWorker(): void {
+  const intervalMs = env.webhookRetryIntervalMs;
+  if (intervalMs <= 0) return;
+  let running = false;
+  const timer = setInterval(() => {
+    if (running) return;
+    // After an outage nothing else may probe the database on a quiet site: do it here (single-flight).
+    if (!isDatabaseReady()) {
+      void verifyDatabaseConnection();
+      return;
+    }
+    running = true;
+    void retryStoredWebhookEvents()
+      .then(async (r) => {
+        if (r.processed + r.failed > 0) {
+          console.warn(`[Webhook] Retried stored events: ${r.processed} processed, ${r.failed} still failing (see db:reconcile).`);
+        }
+        await clearOldWebhookPayloads();
+      })
+      .catch((err) => console.error("[Webhook] Stored-event retry failed:", err instanceof Error ? err.message : err))
+      .finally(() => {
+        running = false;
+      });
   }, intervalMs);
   timer.unref();
 }
@@ -114,6 +146,7 @@ async function bootstrap(): Promise<void> {
         "[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/lemonsqueezy",
       );
       startExpiredHoldSweeper();
+      startWebhookRetryWorker();
       resolve();
     });
 

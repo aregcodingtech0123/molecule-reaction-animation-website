@@ -24,7 +24,7 @@ import { assertFreshBuild, buildAll, configureMock, startStack } from "./stack.m
 import { installNetworkGuard } from "../test/network-guard.mjs";
 import { assertNetworkGuard } from "./lib/guard.mjs";
 
-export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck", "webvitals", "lighthouse", "runtime"];
+export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck", "webvitals", "lighthouse", "runtime", "ramp", "soakmix", "faults"];
 
 export function parseRunArgs(argv) {
   const [scenario, ...rest] = argv;
@@ -224,6 +224,10 @@ async function main() {
       runDir,
       /** The BFF's credential for Express's internal metering routes (this run's random secret). */
       internalKey: secrets.internal,
+      /** This run's Lemon webhook signing secret (signed webhook bursts, Part 3). */
+      webhookSecret: secrets.webhook,
+      /** Instrumentation files of this stack (proc logs, hop log), for scenarios that summarise windows. */
+      stackFiles: stack.files,
       extras: prepared.extras ?? {},
       configureMock,
       note: (text) => result.notes.push(text),

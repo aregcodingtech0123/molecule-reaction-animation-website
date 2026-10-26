@@ -1,15 +1,15 @@
 /**
- * Webhook stages 1 (signature gate) and 2 (fast acknowledge).
+ * Webhook stages 1 (signature gate) and 2 (store, then acknowledge — R19).
  * Stage 3 (fulfilment) lives in webhook.fulfilment.test.ts.
  */
 import pg from "pg";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/app.js";
 import { closePool } from "../../src/db/index.js";
 import { spyConsole, type ConsoleSpies } from "../support/console";
 import { createTestPool, createUser, waitFor } from "../support/db";
-import { orderCreatedEvent, sign, signedBody } from "../support/lemon";
+import { newOrderId, orderCreatedEvent, sign, signedBody } from "../support/lemon";
 import { spyOnPostgres } from "../support/pg-spy";
 
 const WEBHOOK = "/api/billing/webhooks/lemonsqueezy";
@@ -68,9 +68,12 @@ describe("stage 1 — signature gate (no database I/O on rejection)", () => {
 
     // Signed compact, sent pretty: semantically equal JSON, different bytes.
     expect((await post(pretty, sign(compact))).status).toBe(401);
+    expect(pgSpy.total()).toBe(0);
     // Signed pretty, sent pretty: accepted — proves the digest is over raw bytes, not a re-serialisation.
     expect((await post(pretty, sign(pretty))).status).toBe(200);
-    expect(pgSpy.poolQuery).not.toHaveBeenCalled();
+    // Accepted deliveries are stored, then processed in the background (R19): let that finish so its
+    // queries are not counted by the next test.
+    await waitFor(async () => (await db.query(`SELECT status FROM lemon_webhook_events WHERE payload = $1`, [pretty])).rows[0]?.status === "processed");
   });
 
   it("non-JSON content type → 400 (raw body not captured) and zero DB calls", async () => {
@@ -134,7 +137,11 @@ describe("stage 1 — signature gate (no database I/O on rejection)", () => {
   });
 });
 
-describe("stage 2 — acknowledge before any database work", () => {
+describe("stage 2 — store the delivery, then acknowledge (R19)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns exactly 200 {received:true} for a valid signature", async () => {
     const { raw, signature } = signedBody(orderCreatedEvent({ eventName: "order_refunded" }));
     const res = await post(raw, signature);
@@ -142,15 +149,23 @@ describe("stage 2 — acknowledge before any database work", () => {
     expect(res.body).toEqual({ received: true });
   });
 
-  it("responds promptly while the database is stalled, and only then starts fulfilment", async () => {
-    // Every pool query hangs until released: if the handler awaited the DB before
-    // responding, this request would time out.
+  it("the 200 is sent only after the delivery is stored", async () => {
+    const orderId = newOrderId();
+    const { raw, signature } = signedBody(orderCreatedEvent({ orderId, eventName: "subscription_created" }));
+    const res = await post(raw, signature);
+    expect(res.status).toBe(200);
+    // Already in the inbox at the moment the response arrived (no waiting).
+    const { rows } = await db.query(`SELECT event_name, payload FROM lemon_webhook_events WHERE provider_order_id = $1`, [orderId]);
+    expect(rows).toEqual([{ event_name: "subscription_created", payload: raw }]);
+  });
+
+  it("a stalled database: 503 within WEBHOOK_STORE_TIMEOUT_MS (never held open), Lemon's retry after recovery is credited once", async () => {
+    vi.stubEnv("WEBHOOK_STORE_TIMEOUT_MS", "300");
+    // Every pool query hangs until released.
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
-    const order: string[] = [];
     const realQuery = pg.Pool.prototype.query;
     vi.spyOn(pg.Pool.prototype, "query").mockImplementation(function (this: pg.Pool, ...args: unknown[]) {
-      order.push("db-query");
       return gate.then(() => (realQuery as (...a: unknown[]) => unknown).apply(this, args)) as never;
     });
 
@@ -164,30 +179,35 @@ describe("stage 2 — acknowledge before any database work", () => {
         await c.end();
       }
     })();
-
+    const orderId = newOrderId();
     const { raw, signature } = signedBody(
-      orderCreatedEvent({ customData: { user_id: user.id, package_id: "starter" }, email: user.email }),
+      orderCreatedEvent({ orderId, customData: { user_id: user.id, package_id: "starter" }, email: user.email }),
     );
 
+    const started = Date.now();
     const res = await post(raw, signature).timeout({ response: 1_500 });
-    order.push("http-response");
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: "Webhook temporarily unavailable" });
+    expect(res.headers["retry-after"]).toBe("5");
+    expect(Date.now() - started).toBeLessThan(1_200);
+    expect(logs.lines().some((l) => l.includes("[Webhook] NOT STORED — answered 503 so Lemon retries the delivery"))).toBe(true);
+    expect(logs.lines().some((l) => l.includes("[Webhook] Acknowledged 200 OK"))).toBe(false);
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ received: true });
-
-    // Fulfilment did start (in the background) — and is still blocked on the DB.
-    await waitFor(async () => order.includes("db-query"));
-    const ackIndex = logs.lines().findIndex((l) => l.includes("[Webhook] Acknowledged 200 OK"));
-    expect(ackIndex).toBeGreaterThanOrEqual(0);
-
+    // The database recovers (the stalled INSERT may now land); Lemon retries the identical delivery.
     release();
-    await logs.waitForLine("[Webhook] Credited user");
     vi.mocked(pg.Pool.prototype.query).mockRestore();
+    const retry = await post(raw, signature);
+    expect(retry.status).toBe(200);
+    await logs.waitForLine(new RegExp(`Credited user .*"orderId":"${orderId}"`));
+    await waitFor(async () => {
+      const { rows } = await db.query(`SELECT status FROM lemon_webhook_events WHERE provider_order_id = $1`, [orderId]);
+      return rows.length === 1 && rows[0].status === "processed";
+    });
     const { rows } = await db.query(`SELECT balance FROM user_balances WHERE user_id = $1`, [user.id]);
     expect(rows[0].balance).toBe(50);
   });
 
-  it("acknowledges even when the database is down; the failure is logged as [Webhook] FAILED and the process survives", async () => {
+  it("the database is down: 503 (not acknowledged, so Lemon retries), logged as NOT STORED, the process survives", async () => {
     vi.spyOn(pg.Pool.prototype, "query").mockImplementation((() =>
       Promise.reject(Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" }))) as never);
     const unhandled = vi.fn();
@@ -197,9 +217,9 @@ describe("stage 2 — acknowledge before any database work", () => {
         orderCreatedEvent({ customData: { user_id: "6f1c1c3e-1111-4a4a-8b8b-000000000001", package_id: "starter" } }),
       );
       const res = await post(raw, signature);
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(503);
 
-      const line = await logs.waitForLine("[Webhook] FAILED background credit allocation");
+      const line = await logs.waitForLine("[Webhook] NOT STORED");
       expect(line).toContain("ECONNREFUSED");
       expect(unhandled).not.toHaveBeenCalled();
     } finally {

@@ -1,8 +1,10 @@
 /**
- * Read-only ledger reconciliation report (FINDING-05, FINDING-22, SEC-14).
- * Prints every row of ledger_reconciliation() and every refunded Lemon order whose
+ * Read-only ledger reconciliation report (FINDING-05, FINDING-22, SEC-14, R19).
+ * Prints every row of ledger_reconciliation(), every refunded Lemon order whose
  * credits are still in the ledger and not reviewed yet (refunded_orders_to_review(),
- * migration 013); exit code 2 when either lists anything, so it can gate a cron/CI job.
+ * migration 013), and every stored webhook event not processed after 15 minutes
+ * (webhook_events_to_review(), migration 015); exit code 2 when any lists anything,
+ * so it can gate a cron/CI job.
  *
  * Usage: node scripts/reconcile.mjs
  */
@@ -44,6 +46,26 @@ try {
           "Credits are never clawed back automatically; review each, then set lemon_order_refunds.reviewed_at.",
       );
       console.table(refunds);
+      process.exitCode = 2;
+    }
+  }
+
+  // R19 (migration 015): stored webhook deliveries not processed 15 minutes after they arrived. Lemon got
+  // a 200 for each, so it will not resend them: their credits may be missing until they are processed.
+  const { rows: inbox } = await client.query(`SELECT to_regprocedure('webhook_events_to_review(interval)') IS NOT NULL AS present`);
+  if (inbox[0].present) {
+    const { rows: events } = await client.query(
+      `SELECT id::text, event_name, provider_order_id, status, attempts, last_error, received_at::text
+       FROM webhook_events_to_review()`,
+    );
+    if (events.length === 0) {
+      console.log("[reconcile] OK — every stored Lemon webhook event is processed.");
+    } else {
+      console.log(
+        `[reconcile] ${events.length} stored Lemon webhook event(s) not processed (webhook_unprocessed). ` +
+          "Fix the cause (last_error), then run `npm run webhooks:replay`.",
+      );
+      console.table(events);
       process.exitCode = 2;
     }
   }

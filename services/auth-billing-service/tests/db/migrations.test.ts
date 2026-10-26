@@ -59,6 +59,7 @@ describe("migrations 001→007 on an empty database", () => {
       "012_function_search_path.sql",
       "013_lemon_order_refunds.sql",
       "014_ai_daily_caps.sql",
+      "015_lemon_webhook_inbox.sql",
     ]);
   });
 
@@ -74,6 +75,7 @@ describe("migrations 001→007 on an empty database", () => {
       "ai_credit_holds",
       "credit_ledger_transactions",
       "lemon_order_refunds",
+      "lemon_webhook_events",
       "oauth_accounts",
       "password_reset_tokens",
       "pending_checkout_orders",
