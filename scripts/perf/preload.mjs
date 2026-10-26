@@ -22,11 +22,18 @@ import http from "node:http";
 import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import { installNetworkGuard, jsonResponse, stubExternal } from "../test/network-guard.mjs";
 import { GEMINI_HOST, geminiRedirect } from "./lib/gemini-redirect.mjs";
+import { GUARD_MARKER, assertNetworkGuard } from "./lib/guard.mjs";
 
 // Build only (`next build` self-hosts next/font files): the same two font hosts E2E allows. Never at runtime.
 installNetworkGuard(
   process.env.PERF_ALLOW_FONT_HOSTS === "1" ? { allowHosts: ["fonts.googleapis.com", "fonts.gstatic.com"] } : {},
 );
+
+assertNetworkGuard("a perf server");
+// The stack refuses to measure a server whose log does not show this line (lib/guard.mjs). stderr, not stdout:
+// child processes inherit NODE_OPTIONS, and `next build` parses the stdout of one of them (tsc --showConfig).
+process.stderr.write(`${GUARD_MARKER}
+`);
 
 globalThis.fetch = geminiRedirect(globalThis.fetch, process.env.PERF_GEMINI_ORIGIN);
 

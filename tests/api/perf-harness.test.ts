@@ -9,6 +9,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { GEMINI_HOST, geminiRedirect } from "../../scripts/perf/lib/gemini-redirect.mjs";
+import { GUARD_MARKER, assertNetworkGuard, assertServerGuarded } from "../../scripts/perf/lib/guard.mjs";
 import { acrossRuns, percentile, summarize } from "../../scripts/perf/lib/stats.mjs";
 import { latencySampler, seededRandom } from "../../scripts/perf/lib/random.mjs";
 import { clientIp, rotatingUser } from "../../scripts/perf/lib/requests.mjs";
@@ -187,5 +188,34 @@ describe("Gemini redirect (PERF-21)", () => {
     expect(out.name).toBe("AbortError");
     expect(out.ms).toBeGreaterThanOrEqual(1400);
     expect(out.ms).toBeLessThan(5000);
+  });
+});
+
+describe("network guard enforcement (Part 1 incident: no harness run without the guard)", () => {
+  const root = path.resolve(__dirname, "../..");
+  const bareEnv = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot } as unknown as NodeJS.ProcessEnv;
+  const node = (args: string[]) => spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", timeout: 30_000, env: bareEnv });
+
+  it("in this (guarded) test process the check passes", () => {
+    expect(() => assertNetworkGuard("a test")).not.toThrow();
+  });
+
+  it("a bare `node experiment.mjs` using the in-process mock is refused before anything runs", () => {
+    const res = node([path.join(root, "tests/support/perf-isolate-probe.mjs")]);
+    const out = JSON.parse(res.stdout.trim().split(/\r?\n/).at(-1) ?? "{}") as { mock?: string; external?: string };
+    expect(out.mock).toMatch(/refusing to run createMockGemini\(\) in-process without the network guard/);
+  });
+
+  it("through scripts/perf/isolate.mjs the mock is allowed and the real Gemini host is still blocked", () => {
+    const res = node([path.join(root, "scripts/perf/isolate.mjs"), "tests/support/perf-isolate-probe.mjs"]);
+    expect(JSON.parse(res.stdout.trim().split(/\r?\n/).at(-1) ?? "{}"), res.stderr).toEqual({ mock: "ok", external: "BlockedNetworkError" });
+  });
+
+  it("the perf preload announces the guard; a server log without that line is refused", () => {
+    const res = node(["--import", pathToFileURL(path.join(root, "scripts/perf/preload.mjs")).href, "-e", "0"]);
+    expect(res.stderr).toContain(GUARD_MARKER);
+    expect(res.stdout).not.toContain(GUARD_MARKER); // stdout stays clean for tools that parse it
+    expect(() => assertServerGuarded(`boot\n${GUARD_MARKER}\nready`, "api")).not.toThrow();
+    expect(() => assertServerGuarded("boot\nready", "web")).toThrow(/web server started without the network guard/);
   });
 });

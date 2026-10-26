@@ -16,6 +16,7 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
 import { latencySampler, seededRandom } from "./lib/random.mjs";
+import { assertNetworkGuard } from "./lib/guard.mjs";
 
 /** Sleep with sub-millisecond precision: a coarse timer until ~20 ms before, then setImmediate polling. */
 export function preciseSleep(ms) {
@@ -33,7 +34,13 @@ export function preciseSleep(ms) {
 
 const DEFAULTS = { latency: { kind: "fixed", ms: 0 }, failureRate: 0, failureMode: "500", answerChars: 600, seed: 1 };
 
-export function createMockGemini() {
+/**
+ * @param {{ standalone?: boolean }} [options] `standalone` only for this file's own process (the stack's mock
+ *   server, which makes no outbound calls). In-process use — an experiment next to the Gemini SDK — requires the
+ *   network guard (PERF incident, Part 1).
+ */
+export function createMockGemini(options = {}) {
+  if (!options.standalone) assertNetworkGuard("createMockGemini() in-process");
   let config = { ...DEFAULTS };
   let rand = seededRandom(config.seed);
   let failRand = seededRandom(config.seed ^ 0x9e3779b9);
@@ -127,6 +134,6 @@ export function createMockGemini() {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const i = process.argv.indexOf("--port");
   const port = Number(i > 0 ? process.argv[i + 1] : process.env.PERF_GEMINI_PORT || 4290);
-  const { server } = createMockGemini();
+  const { server } = createMockGemini({ standalone: true });
   server.listen(port, "127.0.0.1", () => console.log(`[mock-gemini] listening on 127.0.0.1:${port}`));
 }

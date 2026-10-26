@@ -21,6 +21,13 @@ servers run behind the same fail-closed network guard as the E2E suite.
 | CPU profile | `PERF_CPU_PROF=api\|web` + `PERF_CPU_PROF_AFTER_MS` / `_FOR_MS`, `scripts/perf/cpu-top.mjs` | inspector profile of one server over a window (the preload writes it; servers are killed, so `--cpu-prof` would never flush); self time per function and package |
 | Tests | `tests/api/perf-harness.test.ts` | Statistics, seeded randomness (lognormal hits its median/p95), argument parsing, the DB guard, mock failure modes |
 
+**Network guard is mandatory (enforced since the Part 1 incident).** The runner installs and verifies it in its
+own process; each server's preload announces it on stderr and the stack refuses to measure a server whose log lacks
+`[perf-preload] network guard active`; `createMockGemini()` refuses to run in a process without it. Ad-hoc
+experiments ("isolation runs") go through `node scripts/perf/isolate.mjs <experiment.mjs>`, which installs the guard
+(and the Gemini redirect when `PERF_GEMINI_ORIGIN` is set) before importing the experiment — never a bare
+`node experiment.mjs`. (`scripts/perf/lib/guard.mjs`, tested in `tests/api/perf-harness.test.ts`.)
+
 Guards that stay in force: `scripts/test/db-guard.mjs` (the perf DB URL is built from `TEST_DATABASE_URL` and must
 be local, named `*test*`, no `sslmode=require`, no hosted host) and `scripts/test/network-guard.mjs` (any
 non-loopback request from either server throws unless stubbed). The only exception is `next build`, which may reach

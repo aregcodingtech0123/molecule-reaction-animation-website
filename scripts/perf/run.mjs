@@ -21,6 +21,8 @@ import { mintSession } from "./lib/tokens.mjs";
 import { startDbSampler } from "./lib/db-sampler.mjs";
 import { loadPerfUsers, parseSeedArgs, seedPerfDatabase } from "./seed.mjs";
 import { assertFreshBuild, buildAll, configureMock, startStack } from "./stack.mjs";
+import { installNetworkGuard } from "../test/network-guard.mjs";
+import { assertNetworkGuard } from "./lib/guard.mjs";
 
 export const SCENARIOS = ["smoke", "balance", "history", "chat", "gemini-timeout", "metering", "caps", "dbfaults", "login", "soak", "crosscheck"];
 
@@ -147,6 +149,9 @@ function processSummary(rows) {
 }
 
 async function main() {
+  // The runner itself only talks to loopback; the guard makes sure it can never do anything else.
+  installNetworkGuard();
+  assertNetworkGuard("the perf runner");
   const args = parseRunArgs(process.argv.slice(2));
   const scenario = await import(`./scenarios/${args.scenario}.mjs`);
   const defaults = scenario.defaults ?? {};

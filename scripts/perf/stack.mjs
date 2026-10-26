@@ -7,6 +7,7 @@ import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { assertServerGuarded } from "./lib/guard.mjs";
 import {
   API_ORIGIN,
   GEMINI_ORIGIN,
@@ -158,10 +159,25 @@ export async function startStack(o) {
     await waitFor(`${API_ORIGIN}/health`, { child: api, name: "express" });
     const web = launch("web", [nextBin, "start", "--port", String(WEB_PORT)], repoRoot, webEnv(o.secrets, files, o.webOverrides));
     await waitFor(`${WEB_ORIGIN}/`, { child: web, name: "next" });
+    // Both servers must show the preload's guard marker before anything is measured.
+    for (const name of ["api", "web"]) await assertLogGuarded(path.join(o.runDir, `${name}.log`), name);
     return { files, stop, pids: { mock: mock.pid, api: api.pid, web: web.pid } };
   } catch (err) {
     await stop();
     throw err;
+  }
+}
+
+async function assertLogGuarded(file, name) {
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    try {
+      return assertServerGuarded(text, name);
+    } catch (err) {
+      if (Date.now() > deadline) throw err;
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
 }
 

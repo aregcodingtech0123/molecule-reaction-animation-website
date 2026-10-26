@@ -18,6 +18,12 @@ const stubs = [];
 export const externalCalls = [];
 
 let realFetch = null;
+const INSTALLED = Symbol.for("moleculestudio.networkGuard");
+
+/** True once installNetworkGuard() has replaced fetch in this process (perf harness checks it). */
+export function isNetworkGuardInstalled() {
+  return realFetch !== null && globalThis[INSTALLED] === true;
+}
 
 function toUrl(input) {
   if (input instanceof URL) return input;
@@ -39,6 +45,7 @@ export class BlockedNetworkError extends Error {
 export function installNetworkGuard(options = {}) {
   if (realFetch) return;
   realFetch = globalThis.fetch;
+  globalThis[INSTALLED] = true;
   const allowed = new Set(options.allowHosts ?? []);
   globalThis.fetch = async function guardedFetch(input, init = {}) {
     const url = toUrl(input);
