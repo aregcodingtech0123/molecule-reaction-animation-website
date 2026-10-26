@@ -29,12 +29,15 @@ CPUs are slower per core and every Vercel → Render → Neon hop adds a real ro
 | CLS | every route | 0–0.01 | 0–0.01 | — |
 | Load (new in Part 3) | clean up to / breaks at, mixed traffic: BFF · Express alone | — | **300 / ≈ 400 req/s · 600 / ≈ 700 req/s** | § 3 |
 | Soak (new in Part 3) | 15 min at 200 req/s: drift, memory, connections, charges | — | **flat; 18 599 turns all charged; reconcile exit 0** | § 3 |
+| Database saturated (200 ms RTT, 30 s) | what reads, logins and checkouts answer | 500 `INTERNAL_ERROR` | **503 `DATABASE_UNAVAILABLE` + `Retry-After`** | R18 |
+| Purchases during that spike | acknowledged webhooks not credited | 101 of 180 (manual resend) | **0** — 31 answered 503, all redelivered by Lemon's retry and credited | R19 |
+| AI turns during the failure run | answered but not charged (out of ≈ 3 050) | 22 | **14** (all in a 30 s billing outage; reported by `db:reconcile`) | R20 |
 
 Budgets approved in Part 0: B1 ✔ · B2 ✔ · B3 ✔ · B4 (login event-loop lag) not measurable on Windows — re-measure
 on Linux CI or staging · B5 (mobile LCP < 2.5 s) ✔ on `/`, `/explore`, `/periodic-table`, ✘ on `/dashboard`,
 `/ai-lab` (R10) · B6 documented, enforced in CI (`npm run perf:bundle-budget`) · B7 (event-loop lag p99 < 50 ms)
-✔ up to 50 concurrent chat turns and through the soak · **B8 (overload error shape: clean 429 / 503) ✔ except
-database-pool exhaustion, which answers 500 (PERF-29, R18).**
+✔ up to 50 concurrent chat turns and through the soak · **B8 (overload error shape: clean 429 / 503) ✔** — database-pool
+exhaustion answered 500 until R18; now 503 with `Retry-After` everywhere tested.
 
 ## 2. What changed
 
@@ -50,7 +53,11 @@ database-pool exhaustion, which answers 500 (PERF-29, R18).**
 | PERF-26 | Locale content on demand (English built in) | `bf3a487` |
 | R14 | 3D scenes stop their ambient motion under `prefers-reduced-motion` | `8e3a68c` |
 | R15 | KaTeX pipeline removed; maths shown as monospace source (its output never survived the sanitiser) | `fb28335` |
-| Harness | Production-mode harness, mock Gemini, DB proxy, network-guard enforcement, browser and bundle measurement, open-loop mixed load, soak and failure injection; bundle budget in CI | `98ea9b2` … `228932c`, `e83eda4` (PERF-28), `0dab98c` |
+| R18 | The database unavailable or every pool connection busy → 503 `DATABASE_UNAVAILABLE` + `Retry-After: 5` on every route (was 500); other errors unchanged | `ca3cc60` |
+| R19 | Durable webhook inbox (migration 015): each verified delivery stored before the `200`, `503` within 3 s if it cannot be (Lemon retries), processing retried by the service, `npm run webhooks:replay`, `webhook_unprocessed` in `db:reconcile` | `08ead4d` |
+| R20 | Capture / release retries ≈ 27 s instead of ≈ 4 s (`BILLING_RETRY_DELAYS_MS` default); hold TTL must be ≥ 235 s (`check:config`) | `aae5c63` |
+| Harness | Production-mode harness, mock Gemini, DB proxy, network-guard enforcement, browser and bundle measurement, open-loop mixed load, soak and failure injection (with Lemon-style webhook redelivery); bundle budget in CI | `98ea9b2` … `228932c`, `e83eda4` (PERF-28), `0dab98c`, `9ab6904` |
+| Docs | Launch checklist, runbook, behaviour changes, DB roles, test changes for R18–R20 | `94dd14b` |
 
 Fixed in the harness itself (no product change): PERF-21 (the first chat turn "hang" was the harness's Gemini
 forward; production unaffected) and PERF-28 (the soak's Express heap growth was the test network guard's call log).
@@ -72,14 +79,15 @@ Mixed traffic per 100 arrivals: 35 anonymous pages, 25 balance, 10 history, 10 c
 handles, sockets and DB connections flat; 18 599 chat turns all captured; 0 reservations held or past expiry;
 0 `CAPTURE_FAILED`; `db:reconcile` **exit 0**.
 
-**Failure injection** (100 req/s): Gemini 5xx → 502 at once, Gemini hang → 504 at 30.0 s, billing unreachable →
-503 at once, each failed turn released; DB +20 ms per direction → slower, no errors; DB +100 ms per direction (pool
-exhausted) → **500** on reads and logins (R18), 503 on chat. No hangs, no crashes, recovery in the first window.
-Charges afterwards: every reservation settled, none past its TTL; 3 042 answered turns = 3 020 charged + **22
-uncharged** (capture failed after its ≈ 4 s retries during the outages — logged and reported by `db:reconcile` as
-`hold_expired_unsettled`, which is why it **exits 2**); 2 520 acknowledged webhooks = 2 419 credited + **101 to
-resend** from Lemon (acknowledged before a database write that then failed — R19). Nothing charged or credited
-twice; every cached balance equals its ledger sum.
+**Failure injection** (100 req/s), after R18–R20: Gemini 5xx → 502 at once, Gemini hang → 504 at 30.0 s, billing
+unreachable → 503 at once, each failed turn released; DB +20 ms per direction → slower, no errors; DB +100 ms per
+direction (pool exhausted) → **503 `DATABASE_UNAVAILABLE` + `Retry-After`** on reads, logins and checkouts (was 500),
+webhooks answered within ≤ 2.2 s (149 × 200, 31 × 503). No hangs, no crashes, recovery in the first window. Charges
+afterwards: every reservation settled, none past its TTL; **2 520 of 2 520 purchases credited** (31 delivered by
+Lemon-style retries; was 101 lost before R19); 3 050 answered turns = 3 036 charged + **14 uncharged** (was 22): a
+30 s billing outage is longer than the ≈ 27 s capture retries, so those turns are logged (`CAPTURE_FAILED`) and listed
+by `db:reconcile` as `hold_expired_unsettled` — which is why it still **exits 2** after this scenario, with nothing else
+listed. Nothing charged or credited twice; every cached balance equals its ledger sum.
 
 ## 4. Capacity guidance (local estimates — re-validate on staging)
 
@@ -112,41 +120,43 @@ twice; every cached balance equals its ledger sum.
 | R10–R12 | LCP on `/dashboard` and `/ai-lab`, fonts, environment-map caching | Moved to the SEO / Core Web Vitals phase (§ 8) |
 | R13 | Reduced 3D mode for low-end devices | Recorded only (owner); 8.5–9 fps with software GL |
 | R16 | Report the three.js / R3F / postprocessing leak upstream | Outward action for the owner; draft text in the findings |
-| R17 | Shed logins (503 + `Retry-After`) instead of queueing them | Auth flow: owner decision |
-| R18 | Pool exhaustion → 503 `DATABASE_UNAVAILABLE` instead of 500 | **Small and ready on approval**; touches the error contract of money routes, so not applied inside a measurement part |
-| R19 | Durable webhook inbox, or acknowledge after the credit is written | Money flow and provider contract: owner decision. Until then, page on the log line (§ 7) |
-| R20 | Longer capture retries or a capture outbox | Billing semantics: owner decision. Today uncharged turns are bounded and reported |
+| R17 | Shed logins (503 + `Retry-After`) instead of queueing them | Owner decision: kept as a recommendation (auth flow) |
+| R20 (part) | A durable capture outbox | Owner decision: only the retry window was lengthened. Turns answered during a billing or database outage longer than ≈ 27 s stay uncharged, logged and listed by `db:reconcile` |
 
 ## 6. Residual risks
 
 1. **Real network round trips are unmeasured.** Each chat turn makes 2 Vercel → Render calls and 21 Render → Neon
    round trips. Local tests show the DB round trip, not CPU, sets capacity for money paths, and that a slow
-   database exhausts the pool within seconds (R8, R9, R18).
-2. **Webhooks acknowledged before the credit is written.** A database incident loses fulfilments until someone
-   resends them from Lemon (101 of 180 during a 30 s spike). Detection is a log line (R19, § 7).
-3. **Uncharged AI turns** when billing or the database is out for longer than the BFF's ≈ 4 s capture retries.
-   Bounded, logged (`CAPTURE_FAILED`) and reported by `db:reconcile` (R20).
+   database exhausts the pool within seconds (R8, R9). Requests then answer 503 with `Retry-After` (R18).
+2. **Webhooks during a long database outage.** Each delivery is stored before its `200` (R19). While the database
+   cannot take it, Express answers 503 and Lemon retries after 5 s, 25 s and 125 s. An outage longer than that
+   ≈ 2.5 min window leaves the delivery failed in Lemon's dashboard, and it must be resent there (alert on repeated
+   `[Webhook] NOT STORED`). Stored deliveries are never lost.
+3. **Uncharged AI turns** when billing or the database is out for longer than the ≈ 27 s capture retries. These are
+   bounded, logged (`CAPTURE_FAILED`) and reported by `db:reconcile`. During such an outage a turn's answer also
+   arrives up to ≈ 27 s later, because it waits for the capture (R20).
 4. **One Express instance**: no redundancy, limiter state resets on every deploy, and logins queue without bound
-   under a burst (R17). Plan for ≈ 10 logins/s on a 1-vCPU instance.
-5. **Pool exhaustion answers 500**, which looks like a bug rather than "temporarily unavailable" (R18).
-6. **Windows-only measurements.** The event-loop lag floor is ~25 ms here (B4 unmeasured), and overload shows as
+   under a burst (R17, not applied). Plan for ≈ 10 logins/s on a 1-vCPU instance.
+5. **Windows-only measurements.** The event-loop lag floor is ~25 ms here (B4 unmeasured), and overload shows as
    refused connections. Linux may queue instead. Re-check both on staging.
-7. **Front end:** mobile LCP is 3.3 s on `/dashboard` and 5.9 s on `/ai-lab` (R10). Devices without a GPU render
+6. **Front end:** mobile LCP is 3.3 s on `/dashboard` and 5.9 s on `/ai-lab` (R10). Devices without a GPU render
    the 3D scenes at 8–17 fps (R13).
-8. **The load mix is synthetic**: heavier on logins and chat than real traffic, with no real CDN, TLS or
+7. **The load mix is synthetic**: heavier on logins and chat than real traffic, with no real CDN, TLS or
    provider latency.
 
 ## 7. Post-launch monitoring (in priority order)
 
 LAUNCH_CHECKLIST §5 has the exact log strings and SQL. In order of urgency:
 
-1. **Page immediately:** `[Webhook] FAILED background credit allocation` (a paid order was not credited; resend
-   it from Lemon), Express `/health` 503 or down, and `FATAL:` at start.
-2. **Daily, as a job:** `npm run db:reconcile` exit code, plus its `hold_expired_unsettled` and `capture_failed`
-   counts (uncharged turns) and `refunded_order_credited` (§5.1).
-3. **Alert on rate:** `[billing] CAPTURE_FAILED` / `RELEASE_FAILED` (Next), `[credits] CAPTURE_FAILED` (Express);
-   Express 5xx rate, especially `timeout exceeded when trying to connect` (pool exhaustion, PERF-29) and 503
-   `DATABASE_UNAVAILABLE`.
+1. **Page immediately:** `[Webhook] FAILED background credit allocation` (a stored purchase still failed after 10
+   automatic attempts: fix the cause, then run `npm run webhooks:replay`); `[Webhook] NOT STORED` repeating for more
+   than ~2 min (Lemon will give up on those deliveries: resend them from its dashboard); Express `/health` 503 or
+   down; `FATAL:` at start.
+2. **Daily, as a job:** `npm run db:reconcile` exit code, plus its `webhook_unprocessed`, `hold_expired_unsettled`
+   and `capture_failed` counts, and `refunded_order_credited` (§5.1).
+3. **Alert on rate:** `[billing] CAPTURE_FAILED` / `RELEASE_FAILED` (Next) and `[credits] CAPTURE_FAILED` (Express);
+   `[db] Request failed: database unavailable` (503s from a saturated or unreachable database, PERF-29);
+   `[Webhook] Processing failed` (transient, but a burst means the database is struggling).
 4. **Capacity:** login latency p95 and BFF 504s on `/api/auth/*` (R17); Neon connection count and query
    round-trip time; Express event-loop utilisation and RSS; `AI_CAPACITY_REACHED` and the 24 h turn count against
    `AI_DAILY_TURNS_GLOBAL` (alert at 80 %).
@@ -163,13 +173,13 @@ LAUNCH_CHECKLIST §5 has the exact log strings and SQL. In order of urgency:
 
 ## 9. Verification (PostgreSQL 18)
 
-Run after the last code change of the phase (`0dab98c`), against the project's `postgres:18-alpine` test container
+Run after the last code change of the phase (R18–R20 and the harness follow-up, `9ab6904`), against the project's `postgres:18-alpine` test container
 (PostgreSQL 18.6):
 
 | Check | Result |
 | --- | --- |
-| Service `vitest` with coverage | 37 files, **657 passed**; **91.48 %** lines, **80.14 %** branches (floors 91.31 / 79.72) |
-| Root `vitest` with coverage | 34 files, **556 passed**; BFF set (TEST_PLAN §3: `src/lib/gateway`, `src/app/api/**`, `server-billing.ts`) **94.83 %** lines, 275 / 290 (floor 94.33 %; 95.25 % with `src/proxy.ts`) |
+| Service `vitest` with coverage | 39 files, **687 passed**; **91.89 %** lines, **81.36 %** branches (floors 91.48 / 80.14) |
+| Root `vitest` with coverage | 34 files, **556 passed**; BFF set (TEST_PLAN §3: `src/lib/gateway`, `src/app/api/**`, `server-billing.ts`) **94.83 %** lines, 275 / 290 (floor 94.83 %; 95.25 % with `src/proxy.ts`) |
 | `npm run typecheck:tests` · service `npm run typecheck` | 0 errors · 0 errors |
 | `next build` | OK |
 | `npm run perf:bundle-budget` | OK (every route under its ceiling) |
@@ -178,5 +188,5 @@ Run after the last code change of the phase (`0dab98c`), against the project's `
 | ESLint (whole repo) | 26 errors, 21 warnings — identical to `main` (the documented React Compiler backlog); none in a file this phase added or changed |
 
 No test was deleted, skipped or weakened in the phase; changes to existing tests are recorded in
-`docs/testing/TEST_CHANGES.md` (TC-49 only). Network guard on in every harness and test run; only the project's
+`docs/testing/TEST_CHANGES.md` (TC-49, and TC-50 … TC-55 for R19 / R20). Network guard on in every harness and test run; only the project's
 test container was used.

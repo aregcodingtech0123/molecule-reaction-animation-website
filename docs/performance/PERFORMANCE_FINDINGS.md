@@ -654,20 +654,70 @@ scenarios against staging (R8) before relying on them.
 | PostgreSQL (Neon) | no lock waits; ≤ 9 active backends at the BFF's breaking point | pool of 20 per Express; RTT | Under a 200 ms RTT spike the pool saturates within seconds (R18, R19). Watch connection count and RTT |
 | Memory | Express RSS 115–160 MiB at 200 req/s; Next RSS ≈ 500 MiB at 200 req/s on one instance | — | A 512 MiB Express instance fits; size Next per platform defaults |
 
+### Part 3 follow-up (owner decisions): R18, R19, R20 applied, R17 kept as a recommendation
+
+**Design note — R19, durable webhooks.** Lemon Squeezy's documented delivery rules
+([webhook requests](https://docs.lemonsqueezy.com/help/webhooks/webhook-requests),
+[sync with webhooks](https://docs.lemonsqueezy.com/guides/developer-guide/webhooks), read 2026-10-26): only a `200`
+counts as received; any other answer is retried "up to three more times using an exponential backoff strategy (e.g.
+5 secs, 25 secs, 125 secs)", after which the delivery is failed and only a manual resend from the dashboard remains;
+**no response timeout is documented**; Lemon itself recommends storing events locally and answering `200` quickly.
+
+| | A. Acknowledge after the credit is written | B. Persist the event first, process after the `200` (inbox) — **chosen** |
+| --- | --- | --- |
+| Durability | Lemon is the store: a failure answers 5xx and Lemon retries — 4 attempts over ≈ 2.5 min, then a manual resend | The database is the store from the `200` on: processing is retried by the service (10 automatic attempts, then `webhooks:replay`), not bounded by Lemon's 4 attempts |
+| Time Lemon's request stays open | the whole fulfilment (user lookup, ledger write inside the user's lock, pending order) — several round trips, unbounded under a slow database, against an undocumented timeout | one bounded INSERT: ≤ 3 s (`WEBHOOK_STORE_TIMEOUT_MS`), then `503`; Lemon's retry comes 5 s later |
+| Neon cold start / pool saturation | every resume or saturation becomes a slow or failed fulfilment inside Lemon's request | ≤ 3 s, then Lemon's retry; the 2 s pool connect timeout sits inside the deadline |
+| Duplicates | per-order idempotency only | identical deliveries are one row (SHA-256 of the signed body); per-order idempotency unchanged underneath |
+| Observability / recovery | Lemon's dashboard only | every delivery's status, attempts, outcome and last error in SQL; `db:reconcile` lists unfinished ones |
+| Cost | none | one table, a 60 s retry timer, a 30-day payload clean-up (the payload holds the buyer's e-mail) |
+
+B keeps everything A guarantees (a delivery that cannot be stored is still answered non-`200` and retried by Lemon)
+and adds durability after the `200`, for one extra INSERT on the request path. It does not contradict the original
+brief: the HMAC gate still runs first with zero database I/O on `401`; idempotency per order, SEC-13's origin gate and
+SEC-14's refund recording are unchanged (the same `processLemonSqueezyEvent` runs on the stored payload); the Neon
+cold-start insulation now means "a bounded wait, then Lemon's retry" instead of "no wait".
+
+**What changed:** R18 `ca3cc60` (503 `DATABASE_UNAVAILABLE` + `Retry-After` for database-unavailable errors on every
+route), R20 `aae5c63` (capture / release retries `250,1000,3000,8000,15000` ms ≈ 27 s, 6 attempts; `check:config`'s
+longest turn becomes 30 + 27.25 + 6 × 10 = 117.25 s → TTL ≥ 235 s, default 600 s passes), R19 `08ead4d` (migration
+015 `lemon_webhook_events` + `webhook_events_to_review()`, store-then-acknowledge, retry worker, `webhooks:replay`,
+reconcile, app-role grants, runbook rollback), ops docs `94dd14b`.
+
+**Failure run again** (same scenario and rate; TTL 240 s for the new turn length; a webhook not answered `200` is
+redelivered the way Lemon documents, byte for byte, after 5 s, 25 s, 125 s):
+
+| | Before (Part 3) | After R18–R20 |
+| --- | --- | --- |
+| DB spike (200 ms RTT, 30 s): what reads, logins, checkouts get | **500** `INTERNAL_ERROR` (1 293 lines) | **503** `DATABASE_UNAVAILABLE` + `Retry-After` (1 216 lines, 0 × 500) |
+| DB spike: webhook answers | 200 at once (then 101 allocations failed) | 149 × 200, **31 × 503** (p95 2.21 s, max 2.22 s — inside the 3 s deadline) |
+| Webhooks delivered / credited | 2 520 acknowledged / **2 419 credited, 101 lost** (manual resend) | 2 520 / **2 520 credited, 0 lost**: 2 489 on the first attempt, 25 on Lemon's 5 s retry, 6 on its 25 s retry, none needed the third |
+| Stored events whose processing failed (DB spike) | — | 56 failed attempts + 90 deferred claims, all finished by the retry worker within three 60 s ticks; `FAILED … gave up` 0 |
+| Purchases credited twice | 0 | 0 (one stored row per order; 7 rows report `already_processed`: the credit committed but marking the row processed hit the saturated pool, and the retry found the ledger row) |
+| Chat turns answered / charged / uncharged | 3 042 / 3 020 / **22** (4 DB spike, 18 billing outage) | 3 050 / 3 036 / **14** (0 DB spike, 14 billing outage: capture unreachable for the whole ≈ 27 s window) |
+| Longest chat turn: DB spike / billing outage | 39.0 s / 9.7 s | 54.5 s / 32.7 s — the R20 trade-off: the answer waits for the capture retries |
+| `db:reconcile` | exit 2: 22 × `hold_expired_unsettled` | exit 2: **14 × `hold_expired_unsettled`**, nothing else; every stored webhook event processed; every cached balance = SUM(ledger) |
+| Reservations held / past TTL afterwards | 0 / 0 | 0 / 0 |
+
+R19 removed the purchase loss and R18 the 500s. R20 removed the DB spike's uncharged turns but not all of the 30 s
+billing outage's: a capture that starts at the beginning of an outage longer than ≈ 27 s still gives up — bounded by
+design (owner: no outbox), logged (`CAPTURE_FAILED`) and listed by `db:reconcile`, which is why reconcile still exits 2
+after this scenario. Result folder: `perf-results/2026-10-26T19-23-57-979Z-faults`.
+
 ### Part 3 verification
 
-Full suites on PostgreSQL 18.6 after the last code change: PERFORMANCE_SUMMARY § 9 (service 657 passed, 91.48 % /
-80.14 %; root 556 passed, BFF 94.83 %; type checks clean; `next build` and bundle budget OK; E2E dev 49 + 1 skipped
+Full suites on PostgreSQL 18.6 after the last code change (R18–R20 included): PERFORMANCE_SUMMARY § 9 (service 687
+passed, 91.89 % / 81.36 %; root 556 passed, BFF 94.83 %; type checks clean; `next build` and bundle budget OK; E2E dev 49 + 1 skipped
 twice, production 50 / 50; lint unchanged from `main`).
 
 ### Recommendations (Part 3)
 
 | # | Area | Recommendation | Evidence |
 | --- | --- | --- | --- |
-| R17 | login under load | Bound concurrent password hashing in Express (a small semaphore, e.g. 2 × the thread-pool size) and answer **503 + `Retry-After`** when more are waiting, instead of an unbounded queue; optionally skip the hash when the client has gone. Auth flow: owner decision. | 64 logins/s: p95 11.5 s, 19 s at 80/s; through the BFF a 504 at 10 s while Express still hashes |
-| R18 | DB pool exhaustion | **Ready to apply on approval** (small, in the error handler): map pg-pool's acquire timeout ("timeout exceeded when trying to connect") and connection errors to **503 `DATABASE_UNAVAILABLE` + `Retry-After`**, like `requireDatabase` already does when the database is known to be down. The BFF already retries captures and releases on any 5xx, so retries are unchanged; users and monitors see the correct class of error. | 1 293 × 500 `INTERNAL_ERROR` in 30 s at 200 ms DB RTT |
-| R19 | webhook durability | Store the verified event before acknowledging (an inbox table written in one INSERT, processed with retries), or acknowledge only after the allocation commits so Lemon redelivers (confirm Lemon's retry policy first). Until then: **page on `[Webhook] FAILED background credit allocation`** (post-launch monitoring). Money flow: owner decision. | 101 of 180 purchases during a 30 s DB spike acknowledged but not credited |
-| R20 | uncharged turns in billing outages | Today a capture that fails for ≈ 4.3 s leaves the turn uncharged (reported by reconcile). Options: a longer capture backoff inside the reservation TTL, or a durable capture outbox. Or accept it as bounded revenue leakage and review `hold_expired_unsettled` daily (it is already the reconcile's job). Billing semantics: owner decision. | 22 uncharged turns: a 30 s billing outage and a 30 s DB spike |
+| R17 | login under load | **Not applied (owner decision); kept as a recommendation.** Bound concurrent password hashing in Express (a small semaphore, e.g. 2 × the thread-pool size) and answer **503 + `Retry-After`** when more are waiting, instead of an unbounded queue; optionally skip the hash when the client has gone. | 64 logins/s: p95 11.5 s, 19 s at 80/s; through the BFF a 504 at 10 s while Express still hashes |
+| R18 | DB pool exhaustion | **Applied** (`ca3cc60`, § Part 3 follow-up): pool acquire / connect timeouts, lost connections and "server unavailable" SQLSTATEs → **503 `DATABASE_UNAVAILABLE` + `Retry-After: 5`** on every route; all other errors unchanged. | was 1 293 × 500 `INTERNAL_ERROR` in 30 s at 200 ms DB RTT; after: 1 216 × 503, 0 × 500 |
+| R19 | webhook durability | **Applied** (`08ead4d`, § Part 3 follow-up): verified deliveries are stored (migration 015) before the `200`; `503` within 3 s when they cannot be, so Lemon retries; failed processing retried by the service; `npm run webhooks:replay`; `webhook_unprocessed` in `db:reconcile`. | 30 s DB spike: was 101 of 180 purchases lost; after: 0 lost (31 answered 503, all redelivered and credited) |
+| R20 | uncharged turns in billing outages | **Applied, modestly** (`aae5c63`, owner: no outbox): capture / release retries ≈ 27 s (was ≈ 4 s). Turns answered during an outage longer than that still go uncharged and are reported by `db:reconcile` (`hold_expired_unsettled`). | uncharged turns 22 → 14 (DB spike 4 → 0; 30 s billing outage 18 → 14) |
 
 ## Findings log
 
@@ -685,7 +735,8 @@ twice, production 50 / 50; lint unchanged from `main`).
 | PERF-26 | bundle (locales) | 109.6 KiB on every route | 8.5 KiB (English) | Next analyzer + production check | `bf3a487` | fixed |
 | PERF-04, 05, 13, 16, 17, 20 | DB, pool, login | § Part 1 | — | metering, dbfaults, explain, login, caps | — | measured — recommendations R1–R8 |
 | PERF-28 | harness (soak) | Express heap after GC +7 MiB/min (14 → 135 MiB in 15 min): the test network guard's call log | 21 → 24 MiB in 15 min (login limiter store, bounded) | `soakmix` + heap snapshots, `heap-diff.mjs` | `e83eda4` | fixed (harness only) |
-| PERF-29 | DB pool exhaustion | 200 ms DB RTT for 30 s: 500 `INTERNAL_ERROR` on balance / history / login / checkout | — | `faults` | — | measured — R18 (ready on approval) |
-| PERF-30 | webhooks under DB degradation | 101 of 180 acknowledged purchases not credited during a 30 s DB spike (manual resend) | — | `faults` + ledger count | — | measured — R19 |
+| PERF-29 | DB pool exhaustion | 200 ms DB RTT for 30 s: 500 `INTERNAL_ERROR` on balance / history / login / checkout | 503 `DATABASE_UNAVAILABLE` + `Retry-After` (1 216 × 503, 0 × 500) | `faults`; `db-unavailable.test.ts` (real pool exhaustion, every money route) | `ca3cc60` | fixed (R18) |
+| PERF-30 | webhooks under DB degradation | 101 of 180 acknowledged purchases not credited during a 30 s DB spike (manual resend) | 0 lost: 2 520 / 2 520 credited (31 × 503 → Lemon-style redelivery) | `faults` + ledger and inbox counts | `08ead4d` | fixed (R19) |
+| R20 | uncharged turns in outages | 22 turns answered but uncharged (capture retries ≈ 4 s) | 14 (retries ≈ 27 s; all 14 in the 30 s billing outage) | `faults` | `aae5c63` | improved; remainder reported by `db:reconcile` |
 | PERF-31 | login under overload | 64 logins/s on one Express: p95 11.5 s, unbounded queue | — | `ramp` (Express-direct) | — | measured — R17 |
 | — | capacity | BFF clean to 300 req/s, breaks ≈ 400 (Next CPU); Express clean to 600, breaks ≈ 700 (bcrypt); clean recovery; soak flat; failures fast and clean; charges exact (22 uncharged turns and 101 webhooks reported, none double) | — | `ramp`, `soakmix`, `faults` | — | measured (§ Part 3) |
