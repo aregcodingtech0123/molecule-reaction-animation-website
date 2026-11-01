@@ -26,6 +26,7 @@ export function Footer() {
   ];
 
   const resourceLinks: FooterLink[] = [
+    { label: t.nav_molecules ?? "Molecules", href: "/molecules" },
     { label: t.nav_learn, href: "/learn" },
     { label: t.nav_showcase, href: "/showcase" },
     { label: t.nav_periodic_table ?? "Periodic Table", href: "/periodic-table" },
@@ -38,9 +39,13 @@ export function Footer() {
     { label: t.nav_pricing ?? "Pricing", href: "/pricing" },
   ];
 
+  // SEO-10 / D6: the trust pages (on every page, including the home page — Google's OAuth branding rules want the
+  // privacy policy linked from the home page). The placeholder GitHub link (https://github.com, no repository) is gone.
   const companyLinks: FooterLink[] = [
-    { label: t.footer_about, href: "/" },
-    { label: t.footer_github, href: "https://github.com", external: true },
+    { label: t.footer_about, href: "/about" },
+    { label: t.footer_contact ?? "Contact", href: "/contact" },
+    { label: t.footer_privacy ?? "Privacy policy", href: "/privacy" },
+    { label: t.footer_terms ?? "Terms of use", href: "/terms" },
   ];
 
   const columns: { title: string; links: FooterLink[] }[] = [

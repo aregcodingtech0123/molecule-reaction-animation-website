@@ -214,6 +214,19 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
       the longest turn (defaults: 600 s against 117.25 s — R20), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
       (`true`, `1`, `yes`, `y`, `on`) in the Express file — a `PROBLEM` naming the variable, exit `1`. Unset, empty and
       `false` / `0` / `no` / `off` pass; any other value only warns (the service honours exactly `true`, so it is inert).
+
+### 1.6 `npm run check:launch-content` (trust pages, SEO Part 2)
+
+```
+npm run check:launch-content
+```
+
+- [ ] Exit code `0`: no `TODO(owner):` placeholder left in `src/lib/legal/site-owner.ts` (legal name, country, postal address,
+      contact email, governing law, refund policy, hosting providers, log retention, Gemini data use, account deletion,
+      effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
+      a "Draft" notice, are `noindex` and out of the sitemap, and no Organization JSON-LD is emitted.
+- [ ] A lawyer has reviewed `/privacy` and `/terms` (no script can check this). Sources of every privacy statement and the
+      open points: `docs/seo/TRUST_PAGES.md`.
 - [ ] The check reads only the file or env you hand it. It cannot see what the **host's dashboard** really holds, so
       the file must be a faithful export of it (§3.5 re-confirms on the live host).
 - [ ] Delete both files afterwards (`rm .env.launch-*.local`).

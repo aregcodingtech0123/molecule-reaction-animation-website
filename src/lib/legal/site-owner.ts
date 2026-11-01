@@ -1,0 +1,67 @@
+/**
+ * Who publishes the site and how to reach them (D6, SEO-10). The trust pages (/about, /contact, /privacy, /terms)
+ * and the Organization JSON-LD read ONLY from here.
+ *
+ * Every value that has to come from the owner (and a lawyer) is a placeholder: a string starting with
+ * PLACEHOLDER_PREFIX. While any placeholder remains:
+ *  - the trust pages show a "Draft — needs legal review" notice and the placeholder text in brackets,
+ *  - they are noindex and left out of the sitemap,
+ *  - no Organization JSON-LD is emitted,
+ *  - `npm run check:launch-content` fails and names each one.
+ * Fill a value by replacing the whole string. Nothing here is a secret: it is published on the pages.
+ */
+export const PLACEHOLDER_PREFIX = "TODO(owner):";
+
+export interface SiteOwner {
+  /** Legal name of the person or company that operates the site. */
+  legalName: string;
+  /** Country (and region, if relevant) whose law the operator is under. */
+  country: string;
+  /** Postal address for legal notices. */
+  postalAddress: string;
+  /** Address people can write to (support and privacy requests). */
+  contactEmail: string;
+  /** Governing law and courts for the terms. */
+  governingLaw: string;
+  /** Refund policy for credit packs, in the owner's words (Lemon Squeezy is the merchant of record). */
+  refundPolicy: string;
+  /** Where the site and its database are hosted (names of the providers actually used). */
+  hostingProviders: string;
+  /** How long server/host logs are kept (decided by the hosting plans, not by the code). */
+  logRetention: string;
+  /** What Google may do with AI Lab prompts under the Gemini API plan actually used (paid vs free tier terms differ). */
+  geminiDataUse: string;
+  /** How a user can have their account deleted (the code has no self-service deletion). */
+  accountDeletion: string;
+  /** Effective date of the privacy policy and terms (YYYY-MM-DD). */
+  effectiveDate: string;
+}
+
+export const SITE_OWNER: SiteOwner = {
+  legalName: `${PLACEHOLDER_PREFIX} legal name of the operator (person or company)`,
+  country: `${PLACEHOLDER_PREFIX} country of the operator`,
+  postalAddress: `${PLACEHOLDER_PREFIX} postal address for legal notices`,
+  contactEmail: `${PLACEHOLDER_PREFIX} contact email address`,
+  governingLaw: `${PLACEHOLDER_PREFIX} governing law and courts`,
+  refundPolicy: `${PLACEHOLDER_PREFIX} refund policy for credit packs`,
+  hostingProviders: `${PLACEHOLDER_PREFIX} hosting providers actually used (web app, API, database)`,
+  logRetention: `${PLACEHOLDER_PREFIX} how long hosting logs are kept`,
+  geminiDataUse: `${PLACEHOLDER_PREFIX} what Google may do with prompts under the Gemini API plan used`,
+  accountDeletion: `${PLACEHOLDER_PREFIX} how to request account deletion and what is kept (e.g. purchase records)`,
+  effectiveDate: `${PLACEHOLDER_PREFIX} effective date`,
+};
+
+export const isPlaceholder = (value: string): boolean => value.trim().startsWith(PLACEHOLDER_PREFIX);
+
+/** Names of the fields that are still placeholders (empty when the owner has filled everything in). */
+export function remainingPlaceholders(owner: SiteOwner = SITE_OWNER): (keyof SiteOwner)[] {
+  return (Object.keys(owner) as (keyof SiteOwner)[]).filter((key) => isPlaceholder(owner[key]) || !owner[key].trim());
+}
+
+/** True while the trust pages are drafts (any placeholder left). */
+export const TRUST_PAGES_ARE_DRAFTS = remainingPlaceholders().length > 0;
+
+/** For display: a placeholder renders as "[to be provided: …]", a real value as itself. */
+export function display(value: string): string {
+  return isPlaceholder(value) ? `[to be provided: ${value.trim().slice(PLACEHOLDER_PREFIX.length).trim()}]` : value;
+}

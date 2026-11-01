@@ -12,6 +12,7 @@ const LABELS: Record<string, string> = {
   "/atom-models": "Atomic models",
   "/periodic-table": "Periodic table",
   "/pricing": "Pricing",
+  "/molecules": "Molecules",
 };
 
 export default function NotFound() {
@@ -22,7 +23,7 @@ export default function NotFound() {
         The page you asked for does not exist or has moved. These pages do:
       </p>
       <ul className="mt-6 flex flex-wrap justify-center gap-3 text-sm">
-        {INDEXABLE_ROUTES.map((route) => (
+        {INDEXABLE_ROUTES.filter((route) => !route.dynamic).map((route) => (
           <li key={route.path}>
             <Link href={route.path} className="rounded-full border border-current/20 px-4 py-2 hover:underline">
               {LABELS[route.path] ?? route.title}

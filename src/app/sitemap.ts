@@ -6,12 +6,16 @@ import { resolveSiteIndexing } from "@/lib/seo/site";
 export const dynamic = "force-dynamic";
 
 /**
- * SEO-02. Absolute canonical URLs of the indexable public routes only (the list in src/lib/seo/routes.ts).
+ * SEO-02. Absolute canonical URLs of the indexable public routes only (the list in src/lib/seo/routes.ts); a dynamic
+ * route (`/molecules/[id]`) contributes one URL per id, never its template path.
  * No `lastmod`: no page has a reliable modification date, and Google uses the field only when it is
  * "consistently and verifiably accurate". Empty while the site is not indexable.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = resolveSiteIndexing();
   if (!site.indexable) return [];
-  return INDEXABLE_ROUTES.map((route) => ({ url: route.path === "/" ? site.origin : `${site.origin}${route.path}` }));
+  const paths = INDEXABLE_ROUTES.flatMap((route) =>
+    route.dynamic ? route.dynamic.ids.map((id) => route.path.replace(/\[[^\]]+\]/, id)) : [route.path],
+  );
+  return paths.map((path) => ({ url: path === "/" ? site.origin : `${site.origin}${path}` }));
 }

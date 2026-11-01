@@ -8,12 +8,14 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 
-const RESOURCE_LINKS = [
-  { href: "/learn", labelKey: "nav_learn" as const, external: false },
-  { href: "/showcase", labelKey: "nav_showcase" as const, external: false },
-  { href: "/periodic-table", labelKey: "nav_periodic_table" as const, external: false },
-  { href: "https://github.com", labelKey: "footer_github" as const, external: true },
-] as const;
+// SEO-10: the placeholder "GitHub → https://github.com" link (not a repository) is gone; /molecules added (Part 2).
+// `fallback` is the English label for keys the locale dictionaries do not have (D1: English-only indexing).
+const RESOURCE_LINKS: { href: string; labelKey: string; fallback?: string; external: boolean }[] = [
+  { href: "/molecules", labelKey: "nav_molecules", fallback: "Molecules", external: false },
+  { href: "/learn", labelKey: "nav_learn", external: false },
+  { href: "/showcase", labelKey: "nav_showcase", external: false },
+  { href: "/periodic-table", labelKey: "nav_periodic_table", external: false },
+];
 
 export function ResourcesMenu({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -74,7 +76,7 @@ export function ResourcesMenu({ onNavigate }: { onNavigate?: () => void }) {
           )}
         >
           {RESOURCE_LINKS.map((link) => {
-            const label = t[link.labelKey] ?? link.labelKey;
+            const label = t[link.labelKey] ?? link.fallback ?? link.labelKey;
             const active = !link.external && pathname === link.href;
 
             if (link.external) {
@@ -146,7 +148,7 @@ export function ResourcesMobileLinks({
         {t.nav_resources ?? "Resources"}
       </p>
       {RESOURCE_LINKS.map((link) => {
-        const label = t[link.labelKey] ?? link.labelKey;
+        const label = t[link.labelKey] ?? link.fallback ?? link.labelKey;
         const active = !link.external && pathname === link.href;
 
         if (link.external) {

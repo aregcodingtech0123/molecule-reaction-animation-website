@@ -186,6 +186,8 @@ two places). There are 14 molecule pages.
 | Peptide (Gly-Ala) | fun fact | "a new peptide bond roughly every 0.05 seconds" | right order of magnitude for bacteria (~15–20 amino acids/s); eukaryotic ribosomes are slower (~5/s) | add "in bacteria" or remove |
 | Ethanol | fun fact | "Ethanol disrupts membrane fluidity … part of why it's such a broad biological solvent" | mixes two unrelated properties | remove or reword |
 | Aspirin | fun fact | "Its acetyl group helps it survive stomach acid better than salicylic acid alone" | not supported; acetylation was meant to reduce the irritation salicylic acid causes | remove or reword |
+| Heme b | fun fact | "The axial histidine tug-of-war fine-tunes oxygen affinity versus CO competition." | the axial (proximal) histidine binds the iron; discrimination against CO is attributed to the *distal* histidine | reword ("the distal histidine…") or remove |
+| DNA base pair | state | "solid" | a base pair inside a double helix is not a substance with a phase | leave the state out for the pair |
 | C₆₀ | description | "…a Nobel-celebrated cage that taught us aromaticity doesn't require flat hexagons" | the Nobel (1996) is right; C₆₀'s aromaticity is weak and debated | the page shows its answer-first summary instead of this description until you decide |
 
 Checked and kept: methane "80× more potent than CO₂ over 20 years" (IPCC AR6 gives ≈ 80 for fossil methane), the two

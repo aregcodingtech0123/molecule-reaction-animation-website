@@ -13,6 +13,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { HomeAiLabSection } from "@/components/ai/HomeAiLabSection";
 import { HomeStudioShowcases } from "@/components/home/HomeStudioShowcases";
+import { CommonQuestions, HOME_QUESTIONS, SiteInfoLinks } from "@/components/seo/CommonQuestions";
 
 export function HomePage() {
   const { locale, t } = useLanguage();
@@ -363,6 +364,12 @@ export function HomePage() {
             </motion.div>
           ))}
         </div>
+      </section>
+
+      {/* Part 2 (AEO, D6): server-rendered answers from repo facts, and the trust/molecule links on the home page. */}
+      <section className={cn("relative z-10 px-6 py-20 border-t", ui.borders.divider)}>
+        <CommonQuestions questions={HOME_QUESTIONS} />
+        <SiteInfoLinks className="mt-12" />
       </section>
     </main>
   );

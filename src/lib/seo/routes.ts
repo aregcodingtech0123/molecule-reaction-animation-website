@@ -1,4 +1,6 @@
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
+import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
+import { ALL_MOLECULES } from "@/lib/molecules/data";
 
 /**
  * Every page route and what search engines may do with it (SEO-03, -04, -05, -06, -09).
@@ -24,7 +26,15 @@ export interface SeoRoute {
   title: string;
   description: string;
   robots: RouteRobots;
+  /**
+   * A dynamic route (`/molecules/[id]`): the entry classifies the template, its title/description are templates
+   * filled per page, and the sitemap lists one URL per id instead of the template path.
+   */
+  dynamic?: { ids: readonly string[] };
 }
+
+/** Trust pages stay noindex (and out of the sitemap) while the owner details are placeholders (D6). */
+const TRUST_ROBOTS: RouteRobots = TRUST_PAGES_ARE_DRAFTS ? "noindex-follow" : "index";
 
 const packs = CREDIT_PACKAGES.map((p) => `${p.name} $${p.priceUsd} for ${p.credits} credits`).join(", ");
 
@@ -56,6 +66,44 @@ export const SEO_ROUTES: readonly SeoRoute[] = [
     description:
       "An interactive periodic table of the 118 elements. Select an element to see its atomic number, atomic mass, category and a short description.",
     robots: "index",
+  },
+  {
+    path: "/molecules",
+    title: "Molecules: structure, properties and uses",
+    description:
+      "Fourteen molecules from water and caffeine to dopamine, C60 and the heme group: formula, molar mass, melting and boiling points, bonding, uses and a link to each one in the 3D explorer.",
+    robots: "index",
+  },
+  {
+    path: "/molecules/[id]",
+    title: "{name} ({formula}): structure, properties and uses",
+    description: "{summary}",
+    robots: "index",
+    dynamic: { ids: ALL_MOLECULES.map((m) => m.id) },
+  },
+  {
+    path: "/about",
+    title: "About",
+    description: "Who makes Molecule Architecture Studio, what it is for and how it is built.",
+    robots: TRUST_ROBOTS,
+  },
+  {
+    path: "/contact",
+    title: "Contact",
+    description: "How to reach the team behind Molecule Architecture Studio for support, privacy requests and legal notices.",
+    robots: TRUST_ROBOTS,
+  },
+  {
+    path: "/privacy",
+    title: "Privacy policy",
+    description: "What Molecule Architecture Studio stores about you, which services receive it, and why.",
+    robots: TRUST_ROBOTS,
+  },
+  {
+    path: "/terms",
+    title: "Terms of use",
+    description: "The terms for using Molecule Architecture Studio and buying AI Lab credit packs.",
+    robots: TRUST_ROBOTS,
   },
   {
     path: "/pricing",
