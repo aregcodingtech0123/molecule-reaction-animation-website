@@ -14,6 +14,8 @@ import { checkConfig, TTL_MARGIN } from "../../scripts/check-config.mjs";
 const root = path.resolve(__dirname, "../..");
 const secret = () => randomBytes(36).toString("base64url");
 const shared = { INTERNAL_SERVICE_SECRET: secret(), JWT_SECRET: secret(), FRONTEND_URL: "https://studio.example" };
+// Web only: the public origin search engines may index (SEO-20).
+const SITE_URL = "https://studio.example";
 
 function serviceEnv(over: Record<string, string | undefined> = {}) {
   return {
@@ -65,6 +67,36 @@ describe("checkConfig", () => {
     expect(checkConfig(serviceEnv(), webEnv({ FRONTEND_URL: "https://www.studio.example" })).problems).toEqual([
       expect.stringMatching(/FRONTEND_URL differs between service and web/),
     ]);
+  });
+
+  describe("SITE_URL (SEO-20)", () => {
+    it("a valid https origin equal to FRONTEND_URL passes (trailing slash allowed)", () => {
+      expect(checkConfig(serviceEnv(), webEnv({ SITE_URL: "https://studio.example/" })).problems).toEqual([]);
+    });
+
+    it.each([
+      [undefined, /^web: SITE_URL is not set/],
+      ["not a url", /^web: SITE_URL is not an absolute URL/],
+      ["http://studio.example", /^web: SITE_URL does not use https/],
+      ["https://studio.example/en", /^web: SITE_URL must be an origin only/],
+    ])("%j is a problem: the production site would be noindex", (value, message) => {
+      const { problems } = checkConfig(serviceEnv(), webEnv({ SITE_URL: value }));
+      expect(problems).toEqual([expect.stringMatching(message)]);
+      expect(problems[0]).toMatch(/noindex on every page/);
+    });
+
+    it("a VERCEL_ENV other than production is a problem; production passes", () => {
+      expect(checkConfig(serviceEnv(), webEnv({ VERCEL_ENV: "preview" })).problems).toEqual([
+        expect.stringMatching(/non-production Vercel deployment/),
+      ]);
+      expect(checkConfig(serviceEnv(), webEnv({ VERCEL_ENV: "production" })).problems).toEqual([]);
+    });
+
+    it("must be the same origin as FRONTEND_URL", () => {
+      expect(checkConfig(serviceEnv(), webEnv({ SITE_URL: "https://www.studio.example" })).problems).toEqual([
+        expect.stringMatching(/SITE_URL differs from FRONTEND_URL/),
+      ]);
+    });
   });
 
   it("the Google client id must match (service audience vs browser client)", () => {
