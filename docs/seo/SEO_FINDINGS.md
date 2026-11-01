@@ -361,3 +361,19 @@ Google sign-up stores no invented name/date of birth and the profile page can cl
 | `npm run check:launch-content` | **exit 1** (12 placeholders) | expected |
 | ESLint | new and changed files clean; the whole tree still reports 4 `react-hooks` errors in files this round did not introduce (`profile/page.tsx` ×2 — identical at HEAD, `verify-email/page.tsx`, `AuthGatePage.tsx`) | pre-existing |
 
+## Part 2 follow-ups, round 4 — account deletion (Phase B) and the re-registration guard (2026-11-02, Node 24.22.2, PostgreSQL 18.6)
+
+Migration 017 (anonymise by `anonymise_user()`, 12-month keyed e-mail tombstones, `purge_email_tombstones()`), `POST`/`DELETE /api/users/deletion`, daily `db:process-deletions` (heartbeat, refuses without `EMAIL_TOMBSTONE_SECRET`), the bonus guard inside `grantSignupBonus`, webhook/receipt guards, the profile "Delete my account" section with the approved warning text, privacy text conditional on `SITE_OWNER.accountDeletionJob` / `emailTombstoneGuard`, runbook §11 (manual process; Lemon Squeezy and Resend per their official documents), checklist updates, flavour-text clean-up (TC-83..89). Ledger rows, balances and the existing triggers are untouched (asserted).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 44 files, **815 passed** · lines **92.10 %** (1434/1557) · branches **81.81 %** (931/1138) | floors 91.98 / 81.50: met (above) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 59 files, **1002 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/profile` 352.1 / 384 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (14 placeholders) | expected |
+| ESLint on the new and changed files | 0 errors (2 existing warnings in `errorHandler.ts`, `billing.controller.ts`) | the 4 `react-hooks` errors in `profile/page.tsx` (2, identical at the previous commit), `verify-email/page.tsx`, `AuthGatePage.tsx` are unchanged |
+

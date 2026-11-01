@@ -78,6 +78,7 @@ describe("POST /api/auth/register", () => {
       isAdmin: false,
       isVerified: false,
       createdAt: expect.any(String),
+      deletionScheduledFor: null,
     });
     expect(JSON.stringify(res.body)).not.toContain("password");
 

@@ -183,7 +183,7 @@ describe("validation", () => {
       password_hash: "$2b$10$secret",
     };
     const out = toPublicUserProfile(row);
-    expect(out).toEqual({ id: "u", email: "e@x.io", firstName: "", lastName: "", dateOfBirth: "", isAdmin: false, isVerified: true, createdAt: "2026-01-01T00:00:00.000Z" });
+    expect(out).toEqual({ id: "u", email: "e@x.io", firstName: "", lastName: "", dateOfBirth: "", isAdmin: false, isVerified: true, createdAt: "2026-01-01T00:00:00.000Z", deletionScheduledFor: null });
     expect(JSON.stringify(out)).not.toContain("secret");
   });
 });
