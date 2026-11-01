@@ -253,3 +253,29 @@ Tests: `tests/unit/seo/*`, `tests/unit/periodic-table/*`, `tests/e2e/seo.spec.mt
   running. Measured plan unchanged (`docs/seo/CWV_RESULTS.md`).
 * The full suite run on PostgreSQL 18 (service, BFF, E2E dev ×2 and production ×1, coverage floors) - see the report that
   accompanies this part.
+
+## Part 1 verification (2026-11-01, branch `seo/technical`)
+
+Run on **Node 24.22.2** (the machine has Node 26; a Node 24 binary from the `node@24` npm package was put first on `PATH`,
+nothing installed system-wide) against the project's **PostgreSQL 18.6** test container (`npm run test:db:up`).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck` (`tsc` + tests) | clean | |
+| Service `test:coverage` (unit · api · db) | 39 files, **687 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) · statements 91.64 % · functions 93.77 % | floors 91.89 / 81.36: met exactly |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` (unit + BFF api) | 44 files, **681 passed** · BFF set (`src/lib/gateway`, `src/app/api/**`, `server-billing.ts`) **94.83 %** lines (275/290), 83.61 % branches; with `src/proxy.ts` 95.30 % | floor 94.83: met exactly |
+| `next build` | OK (23 routes) | |
+| `npm run perf:bundle-budget` | OK, every route under its ceiling (e.g. `/periodic-table` 364.1 / 398 KiB) | |
+| E2E, dev server (`npm run test:e2e`) | run 1: **49 passed**, 18 skipped · run 2: **49 passed**, 18 skipped | the 18 are the production-only checks |
+| E2E, production build (`E2E_NEXT_MODE=production`) | **67 passed**, 0 skipped | |
+| `npm run test:seo` (production build, no database) | **17 passed** | |
+
+**What the first full run found (all fixed, TC-60..62):** the SEO commits had left three tests broken. `check-config.test.ts`
+declared `SITE_URL` but its fixture never used it (30 failures; TC-56 had described a change that was not in the commit);
+`gating.spec.mts` forbade any `layout.tsx` in the protected sections although SEO-04 added metadata-only ones; and
+`security-headers.spec.mts` used `/robots.txt` and `/sitemap.xml` as 404 examples after they became real routes. The first dev E2E run
+failed 2 tests for the last two reasons; the root run failed 30 for the first. Lint: unchanged (SEO-27).
+
+**Environment notes:** `.env.test` does not exist here, so the suites were given `TEST_DATABASE_URL` in the environment.
+`.env.test.example` was present at the end of this run (SEO-25 did not recur). Docker test container left running.
