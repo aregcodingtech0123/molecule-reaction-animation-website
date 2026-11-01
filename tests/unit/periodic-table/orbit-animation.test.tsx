@@ -40,3 +40,16 @@ describe("AtomicOrbitAnimation", () => {
     }
   });
 });
+
+describe("Z 109-118 (no measured ground state)", () => {
+  it.each(ELEMENTS.filter((e) => e.atomicNumber >= 109).map((e) => [e.symbol, e.atomicNumber] as const))(
+    "%s (%i): nucleus only, with the note",
+    (symbol) => {
+      const { container, unmount } = renderWithProviders(<AtomicOrbitAnimation element={element(symbol)} />);
+      expect(electrons(container)).toBe(0);
+      expect(rings(container)).toBe(0);
+      expect(screen.getByText(/ground-state configuration of this element has not been measured/i)).toBeTruthy();
+      unmount();
+    },
+  );
+});
