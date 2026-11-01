@@ -200,7 +200,16 @@ test.describe("defence in depth — data behind the protected pages needs a sess
       // Server-only data access would make a middleware bypass leak data; there must be none.
       expect(source, file).not.toMatch(/from ["']next\/headers["']|server-only|@\/lib\/db|process\.env\.(?!NEXT_PUBLIC_)/);
     }
-    const layouts = fs.readdirSync(path.join(repoRoot, "src/app")).filter((d) => PROTECTED.includes(`/${d}` as never));
-    for (const d of layouts) expect(fs.existsSync(path.join(repoRoot, "src/app", d, "layout.tsx")), d).toBe(false);
+    // A protected section may have a layout only for its (static) metadata (SEO-04): a pass-through with no data access.
+    for (const d of fs.readdirSync(path.join(repoRoot, "src/app")).filter((d) => PROTECTED.includes(`/${d}` as never))) {
+      const layout = path.join(repoRoot, "src/app", d, "layout.tsx");
+      if (!fs.existsSync(layout)) continue;
+      const source = fs.readFileSync(layout, "utf8");
+      expect(source, layout).not.toMatch(/next\/headers|server-only|@\/lib\/db|process\.env|fetch\(|cookies\(/);
+      const imports = [...source.matchAll(/^import .* from ["'](.+)["'];?\s*$/gm)].map((m) => m[1]);
+      expect(imports, layout).toEqual(["@/lib/seo/metadata"]);
+      expect(source, layout).toContain(`export const generateMetadata = routeMetadata("/${d}");`);
+      expect(source, layout).toContain("return children;");
+    }
   });
 });

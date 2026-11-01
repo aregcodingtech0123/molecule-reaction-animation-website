@@ -39,6 +39,7 @@ function serviceEnv(over: Record<string, string | undefined> = {}) {
 function webEnv(over: Record<string, string | undefined> = {}) {
   return {
     ...shared,
+    SITE_URL,
     AUTH_SERVICE_URL: "https://api.studio.example/api/auth",
     BILLING_SERVICE_URL: "https://api.studio.example/api/billing",
     USERS_SERVICE_URL: "https://api.studio.example/api/users",
@@ -64,7 +65,9 @@ describe("checkConfig", () => {
 
   it("FRONTEND_URL must be the same origin on both sides (a trailing slash is the same origin)", () => {
     expect(checkConfig(serviceEnv(), webEnv({ FRONTEND_URL: "https://studio.example/" })).problems).toEqual([]);
-    expect(checkConfig(serviceEnv(), webEnv({ FRONTEND_URL: "https://www.studio.example" })).problems).toEqual([
+    // SITE_URL follows, so the only problem left is the service/web FRONTEND_URL mismatch under test
+    const web = webEnv({ FRONTEND_URL: "https://www.studio.example", SITE_URL: "https://www.studio.example" });
+    expect(checkConfig(serviceEnv(), web).problems).toEqual([
       expect.stringMatching(/FRONTEND_URL differs between service and web/),
     ]);
   });
