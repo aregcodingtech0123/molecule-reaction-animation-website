@@ -60,24 +60,24 @@ site, and those keep "longest-lived isotope". For Z 95–118 NIST lists isotopes
 note is "mass number of a known isotope"** and no longest-lived claim is shown for those 24 (asserted for all 24 on the
 panel, the page text and the descriptions; three descriptions changed, section 4). The Nubase check stays in the tests only.
 
-**For your decision — 8 shown numbers that are not in NIST's isotope list.** The NIST isotope lists for Z 95–118 are now in
-the test fixture (`nistIsotopeMassNumbers`, same NIST page, retrieved 2026-11-01). For 16 of the 24 the shown number is one
-of NIST's listed isotopes. For these 8 it is not; each is a known isotope only per Nubase 2020 (test-only), so even "a known
-isotope" is not NIST-supported for them. **Values unchanged**; the test pins this list.
+**Applied (owner decision after Part 2): the 8 shown numbers that were not in NIST's isotope list now are.** NIST lists a single
+isotope for each of these elements; the site now shows it (source: the same NIST page, `tests/fixtures/element-reference.json`
+`nistIsotopeMassNumbers`). Every one of the 24 elements Am–Og now shows a number NIST lists.
 
-| Element | Shown | NIST lists (only) | Option |
-| --- | --- | --- | --- |
-| Lr (103) | 266 | 262 | show 262, or keep 266 |
-| Sg (106) | 269 | 271 | show 271, or keep 269 |
-| Bh (107) | 270 | 272 | show 272, or keep 270 |
-| Mt (109) | 278 | 276 | show 276, or keep 278 |
-| Rg (111) | 282 | 280 | show 280, or keep 282 |
-| Nh (113) | 286 | 284 | show 284, or keep 286 |
-| Mc (115) | 290 | 288 | show 288, or keep 290 |
-| Ts (117) | 294 | 292 | show 292, or keep 294 |
+| Element | Old | New (NIST) |
+| --- | --- | --- |
+| Lr (103) | 266 | **262** |
+| Sg (106) | 269 | **271** |
+| Bh (107) | 270 | **272** |
+| Mt (109) | 278 | **276** |
+| Rg (111) | 282 | **280** |
+| Nh (113) | 286 | **284** |
+| Mc (115) | 290 | **288** |
+| Ts (117) | 294 | **292** |
 
-Switching to NIST's numbers makes every shown value NIST-supported; the cost is that these are not the most stable known
-isotopes in current evaluations (e.g. Ts-294 vs NIST's Ts-292). Your call.
+These are no longer all among the most stable known isotopes in current evaluations (Nubase 2020, test-only): for Bh, Mt, Rg, Nh
+and Ts the NIST isotope is a different one (e.g. NIST Ts-292, Nubase Ts-294). That is why the note says only "a known isotope"
+and why the test lists those five as decided differences.
 
 ### Masses that stay and why
 
