@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ALL_MOLECULES } from "@/lib/molecules/data";
+import { modelCredit } from "@/lib/molecules/model-check";
 import { moleculePageFacts, moleculeSummary, PUBCHEM_CIDS } from "@/lib/molecules/page-facts";
 import { breadcrumbJsonLd, JsonLd } from "@/lib/seo/json-ld";
 import { moleculeMetadata } from "@/lib/seo/metadata";
@@ -130,7 +131,7 @@ export default async function MoleculePage({ params }: { params: Promise<{ id: s
             </a>
           </span>
         ))}
-        . The 3D model in the explorer is a schematic illustration.
+        . {modelCredit(molecule.id)}
       </p>
     </main>
   );

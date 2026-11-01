@@ -26,6 +26,31 @@ export const REFERENCE_FORMULAS: Readonly<Record<string, readonly string[]>> = {
   "heme-group": ["C34H32FeN4O4"],
 };
 
+/**
+ * Models generated from PubChem's computed 3D conformers (scripts/molecules/generate-structures.mjs, src/lib/molecules/
+ * structures/*.ts). The others (water, methane, ethanol, aspirin, serotonin, C60, heme) are hand-built illustrations;
+ * heme cannot be regenerated because PubChem has no 3D record for an iron complex. The base pair places two PubChem
+ * bases side by side; their relative position is schematic.
+ */
+export const PUBCHEM_3D_MODEL_IDS: ReadonlySet<string> = new Set([
+  "glucose",
+  "caffeine",
+  "dna-fragment",
+  "protein-fragment",
+  "capsaicin",
+  "dopamine",
+  "adrenaline",
+]);
+
+/** The credit line for a molecule's 3D model, shown on its page. */
+export function modelCredit(id: string): string {
+  if (!PUBCHEM_3D_MODEL_IDS.has(id)) return "The 3D model in the explorer is a hand-built illustration, not a measured structure.";
+  if (id === "dna-fragment") {
+    return "The 3D model in the explorer uses PubChem's computed 3D conformers of adenine and thymine, placed side by side (their relative position is schematic).";
+  }
+  return "The 3D model in the explorer is PubChem's computed 3D conformer.";
+}
+
 /** "C8H10N4O2" -> { C: 8, H: 10, N: 4, O: 2 }; several formulas are summed. */
 export function elementCounts(formulas: readonly string[]): Record<string, number> {
   const counts: Record<string, number> = {};

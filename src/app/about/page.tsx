@@ -35,7 +35,11 @@ export default function AboutPage() {
           Technology); the periodic-table page names the exact databases.
         </li>
         <li>Molecule pages: formulas, molar masses and melting/boiling points checked against PubChem (NCBI).</li>
-        <li>The 3D molecule models are schematic illustrations, not measured structures.</li>
+        <li>
+          3D models: glucose, caffeine, the DNA base pair, the dipeptide, capsaicin, dopamine and adrenaline use the computed
+          3D conformers published by PubChem (NCBI); the other seven models are hand-built illustrations, not measured
+          structures.
+        </li>
       </ul>
     </LegalPage>
   );

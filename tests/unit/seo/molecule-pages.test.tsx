@@ -90,10 +90,12 @@ describe("molecule page content (server HTML)", () => {
     }
   });
 
-  it("states no atom/bond counts from the schematic 3D models", async () => {
-    const html = await renderPage("caffeine");
-    expect(html).not.toMatch(/\b(atoms|bonds) total\b/i);
-    expect(html).toContain("schematic illustration");
+  it("states no atom/bond counts, and credits each 3D model correctly (PubChem conformer vs hand-built)", async () => {
+    const aspirin = await renderPage("aspirin");
+    expect(aspirin).not.toMatch(/(atoms|bonds) total/i);
+    expect(aspirin).toContain("hand-built illustration");
+    expect(await renderPage("caffeine")).toContain("PubChem&#x27;s computed 3D conformer");
+    expect(await renderPage("dna-fragment")).toContain("placed side by side");
   });
 
   it("an unknown id is the site's 404", async () => {

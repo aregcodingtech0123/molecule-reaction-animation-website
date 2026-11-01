@@ -203,25 +203,48 @@ the brain's "~120 g glucose per day", "12 pentagons and 20 hexagons", the name "
 gut) are well known but I did not fetch a source for them in this review. If "no unverified statement on any public page" is
 meant strictly for every sentence, each of those needs a source or removal: tell me and I will do that as its own change.
 
-### 6.3 The 3D models — **8 of 14 do not contain the formula's atoms** (unchanged; nothing about them is stated on the pages)
+### 6.3 The 3D models — 7 of the 8 mismatched models regenerated from PubChem; heme open
 
-The atom positions are schematic. Element counts compared with PubChem's formula:
+Part 2 found that 8 of the 14 models did not contain their formula's atoms. Owner decision: hide the counts derived from them
+(done first, `modelMatchesFormula`), regenerate the models from PubChem 3D data, test that each model matches its formula,
+and restore the counts.
 
-| Molecule | Model has | Formula needs | Note |
-| --- | --- | --- | --- |
-| Glucose | C6 H7 O6 | C6 H12 O6 | the five hydroxyl H are missing |
-| Caffeine | C8 H1 N4 O2 | C8 H10 N4 O2 | the three methyl groups are drawn as bare C |
-| DNA base pair | C10 N7 O2 (no H) | C10 H11 N7 O2 (A + T) | no hydrogens |
-| Gly-Ala | C5 H6 N2 O3 | C5 H10 N2 O3 | |
-| Capsaicin | H28 | H27 | one H too many |
-| Dopamine | H9 | H11 | |
-| Adrenaline | **C10** H12 | C9 H13 | one extra carbon |
-| Heme b | H31 | H32 | |
+**Regenerated** (`scripts/molecules/generate-structures.mjs`, run by hand, output in `src/lib/molecules/structures/*.ts`):
 
-Several models also have bond lengths far outside chemical ranges (e.g. aspirin C3–C7 4.35 Å, capsaicin C4–O9 0.36 Å, heme
-Fe–N 1.41 Å where ~2.0 Å is typical). Water (H–O–H 104.5°) and methane (109.3–109.9°) are correct. Explore's "atoms" / "bonds" totals (sidebar "15a · 16b") and the home
-page's comparison tiles ("15 atoms · 16 bonds" for caffeine, which has 24 atoms) come from these models. **Options:** (a) regenerate the eight from PubChem 3D conformers (the same source the
-AI Lab already loads at runtime), (b) label them "schematic" in Explore, (c) leave as is.
+| Molecule | PubChem | Atoms (= formula) | Bonds | Before |
+| --- | --- | --- | --- | --- |
+| Glucose (D-glucose, pyranose) | CID 5793 | 24 (C6 H12 O6) | 24 | C6 H7 O6 (19 atoms) |
+| Caffeine | CID 2519 | 24 (C8 H10 N4 O2) | 25 | C8 H1 N4 O2 (15) |
+| DNA base pair | CID 190 (adenine) + CID 1135 (thymine) | 30 (C10 H11 N7 O2) | 31 | C10 N7 O2, no H (19) |
+| Gly-Ala | CID 98153 (N-glycylalanine) | 20 (C5 H10 N2 O3) | 19 | C5 H6 N2 O3 (16) |
+| Capsaicin | CID 1548943 | 49 (C18 H27 N O3) | 49 | H28, 50 atoms |
+| Dopamine | CID 681 | 22 (C8 H11 N O2) | 22 | H9 (20) |
+| Adrenaline | CID 5816 | 26 (C9 H13 N O3) | 26 | C10 H12 (26 atoms, wrong ones) |
+
+* Coordinates are PubChem's *computed 3D conformers* (record_type=3d), unchanged except for centring on the centroid. The base
+  pair has no PubChem record, so adenine and thymine are rotated into their planes and placed side by side with a 2.6 Å gap;
+  **their relative position is schematic** and the page says so. Bond orders are PubChem's (1, 2, 3).
+* **Licence / attribution.** NCBI's policy page (read 2026-11-01) says "NCBI itself places no restrictions on the use or
+  distribution of the data" and that submitters may hold rights; these conformers are computed by PubChem, not deposited. The
+  molecule pages, the About page and the home FAQ credit PubChem (CIDs linked) and say which models use PubChem's conformer.
+* **Tests** (`model-check.test.tsx`, `model-geometry.test.ts`): every model has exactly its PubChem formula's atoms (13 of 14);
+  for the seven regenerated: unique ids, bonds between existing atoms, X–H bonds 0.90–1.15 Å, other bonds 1.15–1.60 Å, no
+  non-bonded atoms closer than 1.0 Å, the right number of connected pieces (2 for the pair), centred. The counts are back
+  on Explore, the sidebar and the home page for these seven.
+
+**Open — heme b.** PubChem has **no 3D record for any heme** (17 CIDs with formula C34H32FeN4O4 or variants all return 404 for
+`record_type=3d`). The wwPDB chemical component `HEM` has ideal coordinates, but I found no licence statement for the
+Chemical Component Dictionary (the wwPDB page states CC0 for "data files contained in the PDB archive", but does not say it covers
+the CCD, whose ideal coordinates were generated with third-party software), so I did not use it. The heme model is the old
+hand-built one: 74 atoms, one hydrogen short of C34H32FeN4O4, with Fe–N bonds of 1.41 Å (typical ≈ 2.0). Its counts, bond bars
+and element composition stay hidden (the code decides this from the data) and a test pins "heme is the only model that does not
+match". **Your call:** (a) allow the wwPDB `HEM` ideal coordinates (I would credit wwPDB and cite the Westbrook et al. 2014 CCD
+paper; please confirm the licence yourself), (b) leave heme as is, counts hidden.
+
+**Also found — not in scope, not changed.** Measured with the same bond-length rule, two *formula-correct* hand-built models still have
+impossible geometry: **aspirin** (9 of 21 bonds out of range, worst C3–C7 4.35 Å) and **serotonin** (15 of 26, worst N–H 0.66 Å).
+Their atom counts are correct, so their counts are shown. The pipeline above would regenerate them from CID 2244 and CID 5202;
+I did not do it because you named eight. Say the word.
 
 ## 7. Element categories (Part 2) — against IUPAC
 

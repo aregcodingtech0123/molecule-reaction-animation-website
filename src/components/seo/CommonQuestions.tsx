@@ -36,7 +36,7 @@ export const HOME_QUESTIONS: Question[] = [
     a: (
       <>
         The periodic table uses atomic weights and electron configurations from NIST. Molecule formulas, molar masses and
-        melting and boiling points were checked against PubChem. The 3D molecule models are schematic illustrations. More
+        melting and boiling points were checked against PubChem. Seven of the 3D molecule models are PubChem's computed 3D conformers; the other seven are hand-built illustrations. More
         on the <Link href="/about" className="underline">about page</Link>.
       </>
     ),

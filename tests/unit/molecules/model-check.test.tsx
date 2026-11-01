@@ -1,6 +1,6 @@
 /**
  * SEO-19 (owner decision after Part 2): atom/bond counts and the element composition are shown only for models that
- * contain exactly their formula's atoms.
+ * contain exactly their formula's atoms. After the PubChem regeneration only heme is left out.
  */
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -47,11 +47,18 @@ describe("modelMatchesFormula", () => {
     expect(modelMatchesFormula({ id: "water", atoms: [...water.atoms, water.atoms[1]] })).toBe(false);
   });
 
-  it("today the eight mismatched models fail and the other six pass (this changes when they are regenerated)", () => {
-    const failing = ALL_MOLECULES.filter((m) => !modelMatchesFormula(m)).map((m) => m.id).sort();
-    expect(failing, JSON.stringify(ALL_MOLECULES.map((m) => [m.id, modelElementCounts(m)]))).toEqual(
-      ["adrenaline", "caffeine", "capsaicin", "dna-fragment", "dopamine", "glucose", "heme-group", "protein-fragment"],
-    );
+  it("every model has exactly its formula's atoms except heme (PubChem has no 3D record for an iron complex; its model is the old schematic one, one hydrogen short)", () => {
+    const failing = ALL_MOLECULES.filter((m) => !modelMatchesFormula(m)).map((m) => m.id);
+    expect(failing, JSON.stringify(ALL_MOLECULES.map((m) => [m.id, modelElementCounts(m)]))).toEqual(["heme-group"]);
+    expect(modelElementCounts(MOLECULE_MAP["heme-group"])).toMatchObject({ Fe: 1, C: 34, N: 4, O: 4, H: 31 });
+  });
+
+  it("the atom total of each regenerated model is the formula's total (PubChem computed conformers, hydrogens included)", () => {
+    const totals: Record<string, number> = { glucose: 24, caffeine: 24, "dna-fragment": 30, "protein-fragment": 20, capsaicin: 49, dopamine: 22, adrenaline: 26 };
+    for (const [id, total] of Object.entries(totals)) {
+      expect(MOLECULE_MAP[id].atoms, id).toHaveLength(total);
+      expect(Object.values(elementCounts(REFERENCE_FORMULAS[id])).reduce((a, b) => a + b, 0), id).toBe(total);
+    }
   });
 });
 
@@ -60,21 +67,23 @@ describe("what the UI shows", () => {
 
   it("the info panel prints atoms and bonds for a matching model (water: 3 atoms, 2 bonds)", () => {
     info("water");
-    expect(screen.getAllByText("3").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2").length).toBeGreaterThan(0);
     expect(screen.getByText(/3 atoms · 2 bonds/i)).toBeTruthy();
   });
 
-  it("…and nothing for a mismatched one (caffeine's model has 15 atoms and 16 bonds)", () => {
-    const { container } = info("caffeine");
-    expect(screen.queryByText(/15 atoms/i)).toBeNull();
-    expect(container.textContent).not.toMatch(/\b15\b/);
-    expect(container.textContent).not.toMatch(/\b16\b/);
-    expect(screen.getByText("194.19")).toBeTruthy(); // the molar mass is still shown
+  it("caffeine's regenerated model is complete: 24 atoms and 25 bonds are shown", () => {
+    info("caffeine");
+    expect(screen.getByText(/24 atoms · 25 bonds/i)).toBeTruthy();
   });
 
-  it("the sidebar shows '15a · 16b' for no mismatched molecule and '3a · 2b' for water", () => {
-    for (const [id, expectedShown] of [["water", true], ["caffeine", false], ["glucose", false], ["methane", true]] as const) {
+  it("…and nothing for the one mismatched model left (heme: counts hidden, molar mass still shown)", () => {
+    const { container } = info("heme-group");
+    expect(container.textContent).not.toMatch(/\d+ atoms/i);
+    expect(container.textContent).not.toMatch(/\b74\b/);
+    expect(screen.getByText("616.49")).toBeTruthy();
+  });
+
+  it("the sidebar shows 'Na · Nb' for every matching molecule and for none that mismatches (heme)", () => {
+    for (const [id, expectedShown] of [["water", true], ["caffeine", true], ["glucose", true], ["methane", true], ["heme-group", false]] as const) {
       const { container, unmount } = renderWithProviders(
         <ExploreSidebarContent
           activeMode="explorer"

@@ -5,3 +5,7 @@ export { DOPAMINE_ATOMS, DOPAMINE_BONDS } from "./dopamine";
 export { ADRENALINE_ATOMS, ADRENALINE_BONDS } from "./adrenaline";
 export { BUCKMINSTERFULLERENE_ATOMS, BUCKMINSTERFULLERENE_BONDS } from "./buckminsterfullerene";
 export { HEME_ATOMS, HEME_BONDS } from "./heme-group";
+export { GLUCOSE_ATOMS, GLUCOSE_BONDS } from "./glucose";
+export { CAFFEINE_ATOMS, CAFFEINE_BONDS } from "./caffeine";
+export { DNA_FRAGMENT_ATOMS, DNA_FRAGMENT_BONDS } from "./dna-fragment";
+export { PROTEIN_FRAGMENT_ATOMS, PROTEIN_FRAGMENT_BONDS } from "./protein-fragment";

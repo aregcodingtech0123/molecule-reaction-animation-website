@@ -102,16 +102,14 @@ describe("molecule facts vs PubChem", () => {
     expect(MOLECULE_MAP.glucose.education!.boilingPoint).toBeUndefined();
   });
 
-  it("the 3D models that do not have the formula's atoms are exactly the eight listed for review", () => {
+  it("every 3D model has exactly PubChem's atoms except heme (no PubChem 3D record for an iron complex; DATA_REVIEW.md §6.3)", () => {
     const mismatched: Record<string, string> = {};
     for (const m of ALL_MOLECULES) {
       const model: Record<string, number> = {};
       for (const a of m.atoms) model[a.element] = (model[a.element] ?? 0) + 1;
       if (sorted(model) !== sorted(referenceCounts(m.id))) mismatched[m.id] = `${sorted(model)} vs ${sorted(referenceCounts(m.id))}`;
     }
-    expect(Object.keys(mismatched).sort(), JSON.stringify(mismatched, null, 1)).toEqual(
-      ["adrenaline", "caffeine", "capsaicin", "dna-fragment", "dopamine", "glucose", "heme-group", "protein-fragment"],
-    );
+    expect(Object.keys(mismatched).sort(), JSON.stringify(mismatched, null, 1)).toEqual(["heme-group"]);
   });
 });
 
