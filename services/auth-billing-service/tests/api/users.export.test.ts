@@ -152,7 +152,8 @@ describe("the export of a password account", () => {
     const before = await snapshot();
     expect((await post(tokenOf(u), { password: PASSWORD })).status).toBe(200);
     expect(await snapshot()).toEqual(before);
-    expect((await db.query(`SELECT count(*)::int AS n FROM ledger_reconciliation()`)).rows[0].n).toBe(0);
+    // The report is database-wide (other tests plant findings on purpose): look at this user only.
+    expect((await db.query(`SELECT count(*)::int AS n FROM ledger_reconciliation() WHERE user_id = $1`, [u.id])).rows[0].n).toBe(0);
   });
 
   it("an account with no activity still exports (empty lists, balance 0)", async () => {

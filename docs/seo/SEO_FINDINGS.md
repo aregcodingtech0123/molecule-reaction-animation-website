@@ -345,3 +345,19 @@ Aspirin and serotonin regenerated from PubChem (TC-75); the ~40 unsourced molecu
 | `npm run check:launch-content` | **exit 1** (12 placeholders, incl. `signupIpPurgeJob`) | expected |
 | ESLint on changed source and test folders | no output (clean) | |
 
+## Part 2 follow-ups, round 3 — what changed and the verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Google sign-up stores no invented name/date of birth and the profile page can clear a stored value (TC-78..80, `GOOGLE_PROFILE_DESIGN.md`); account data export `POST /api/users/export` + "Download my data" (TC-81); textbook items pruned to what OpenStax supports and the glucose "4 Calories" line removed (TC-82, DATA_REVIEW §6.4 D); launch checklist §1.7 (28 English-placeholder statements per language, 924 machine-translated strings); `ACCOUNT_DELETION_DESIGN.md` updated for late webhooks, receipts and the keyed-hash re-registration guard — **deletion (Phase B) not implemented**.
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 42 files, **739 passed** · lines **91.98 %** (1366/1485) · branches **81.50 %** (877/1076) | floors 91.89 / 81.36: met (above) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 57 files, **984 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/profile` 350.1 / 384 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (12 placeholders) | expected |
+| ESLint | new and changed files clean; the whole tree still reports 4 `react-hooks` errors in files this round did not introduce (`profile/page.tsx` ×2 — identical at HEAD, `verify-email/page.tsx`, `AuthGatePage.tsx`) | pre-existing |
+
