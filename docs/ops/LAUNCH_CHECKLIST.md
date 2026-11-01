@@ -170,6 +170,7 @@ locally: 16 concurrent logins 78 → 151 per second with 8 threads (performance 
 | --- | --- |
 | `JWT_SECRET`, `INTERNAL_SERVICE_SECRET` | the **same** values as Express |
 | `FRONTEND_URL` | `https://<site>` — the same origin |
+| `SITE_URL` | `https://<site>` — the same origin, **https, no path**. Server-only, read on every request (never `NEXT_PUBLIC_*`). **Without it the site is deliberately invisible to search engines** (SEO-20): `noindex` on every page, `Disallow: /` in robots.txt, an empty sitemap. Also `noindex` while `VERCEL_ENV` is anything but `production` (preview deployments, a custom domain on a non-production branch) |
 | `AUTH_SERVICE_URL` | `https://<api>/api/auth` |
 | `BILLING_SERVICE_URL` | `https://<api>/api/billing` |
 | `USERS_SERVICE_URL` | `https://<api>/api/users` |
@@ -208,7 +209,8 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
 - [ ] Output ends with `[check:config] OK — no problems found.` and exit code `0` (`1` = problems, `64` = usage error).
       It prints variable **names** only, never values.
 - [ ] It catches: every boot-time check of both services, `.env.example` placeholders, `INTERNAL_SERVICE_SECRET` /
-      `JWT_SECRET` / `FRONTEND_URL` / Google client id differing between the two, `AI_HOLD_TTL_SECONDS` below 2 ×
+      `JWT_SECRET` / `FRONTEND_URL` / Google client id differing between the two, a missing, non-https, path-carrying or
+      `FRONTEND_URL`-different `SITE_URL` (a `PROBLEM`: the production site would be hidden from search engines), `AI_HOLD_TTL_SECONDS` below 2 ×
       the longest turn (defaults: 600 s against 117.25 s — R20), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
       (`true`, `1`, `yes`, `y`, `on`) in the Express file — a `PROBLEM` naming the variable, exit `1`. Unset, empty and
       `false` / `0` / `no` / `off` pass; any other value only warns (the service honours exactly `true`, so it is inert).
@@ -427,6 +429,13 @@ curl -sI https://<site>/ | grep -iE '^(content-security-policy|strict-transport-
       `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`,
       `cross-origin-opener-policy: same-origin-allow-popups`, and **no** `x-powered-by`.
 - [ ] No `FATAL:` line in either service's startup log.
+- [ ] **Search signals (SEO-20)** — on the live origin, with no `VERCEL_ENV` surprises:
+      `curl -s https://<site>/robots.txt` shows `Allow: /`, `Disallow: /api/` and `Sitemap: https://<site>/sitemap.xml`
+      (**not** `Disallow: /`); `curl -s https://<site>/sitemap.xml` lists the five public pages; `curl -sI https://<site>/`
+      has **no** `x-robots-tag`; `curl -s https://<site>/ | grep -o '<meta name="robots"[^>]*>'` prints nothing and
+      `grep -o '<link rel="canonical"[^>]*>'` prints `https://<site>`. A `noindex` here means `SITE_URL` is wrong or
+      the deployment is not Vercel's production one. (Rehearse the opposite on a preview URL: robots.txt must say
+      `Disallow: /`.) More in `docs/seo/SEO_FINDINGS.md`; Search Console / Bing setup is Part 3.
 
 ### 4.1 Register and verify the email (also proves Resend)
 
@@ -698,11 +707,11 @@ None of these is a hidden defect; each is a decision with a trigger. Details liv
 
 Launch only when all of these are true:
 
-- [ ] §1.5 `check:config` passes; the hosts hold the same values.
+- [ ] §1.5 `check:config` passes (including `SITE_URL`); the hosts hold the same values.
 - [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=14`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
-- [ ] §4 all green, including Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
+- [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
 - [ ] §6 you have the rotation steps, the incident page and the rollback bookmarks at hand.
 - [ ] §7 you have read the limitations and accept them.
