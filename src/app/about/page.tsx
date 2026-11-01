@@ -36,9 +36,9 @@ export default function AboutPage() {
         </li>
         <li>Molecule pages: formulas, molar masses and melting/boiling points checked against PubChem (NCBI).</li>
         <li>
-          3D models: glucose, caffeine, the DNA base pair, the dipeptide, capsaicin, dopamine and adrenaline use the computed
-          3D conformers published by PubChem (NCBI); the other seven models are hand-built illustrations, not measured
-          structures.
+          3D models: glucose, caffeine, the DNA base pair, the dipeptide, capsaicin, dopamine, adrenaline, aspirin and
+          serotonin use the computed 3D conformers published by PubChem (NCBI); the other five (water, methane, ethanol,
+          buckminsterfullerene and heme) are hand-built illustrations, not measured structures.
         </li>
       </ul>
     </LegalPage>

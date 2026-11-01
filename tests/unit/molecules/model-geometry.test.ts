@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { MOLECULE_MAP } from "@/lib/molecules/data";
 import { elementCounts, modelElementCounts, REFERENCE_FORMULAS } from "@/lib/molecules/model-check";
 
-const REGENERATED = { glucose: 1, caffeine: 1, "dna-fragment": 2, "protein-fragment": 1, capsaicin: 1, dopamine: 1, adrenaline: 1 } as const;
+const REGENERATED = { glucose: 1, caffeine: 1, "dna-fragment": 2, "protein-fragment": 1, capsaicin: 1, dopamine: 1, adrenaline: 1, aspirin: 1, serotonin: 1 } as const;
 const dist = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 describe.each(Object.entries(REGENERATED))("regenerated model %s (%i compound(s))", (id, pieces) => {

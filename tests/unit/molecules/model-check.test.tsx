@@ -54,7 +54,7 @@ describe("modelMatchesFormula", () => {
   });
 
   it("the atom total of each regenerated model is the formula's total (PubChem computed conformers, hydrogens included)", () => {
-    const totals: Record<string, number> = { glucose: 24, caffeine: 24, "dna-fragment": 30, "protein-fragment": 20, capsaicin: 49, dopamine: 22, adrenaline: 26 };
+    const totals: Record<string, number> = { glucose: 24, caffeine: 24, "dna-fragment": 30, "protein-fragment": 20, capsaicin: 49, dopamine: 22, adrenaline: 26, aspirin: 21, serotonin: 25 };
     for (const [id, total] of Object.entries(totals)) {
       expect(MOLECULE_MAP[id].atoms, id).toHaveLength(total);
       expect(Object.values(elementCounts(REFERENCE_FORMULAS[id])).reduce((a, b) => a + b, 0), id).toBe(total);

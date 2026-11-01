@@ -203,7 +203,7 @@ the brain's "~120 g glucose per day", "12 pentagons and 20 hexagons", the name "
 gut) are well known but I did not fetch a source for them in this review. If "no unverified statement on any public page" is
 meant strictly for every sentence, each of those needs a source or removal: tell me and I will do that as its own change.
 
-### 6.3 The 3D models — 7 of the 8 mismatched models regenerated from PubChem; heme open
+### 6.3 The 3D models — 9 regenerated from PubChem (7 mismatched + aspirin and serotonin); heme left as is (owner decision)
 
 Part 2 found that 8 of the 14 models did not contain their formula's atoms. Owner decision: hide the counts derived from them
 (done first, `modelMatchesFormula`), regenerate the models from PubChem 3D data, test that each model matches its formula,
@@ -220,6 +220,8 @@ and restore the counts.
 | Capsaicin | CID 1548943 | 49 (C18 H27 N O3) | 49 | H28, 50 atoms |
 | Dopamine | CID 681 | 22 (C8 H11 N O2) | 22 | H9 (20) |
 | Adrenaline | CID 5816 | 26 (C9 H13 N O3) | 26 | C10 H12 (26 atoms, wrong ones) |
+| Aspirin (added after review) | CID 2244 | 21 (C9 H8 O4) | 21 | formula-correct, but 9 of 21 bonds out of range (worst C3–C7 4.35 Å) |
+| Serotonin (added after review) | CID 5202 | 25 (C10 H12 N2 O) | 26 | formula-correct, but 15 of 26 bonds out of range (worst N–H 0.66 Å) |
 
 * Coordinates are PubChem's *computed 3D conformers* (record_type=3d), unchanged except for centring on the centroid. The base
   pair has no PubChem record, so adenine and thymine are rotated into their planes and placed side by side with a 2.6 Å gap;
@@ -232,19 +234,16 @@ and restore the counts.
   non-bonded atoms closer than 1.0 Å, the right number of connected pieces (2 for the pair), centred. The counts are back
   on Explore, the sidebar and the home page for these seven.
 
-**Open — heme b.** PubChem has **no 3D record for any heme** (17 CIDs with formula C34H32FeN4O4 or variants all return 404 for
-`record_type=3d`). The wwPDB chemical component `HEM` has ideal coordinates, but I found no licence statement for the
-Chemical Component Dictionary (the wwPDB page states CC0 for "data files contained in the PDB archive", but does not say it covers
-the CCD, whose ideal coordinates were generated with third-party software), so I did not use it. The heme model is the old
-hand-built one: 74 atoms, one hydrogen short of C34H32FeN4O4, with Fe–N bonds of 1.41 Å (typical ≈ 2.0). Its counts, bond bars
-and element composition stay hidden (the code decides this from the data) and a test pins "heme is the only model that does not
-match". **Your call:** (a) allow the wwPDB `HEM` ideal coordinates (I would credit wwPDB and cite the Westbrook et al. 2014 CCD
-paper; please confirm the licence yourself), (b) leave heme as is, counts hidden.
+**Heme b — owner decision: leave as is.** PubChem has **no 3D record for any heme** (17 CIDs with formula C34H32FeN4O4 or
+variants all return 404 for `record_type=3d`). The wwPDB `HEM` coordinates are **not used** (owner decision; no licence statement
+found for the CCD). The heme model stays the old hand-built one: 74 atoms, one hydrogen short of C34H32FeN4O4, with Fe–N bonds of
+1.41 Å. Its counts, bond bars and element composition stay hidden (decided from the data) and a test pins "heme is the only model
+that does not match". The heme page says the model is a hand-built illustration.
 
-**Also found — not in scope, not changed.** Measured with the same bond-length rule, two *formula-correct* hand-built models still have
-impossible geometry: **aspirin** (9 of 21 bonds out of range, worst C3–C7 4.35 Å) and **serotonin** (15 of 26, worst N–H 0.66 Å).
-Their atom counts are correct, so their counts are shown. The pipeline above would regenerate them from CID 2244 and CID 5202;
-I did not do it because you named eight. Say the word.
+**Aspirin and serotonin — regenerated (owner decision after review).** Same pipeline and the same geometry tests (the seven
+tests in `model-geometry.test.ts` now run for nine models). The old models had the right atoms but impossible bond lengths
+(see the table). Of the 14 models, 9 are PubChem conformers and 5 are hand-built illustrations (water, methane, ethanol,
+buckminsterfullerene, heme); About, the home FAQ and each page say so.
 
 ## 7. Element categories (Part 2) — against IUPAC
 

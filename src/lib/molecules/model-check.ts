@@ -28,7 +28,7 @@ export const REFERENCE_FORMULAS: Readonly<Record<string, readonly string[]>> = {
 
 /**
  * Models generated from PubChem's computed 3D conformers (scripts/molecules/generate-structures.mjs, src/lib/molecules/
- * structures/*.ts). The others (water, methane, ethanol, aspirin, serotonin, C60, heme) are hand-built illustrations;
+ * structures/*.ts). The others (water, methane, ethanol, C60, heme) are hand-built illustrations;
  * heme cannot be regenerated because PubChem has no 3D record for an iron complex. The base pair places two PubChem
  * bases side by side; their relative position is schematic.
  */
@@ -40,6 +40,8 @@ export const PUBCHEM_3D_MODEL_IDS: ReadonlySet<string> = new Set([
   "capsaicin",
   "dopamine",
   "adrenaline",
+  "aspirin",
+  "serotonin",
 ]);
 
 /** The credit line for a molecule's 3D model, shown on its page. */

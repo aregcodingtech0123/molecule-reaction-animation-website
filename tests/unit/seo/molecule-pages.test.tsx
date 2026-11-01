@@ -91,10 +91,11 @@ describe("molecule page content (server HTML)", () => {
   });
 
   it("states no atom/bond counts, and credits each 3D model correctly (PubChem conformer vs hand-built)", async () => {
-    const aspirin = await renderPage("aspirin");
-    expect(aspirin).not.toMatch(/(atoms|bonds) total/i);
-    expect(aspirin).toContain("hand-built illustration");
-    expect(await renderPage("caffeine")).toContain("PubChem&#x27;s computed 3D conformer");
+    const water = await renderPage("water");
+    expect(water).not.toMatch(/(atoms|bonds) total/i);
+    expect(water).toContain("hand-built illustration");
+    expect(await renderPage("heme-group")).toContain("hand-built illustration");
+    for (const id of ["aspirin", "serotonin", "caffeine"]) expect(await renderPage(id), id).toContain("PubChem&#x27;s computed 3D conformer");
     expect(await renderPage("dna-fragment")).toContain("placed side by side");
   });
 

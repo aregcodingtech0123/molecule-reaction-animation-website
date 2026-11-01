@@ -1,8 +1,8 @@
 /**
- * Regenerates the 3D models of seven molecules from PubChem's computed 3D conformers (SEO-19, owner decision after
+ * Regenerates the 3D models of nine molecules from PubChem's computed 3D conformers (SEO-19, owner decision after
  * Part 2). Run by hand, never in CI or at build time:
  *
- *   node scripts/molecules/generate-structures.mjs
+ *   node scripts/molecules/generate-structures.mjs [file ...]     (no names = all; e.g. "aspirin serotonin")
  *
  * Source: PubChem (NCBI), https://pubchem.ncbi.nlm.nih.gov, PUG REST `compound/cid/<CID>/SDF?record_type=3d` — the
  * computed conformer PubChem publishes for each compound. NCBI's policy page states that "NCBI itself places no
@@ -31,6 +31,8 @@ const TARGETS = [
   { file: "capsaicin", prefix: "CAPSAICIN", name: "capsaicin", cids: [1548943] },
   { file: "dopamine", prefix: "DOPAMINE", name: "dopamine", cids: [681] },
   { file: "adrenaline", prefix: "ADRENALINE", name: "epinephrine (adrenaline)", cids: [5816] },
+  { file: "aspirin", prefix: "ASPIRIN", name: "aspirin (acetylsalicylic acid)", cids: [2244] },
+  { file: "serotonin", prefix: "SEROTONIN", name: "serotonin", cids: [5202] },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -158,7 +160,8 @@ ${bonds.map((b, i) => `  { id: "b${i + 1}", from: "${b.from}", to: "${b.to}", or
 }
 
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, "/")}` || process.argv[1]?.endsWith("generate-structures.mjs")) {
-  for (const target of TARGETS) {
+  const only = process.argv.slice(2);
+  for (const target of TARGETS.filter((t) => !only.length || only.includes(t.file))) {
     const parts = [];
     for (const cid of target.cids) parts.push(parseSdf(await fetchSdf(cid)));
     const model = buildModel(parts, target.cids.length > 1);
