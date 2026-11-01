@@ -195,3 +195,37 @@ pages (D4-ii), analytics.
   `…/03-file-conventions/01-metadata/{robots,sitemap,manifest,opengraph-image}.md`
 * FAQ rich-result end date (May 7, 2026): read from Google's FAQ page/changelog via a fetch summary and consistent
   secondary coverage; re-check the changelog before relying on the date.
+
+## 6. Addendum — decisions taken and re-verification (branch `seo/technical`)
+
+### Re-verification of the audit (2026-11-01)
+
+Fresh `next build` (Next 16.4.3, perf-harness environment, network guard active; the harness allows the two Google
+font hosts at build time only) and `next start`, requests without JavaScript, Googlebot user agent. All six spot
+checks still hold; no finding was withdrawn.
+
+| Check | Result today |
+| --- | --- |
+| SEO-01/02 `/robots.txt`, `/sitemap.xml` | both **404** |
+| SEO-03 canonical | no `<link rel="canonical">` on any route; `/explore?molecule=xyz` answers **200** |
+| SEO-04 titles | `<title>Molecule Architecture Studio</title>` on every route |
+| SEO-05 auth pages | `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email` → 200, no robots directive, no `X-Robots-Tag` |
+| SEO-13a hidden content | `/explore`, `/login`, `/signup`, `/reset-password`, `/verify-email` contain `<div hidden id="S:…">`; `/`, `/pricing`, `/periodic-table`, `/learn`, `/forgot-password` do not |
+| SEO-21 shells | `estimateElectronShells`: K → 2,8,9 · Ca → 2,8,10 · Cr → 2,8,14 · Fe → 2,8,16 · Cu → 2,8,18,1 (all wrong) |
+
+### Decisions (owner, 2026-11-01)
+
+| # | Decision |
+| --- | --- |
+| D1 | English-only indexing at launch: no hreflang, no locale-prefixed URLs. The language switcher must not create crawlable duplicate URLs. Revisit after native review of the 924 machine-translated strings |
+| D2 | **Allow all crawlers.** Every user-agent token verified against the vendor's current docs; the policy lives in one small config; the trade-off is documented (blocking `Google-Extended` also stops Gemini from using the site, it does not affect Google Search) |
+| D3 | `SITE_URL`: server-only, read per request (not `NEXT_PUBLIC_*`). Unset, not https, or Vercel environment not production → `noindex` on every page and `Disallow: /` robots.txt. Each case tested; added to `npm run check:config` and the launch checklist |
+| D4 | The 118 per-element pages are **deferred** (one sentence per element = thin content) |
+| D5 | The 15 molecule pages are built in **Part 2** after a short design note (URL scheme, redirect from `/explore?molecule=…`, metadata for non-JS bots, whether AI crawlers join `htmlLimitedBots`) |
+| D6 | Trust pages (About, Contact, Privacy, Terms) in **Part 2**; legal entity, address and contact are placeholders; a launch check fails while any placeholder remains; legal text is a draft needing legal review |
+| D7 | Icon derived from the existing Atom mark · fonts: preload only the display font with a size-adjusted fallback, measured against `display: optional`, keep the better LCP at CLS 0 · `/learn` and `/showcase`: noindex and out of the sitemap · `llms.txt`: skipped |
+
+Constraints acknowledged for Part 1: **SEO-12** — static `metadata` objects only on public routes in this part (a
+streamed `generateMetadata` is invisible to GPTBot/ClaudeBot/PerplexityBot; the decision for dynamic molecule pages
+belongs to the Part 2 design note); **SEO-21** — no shell data is published anywhere until verified against NIST for
+all 118 elements; differences in masses and other element facts are listed for the owner and never changed silently.
