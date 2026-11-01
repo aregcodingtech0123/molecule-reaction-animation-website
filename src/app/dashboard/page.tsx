@@ -119,10 +119,140 @@ export default function DashboardPage() {
     };
   }, [isHydrated, isAuthenticated, router, fetchBalance]);
 
+  // R10: the header is static, non-personal copy (labels and links), so it is rendered in the server HTML and in the
+  // loading state too. Before, the page showed only a spinner until the client had hydrated AND the auth round-trip
+  // had finished, which made the <h1> the LCP element only after ~3 s on a throttled phone. The proxy still gates the
+  // page (no session cookie -> redirect), the API still answers 401 without a session, and nothing below the header
+  // (balance, ledger, checkout) is rendered until the session is confirmed.
+  // CSS entrance (PERF-23): the heading is the LCP element and must not wait for hydration. It slides without a
+  // fade: an element first painted at opacity 0 is not an LCP candidate at all.
+  const header = (
+    <header className="space-y-3 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-3 duration-300">
+      <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs", ui.panel.badge)}>
+        <User className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
+        {t.dashboard_badge ?? "Account Dashboard"}
+      </div>
+      <h1 className={cn("text-3xl md:text-4xl font-bold", ui.typography.title)}>
+        {t.dashboard_title ?? "Your MoleculeStudio Account"}
+      </h1>
+      <p className={cn("text-sm md:text-base max-w-2xl", ui.typography.subtitle)}>
+        {t.dashboard_subtitle ?? "Manage your AI credits and review your full transaction ledger."}
+      </p>
+      <nav
+        aria-label={t.dashboard_quick_links ?? "Quick links"}
+        className="flex flex-wrap gap-2 pt-1"
+      >
+        {[
+          { href: "/profile", label: t.nav_profile ?? "Profile" },
+          { href: "/ai-lab", label: t.nav_ai_lab ?? "AI Lab" },
+          { href: "/explore", label: t.nav_explore },
+          { href: "/pricing", label: t.nav_pricing ?? "Pricing" },
+        ].map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors",
+              isWhiteLab
+                ? "border-slate-200 bg-white text-neutral-800 hover:border-teal-300 hover:bg-teal-50"
+                : "border-white/12 bg-white/5 text-gray-200 hover:border-teal-400/40 hover:bg-teal-500/10 hover:text-teal-100",
+            )}
+          >
+            {link.label}
+            <ArrowUpRight className="h-3 w-3 opacity-70" />
+          </Link>
+        ))}
+      </nav>
+
+      <div
+        aria-label={t.dashboard_feature_cards ?? "Studio features"}
+        className="grid gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {[
+          {
+            href: "/periodic-table",
+            title: t.dash_card_periodic_title ?? "Periodic Table 🧪",
+            body:
+              t.dash_card_periodic_body ??
+              "Inspect elements and atomic structures in 3D",
+            icon: Grid3X3,
+            accent: true,
+          },
+          {
+            href: "/showcase",
+            title: t.dash_card_showcase_title ?? "Interactive Showcase 🌟",
+            body:
+              t.dash_card_showcase_body ??
+              "Explore community creations and molecular architectures",
+            icon: Star,
+            accent: false,
+          },
+          {
+            href: "/learn",
+            title: t.dash_card_learn_title ?? "Chemistry Learn Hub 📖",
+            body:
+              t.dash_card_learn_body ??
+              "Master bonding types and orbital structures",
+            icon: BookOpen,
+            accent: false,
+          },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.href}
+              href={card.href}
+              className={cn(
+                "group flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-xl transition-all",
+                card.accent
+                  ? isWhiteLab
+                    ? "border-teal-300/90 bg-teal-50/90 shadow-sm hover:bg-teal-100 hover:shadow-[0_0_22px_rgba(13,148,136,0.18)]"
+                    : "border-teal-400/45 bg-teal-500/12 shadow-[0_0_22px_rgba(45,212,191,0.16)] hover:border-teal-300/60 hover:bg-teal-500/20"
+                  : isWhiteLab
+                    ? "border-slate-200 bg-white/90 hover:border-teal-300/70 hover:bg-teal-50/70"
+                    : "border-white/12 bg-white/5 hover:border-teal-400/35 hover:bg-teal-500/10",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                  isWhiteLab
+                    ? "border-teal-200 bg-teal-50 text-teal-800"
+                    : "border-teal-400/35 bg-teal-500/15 text-teal-200",
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={cn("font-display text-sm font-semibold", ui.typography.title)}>
+                  {card.title}
+                </p>
+                <p className={cn("mt-0.5 text-xs leading-relaxed", ui.typography.muted)}>
+                  {card.body}
+                </p>
+              </div>
+              <ArrowUpRight
+                className={cn(
+                  "mt-0.5 h-4 w-4 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
+                  isWhiteLab ? "text-teal-700" : "text-teal-300",
+                )}
+              />
+            </Link>
+          );
+        })}
+      </div>
+    </header>
+  );
+
   if (!isHydrated || !isAuthenticated) {
     return (
-      <main className="min-h-screen flex items-center justify-center pt-24">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      <main className="min-h-screen pt-24 pb-16 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto space-y-8">
+          {header}
+          <div className="flex justify-center py-10" role="status" aria-label="Loading">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          </div>
+        </div>
       </main>
     );
   }
@@ -130,123 +260,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen pt-24 pb-16 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto space-y-8">
-        {/* CSS entrance (PERF-23): the heading is the LCP element and must not wait for hydration. It slides
-            without a fade: an element first painted at opacity 0 is not an LCP candidate at all. */}
-        <header className="space-y-3 animate-in ease-out fill-mode-both motion-reduce:animate-none slide-in-from-top-3 duration-300">
-          <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs", ui.panel.badge)}>
-            <User className={cn("w-3.5 h-3.5", ui.typography.iconAccent)} />
-            {t.dashboard_badge ?? "Account Dashboard"}
-          </div>
-          <h1 className={cn("text-3xl md:text-4xl font-bold", ui.typography.title)}>
-            {t.dashboard_title ?? "Your MoleculeStudio Account"}
-          </h1>
-          <p className={cn("text-sm md:text-base max-w-2xl", ui.typography.subtitle)}>
-            {t.dashboard_subtitle ?? "Manage your AI credits and review your full transaction ledger."}
-          </p>
-          <nav
-            aria-label={t.dashboard_quick_links ?? "Quick links"}
-            className="flex flex-wrap gap-2 pt-1"
-          >
-            {[
-              { href: "/profile", label: t.nav_profile ?? "Profile" },
-              { href: "/ai-lab", label: t.nav_ai_lab ?? "AI Lab" },
-              { href: "/explore", label: t.nav_explore },
-              { href: "/pricing", label: t.nav_pricing ?? "Pricing" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors",
-                  isWhiteLab
-                    ? "border-slate-200 bg-white text-neutral-800 hover:border-teal-300 hover:bg-teal-50"
-                    : "border-white/12 bg-white/5 text-gray-200 hover:border-teal-400/40 hover:bg-teal-500/10 hover:text-teal-100",
-                )}
-              >
-                {link.label}
-                <ArrowUpRight className="h-3 w-3 opacity-70" />
-              </Link>
-            ))}
-          </nav>
-
-          <div
-            aria-label={t.dashboard_feature_cards ?? "Studio features"}
-            className="grid gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            {[
-              {
-                href: "/periodic-table",
-                title: t.dash_card_periodic_title ?? "Periodic Table 🧪",
-                body:
-                  t.dash_card_periodic_body ??
-                  "Inspect elements and atomic structures in 3D",
-                icon: Grid3X3,
-                accent: true,
-              },
-              {
-                href: "/showcase",
-                title: t.dash_card_showcase_title ?? "Interactive Showcase 🌟",
-                body:
-                  t.dash_card_showcase_body ??
-                  "Explore community creations and molecular architectures",
-                icon: Star,
-                accent: false,
-              },
-              {
-                href: "/learn",
-                title: t.dash_card_learn_title ?? "Chemistry Learn Hub 📖",
-                body:
-                  t.dash_card_learn_body ??
-                  "Master bonding types and orbital structures",
-                icon: BookOpen,
-                accent: false,
-              },
-            ].map((card) => {
-              const Icon = card.icon;
-              return (
-                <Link
-                  key={card.href}
-                  href={card.href}
-                  className={cn(
-                    "group flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-xl transition-all",
-                    card.accent
-                      ? isWhiteLab
-                        ? "border-teal-300/90 bg-teal-50/90 shadow-sm hover:bg-teal-100 hover:shadow-[0_0_22px_rgba(13,148,136,0.18)]"
-                        : "border-teal-400/45 bg-teal-500/12 shadow-[0_0_22px_rgba(45,212,191,0.16)] hover:border-teal-300/60 hover:bg-teal-500/20"
-                      : isWhiteLab
-                        ? "border-slate-200 bg-white/90 hover:border-teal-300/70 hover:bg-teal-50/70"
-                        : "border-white/12 bg-white/5 hover:border-teal-400/35 hover:bg-teal-500/10",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-                      isWhiteLab
-                        ? "border-teal-200 bg-teal-50 text-teal-800"
-                        : "border-teal-400/35 bg-teal-500/15 text-teal-200",
-                    )}
-                  >
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("font-display text-sm font-semibold", ui.typography.title)}>
-                      {card.title}
-                    </p>
-                    <p className={cn("mt-0.5 text-xs leading-relaxed", ui.typography.muted)}>
-                      {card.body}
-                    </p>
-                  </div>
-                  <ArrowUpRight
-                    className={cn(
-                      "mt-0.5 h-4 w-4 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
-                      isWhiteLab ? "text-teal-700" : "text-teal-300",
-                    )}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-        </header>
+        {header}
 
         <motion.section
           initial={{ opacity: 0, y: 12 }}

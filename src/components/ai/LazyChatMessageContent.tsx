@@ -27,15 +27,21 @@ interface LazyChatMessageContentProps {
   variant?: ChatMessageContentVariant;
   isWhiteLab?: boolean;
   className?: string;
+  /**
+   * Render as escaped plain text and never swap to the markdown renderer (R10). Only for text that is a constant of
+   * this app (the built-in welcome message), never for model output: the swap re-paints the paragraph once the
+   * markdown chunk arrives, which made that paragraph's LCP wait for the chunk on the AI Lab page.
+   */
+  plain?: boolean;
 }
 
 function PlainText({ content, className }: { content: string; className?: string }) {
   return <p className={cn("whitespace-pre-wrap break-words text-inherit", className)}>{content}</p>;
 }
 
-export function LazyChatMessageContent({ content, variant = "assistant", isWhiteLab = false, className }: LazyChatMessageContentProps) {
+export function LazyChatMessageContent({ content, variant = "assistant", isWhiteLab = false, className, plain = false }: LazyChatMessageContentProps) {
   // User messages are plain text in either renderer: no reason to wait for the markdown stack.
-  if (variant === "user") return <PlainText content={content} className={className} />;
+  if (variant === "user" || plain) return <PlainText content={content} className={className} />;
   return (
     <Suspense fallback={<PlainText content={content} className={className} />}>
       <MarkdownRenderer content={content} variant="assistant" isWhiteLab={isWhiteLab} className={className} />

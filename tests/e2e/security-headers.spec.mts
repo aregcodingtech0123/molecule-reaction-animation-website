@@ -145,8 +145,9 @@ test("client bundles carry no server secret; production serves no source maps", 
   }
 });
 
-test("404 pages (including dotted paths like /robots.txt) carry the CSP too", async ({ request }) => {
-  for (const path of ["/robots.txt", "/sitemap.xml", "/no-such-page", "/anything.php"]) {
+test("404 pages (including dotted paths like /no-such-file.txt) carry the CSP too", async ({ request }) => {
+  // /robots.txt and /sitemap.xml are real routes since SEO-01/02; their 404 stand-ins keep the dotted-path cases.
+  for (const path of ["/no-such-file.txt", "/no-such-sitemap.xml", "/no-such-page", "/anything.php"]) {
     const res = await request.get(path);
     expect(res.status(), path).toBe(404);
     expect(res.headers()["content-security-policy"], path).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);

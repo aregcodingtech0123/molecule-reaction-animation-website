@@ -50,7 +50,7 @@ export function ElementCell({ element, isActive, onSelect, compact = false }: El
         {element.symbol}
       </span>
       <span className={cn("mt-0.5 hidden truncate text-[8px] sm:block", CELL_TEXT.mass)}>
-        {element.atomicMass.toFixed(2)}
+        {element.atomicMassKind === "mass-number" ? `[${element.atomicMass}]` : element.atomicMass.toFixed(2)}
       </span>
 
       <span

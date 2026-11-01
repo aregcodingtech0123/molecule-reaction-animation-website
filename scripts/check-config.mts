@@ -37,6 +37,7 @@ import { bffProductionConfigProblems } from "../src/instrumentation";
 import { geminiTimeoutMs } from "../src/lib/ai/gemini-limits";
 import { billingCallTimeoutMs, retryDelays } from "../src/lib/billing/server-billing";
 import { weakSecretReason as webSecretReason } from "../src/lib/security/secret-strength";
+import { NOINDEX_REASON_TEXT, resolveSiteIndexing } from "../src/lib/seo/site";
 
 type Env = Record<string, string | undefined>;
 export const TTL_MARGIN = 2;
@@ -123,6 +124,16 @@ export function checkConfig(service: Env, web: Env, examples = { service: exampl
     trimmed(web.GEMINI_API_KEY) ? null : "GEMINI_API_KEY is not set — every AI Lab turn answers 503.",
   ]);
   if (!trimmed(web.CLIENT_IP_HEADER)) warnings.push("web: CLIENT_IP_HEADER is not set — all users share one rate-limit bucket (runbook §5).");
+
+  // ── Search indexing (SEO-20) ──────────────────────────────────────────────
+  // SITE_URL decides whether the site may be indexed at all; without a valid https origin every page is
+  // noindex and robots.txt disallows everything, which is right for staging but not for launch.
+  const site = resolveSiteIndexing(web as NodeJS.ProcessEnv);
+  if (!site.indexable) {
+    problems.push(`web: ${NOINDEX_REASON_TEXT[site.reason]} — the production site would be hidden from search engines (noindex on every page, robots.txt Disallow: /).`);
+  } else if (trimmed(web.FRONTEND_URL) && !sameOrigin(site.origin, trimmed(web.FRONTEND_URL))) {
+    problems.push("web: SITE_URL differs from FRONTEND_URL — canonical URLs and the sitemap would name a host that is not the app's public origin.");
+  }
 
   // ── Placeholders copied from .env.example ─────────────────────────────────
   for (const [side, values, example] of [

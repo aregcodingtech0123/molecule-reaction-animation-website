@@ -82,6 +82,32 @@ export default function PeriodicTablePage() {
             )}
           </motion.aside>
         </div>
+
+        <p className={cn("mx-auto mt-8 max-w-4xl text-center text-xs leading-relaxed", ui.typography.subtitle)}>
+          Data: atomic masses are the standard atomic weights from NIST,{" "}
+          <a
+            href="https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            Atomic Weights and Isotopic Compositions for All Elements
+          </a>
+          , rounded to three decimals (where NIST gives an interval, one conventional value inside it is shown). Elements
+          with no stable isotope have no standard weight; they show the mass number of their longest-lived isotope.
+          Electron shells are counted from the ground-state configurations in the NIST Atomic Spectra Database
+          (Kramida, A., Ralchenko, Yu., Reader, J. and NIST ASD Team (2024), version 5.12,{" "}
+          <a
+            href="https://physics.nist.gov/asd"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            physics.nist.gov/asd
+          </a>
+          , National Institute of Standards and Technology); electrons are grouped by principal quantum number.
+          NIST lists no measured ground state for elements 109–118, so no shells are shown for them.
+        </p>
       </div>
     </main>
   );

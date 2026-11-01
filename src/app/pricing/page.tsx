@@ -79,6 +79,7 @@ export default function PricingPage() {
             onPurchase={(id) => void purchase(id)}
             loadingId={loadingId}
             layout="dashboard"
+            headingLevel={2}
           />
 
           <ul className={cn("mt-8 grid gap-2 text-center text-xs sm:grid-cols-3", ui.typography.muted)}>

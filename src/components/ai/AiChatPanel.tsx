@@ -8,6 +8,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { LazyChatMessageContent, preloadChatRenderer } from "@/components/ai/LazyChatMessageContent";
+import { WELCOME_MESSAGE_ID } from "@/hooks/useAiChat";
 
 export type AiChatPanelVariant = "compact" | "embedded" | "full";
 
@@ -194,6 +195,7 @@ function MessageBubble({
           content={message.content}
           variant={isUser ? "user" : "assistant"}
           isWhiteLab={isWhiteLab}
+          plain={message.id === WELCOME_MESSAGE_ID}
         />
       </div>
     </div>

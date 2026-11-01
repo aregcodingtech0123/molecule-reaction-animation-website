@@ -82,7 +82,16 @@ export function ElementDetailPanel({ element, className }: ElementDetailPanelPro
             <RealWorldView element={element} className="mb-5" />
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-              <DetailStat icon={Scale} label="Atomic Mass" value={`${element.atomicMass} u`} />
+              {element.atomicMassKind === "mass-number" ? (
+                <DetailStat
+                  icon={Scale}
+                  label="Mass number"
+                  value={String(element.atomicMass)}
+                  note="No stable isotope — longest-lived isotope"
+                />
+              ) : (
+                <DetailStat icon={Scale} label="Atomic Mass" value={`${element.atomicMass} u`} />
+              )}
               <DetailStat icon={Layers} label="Period" value={String(element.period)} />
               <DetailStat icon={Hash} label="Group" value={element.group ? String(element.group) : "—"} />
               <DetailStat icon={Sparkles} label="Electrons" value={String(element.atomicNumber)} />
@@ -107,10 +116,12 @@ function DetailStat({
   icon: Icon,
   label,
   value,
+  note,
 }: {
   icon: typeof Scale;
   label: string;
   value: string;
+  note?: string;
 }) {
   return (
     <div className="rounded-xl border border-neutral-200/50 bg-neutral-100/70 px-3 py-2.5 text-neutral-800 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-neutral-200">
@@ -119,6 +130,7 @@ function DetailStat({
         {label}
       </div>
       <p className="font-display text-lg font-bold text-neutral-900 dark:text-white">{value}</p>
+      {note && <p className="mt-0.5 text-[10px] leading-snug text-neutral-500 dark:text-neutral-400">{note}</p>}
     </div>
   );
 }

@@ -2,6 +2,9 @@
   "name": "moleculerarchitecturestudio",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:web": "next dev",
@@ -24,6 +27,7 @@
     "test:api": "vitest run --project api",
     "test:db": "npm run test:db --prefix services/auth-billing-service",
     "test:e2e": "playwright test",
+    "test:seo": "playwright test -c playwright.seo.config.mts",
     "test:coverage": "vitest run --coverage && npm run test:coverage --prefix services/auth-billing-service",
     "test:db:prepare": "node scripts/test/prepare-test-db.mjs",
     "test:db:up": "docker compose -f docker-compose.test.yml up -d --wait",

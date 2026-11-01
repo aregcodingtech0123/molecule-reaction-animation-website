@@ -14,6 +14,8 @@ export interface PricingCardsProps {
   disabled?: boolean;
   className?: string;
   layout?: "modal" | "dashboard";
+  /** Level of each pack name. 3 (default) under a section heading; 2 when the page heading is the only one above (SEO-14). */
+  headingLevel?: 2 | 3;
 }
 
 export function PricingCards({
@@ -22,6 +24,7 @@ export function PricingCards({
   disabled = false,
   className,
   layout = "modal",
+  headingLevel = 3,
 }: PricingCardsProps) {
   return (
     <div className={cn("space-y-5", className)}>
@@ -42,6 +45,7 @@ export function PricingCards({
             disabled={disabled || Boolean(loadingId && loadingId !== pkg.id)}
             onBuy={() => onPurchase(pkg.id)}
             layout={layout}
+            headingLevel={headingLevel}
           />
         ))}
       </div>
@@ -56,6 +60,7 @@ function PricingCard({
   disabled,
   onBuy,
   layout,
+  headingLevel,
 }: {
   pkg: CreditPackage;
   index: number;
@@ -63,7 +68,9 @@ function PricingCard({
   disabled: boolean;
   onBuy: () => void;
   layout: "modal" | "dashboard";
+  headingLevel: 2 | 3;
 }) {
+  const Heading = headingLevel === 2 ? "h2" : "h3";
   const { ui, isWhiteLab } = useTheme();
   const { t } = useLanguage();
   const { isAuthenticated } = useAuth();
@@ -103,9 +110,9 @@ function PricingCard({
       )}
 
       <div className="mb-4">
-        <h3 className={cn("font-display text-lg font-bold tracking-tight", ui.typography.title)}>
+        <Heading className={cn("font-display text-lg font-bold tracking-tight", ui.typography.title)}>
           {pkg.name}
-        </h3>
+        </Heading>
         <p className={cn("text-xs mt-1.5 leading-relaxed", ui.typography.muted)}>{pkg.description}</p>
       </div>
 
