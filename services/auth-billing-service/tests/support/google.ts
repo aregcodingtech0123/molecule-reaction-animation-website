@@ -27,6 +27,8 @@ export interface GoogleClaims {
   aud?: string;
   iss?: string;
   expiresInSec?: number;
+  /** Issue the token this many seconds in the past (default 0 = just now). */
+  issuedSecondsAgo?: number;
   signWithAttackerKey?: boolean;
 }
 
@@ -37,7 +39,7 @@ export function googleIdToken(claims: GoogleClaims = {}): string {
     aud: claims.aud ?? TEST_ENV.GOOGLE_CLIENT_ID,
     sub: claims.sub ?? `g-${randomUUID()}`,
     email_verified: claims.email_verified ?? true,
-    iat: now,
+    iat: now - (claims.issuedSecondsAgo ?? 0),
     exp: now + (claims.expiresInSec ?? 3600),
   };
   if (!("email" in claims) || claims.email !== undefined) {

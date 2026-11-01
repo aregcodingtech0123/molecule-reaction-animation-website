@@ -43,8 +43,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           With Google sign-in we store your Google account identifier and the email address Google confirms. Google does
-          not give us your name or date of birth: those profile fields are filled with generated placeholder values,
-          which you can change on your profile page.
+          not give us your name or date of birth, and we do not invent any: those profile fields stay empty until you
+          enter them on your profile page, where you can also remove them again.
         </li>
         <li>
           To verify your email address and to reset a password we email you a one-time link. We keep only a hash of the
@@ -95,6 +95,12 @@ export default function PrivacyPage() {
         <li>
           Your account data is kept while your account exists. Records of credit purchases, use and refunds cannot be
           deleted: the database refuses it, because they are the accounting record of what was paid for.
+        </li>
+        <li>
+          Getting a copy of your data: on your profile page, &ldquo;Download my data&rdquo; gives you one JSON file with
+          your profile, sign-in methods, credit balance, every credit transaction, checkout orders and AI credit
+          reservations, after you confirm with your password (or with Google again). It never contains your password or
+          any token.
         </li>
         <li>Deleting your account: <Owner value={o.accountDeletion} />.</li>
       </ul>

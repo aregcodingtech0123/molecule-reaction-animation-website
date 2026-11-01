@@ -15,9 +15,10 @@ code it comes from, so a reviewer can check it and so a code change that makes i
 | No analytics, no advertising cookies | no analytics/tracking package or script in `src/` (searched for gtag, dataLayer, analytics, posthog, plausible, sentry: none) |
 | Theme and language stored on the device (`moleculestudio-theme`, `moleculestudio-locale`) | `src/lib/theme/types.ts`, `src/lib/i18n/languages.ts`, `ThemeContext`, `LanguageContext` |
 | Email/password signup stores email, bcrypt hash, first/last name, date of birth, signup IP, verified flag, creation time | `database/init/001…`, `002_user_profile_fields.sql` (names, DOB, `signup_ip`), `004_email_verification.sql` (`is_verified`); `services/…/utils/password.ts` (bcrypt); `services/…/services/auth.service.ts` (insert incl. `signup_ip`) |
-| Google sign-in stores the Google account id and the confirmed email; name/DOB are **generated placeholders** | `services/…/utils/google.ts` (returns `email`, `googleSub` only); `oauth_accounts` table; `services/…/utils/profile.ts` `generateRandomProfile()` |
+| Google sign-in stores the Google account id and the confirmed email; name/DOB are **not stored** (empty until the user enters them; GOOGLE_PROFILE_DESIGN, implemented) | `services/…/utils/google.ts` (returns `email`, `googleSub` only); `oauth_accounts` table; `services/…/services/auth.service.ts` (the Google branch passes no profile: `first_name`, `last_name`, `date_of_birth` stay NULL; `tests/api/users.google-profile.test.ts`) |
 | One-time links stored as hashes; verification 24 h, reset 1 h | `verification_tokens` / `password_reset_tokens` (`token_hash`), `auth.service.ts` `VERIFICATION_TTL_HOURS = 24`, `RESET_TTL_HOURS = 1` |
 | `session_token` cookie: HttpOnly, SameSite=Strict, Secure on https, session lifetime (7 days by default) | BFF cookie code (TC-29 assertions), `JWT_EXPIRES_IN` default `7d` in `services/…/config/env.ts` |
+| `/privacy` "Download my data": one JSON of the user's own data after password or fresh-Google confirmation, no secrets | `services/…/services/export.service.ts`, `POST /api/users/export` (`tests/api/users.export.test.ts`) |
 | Profile copy in local storage, removed on sign-out | `AUTH_USER_STORAGE_KEY` in `src/context/AuthContext.tsx` (`persistUser` / `clearPersistedUser` in `logout`) |
 | Sign-out revokes the session until it would have expired | `services/…/controllers/auth.controller.ts` `logout` → `logoutCurrentToken` → `revoked_tokens` |
 | Checkout sends email and account id to Lemon Squeezy; card data never reaches us | `services/…/lib/lemonsqueezy.ts` (`email`, `custom_data.user_id`), hosted checkout redirect |
@@ -43,9 +44,7 @@ database refuses to delete a user who has purchase records), `signupIpPurgeJob` 
 
 ## 3. Points for your decision (found while writing)
 
-* **Generated name and date of birth for Google sign-ups.** Accounts created with Google get random first/last names and
-  a random date of birth (age 18–69) from `generateRandomProfile()`. Storing invented personal data is unusual and the
-  privacy policy has to say so (it does). Consider leaving these fields empty until the user fills them in.
+* **Name and date of birth for Google sign-ups — done.** Google accounts no longer get invented values (they stay empty until the user enters them, and the profile page can clear any stored value). `GOOGLE_PROFILE_DESIGN.md`.
 * **Date of birth at signup** is required by validation; the policy needs a purpose for it (legal review), or it can be dropped.
 * **`signup_ip`**: now cleared after 90 days (migration 016 + a daily job, `PRIVACY_FOLLOWUPS.md` §1). The policy still needs a *purpose* for collecting it (the column comment says "abuse heuristics"; the code never reads it) — legal review.
 * **Account deletion** does not exist as a feature; a privacy request process is needed before launch in most

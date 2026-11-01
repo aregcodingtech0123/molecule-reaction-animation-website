@@ -6,8 +6,10 @@ import type {
   AuthUser,
   BalanceApiResponse,
   BalanceData,
+  PersonalDataExport,
   ProfileApiResponse,
   ProfileUpdateInput,
+  ReauthSecret,
   RegisterProfileInput,
 } from "./types";
 
@@ -131,6 +133,24 @@ export async function updateProfileRequest(updates: ProfileUpdateInput): Promise
   const data = await parseJson<ProfileApiResponse>(res);
   if (!res.ok || !data.success || !data.data) {
     throw new Error(extractError(data, "Profile could not be updated."));
+  }
+  return data.data;
+}
+
+/** Downloads the user's own data. 403 means the password / Google sign-in did not match; 429 means too many attempts. */
+export async function exportDataRequest(secret: ReauthSecret): Promise<PersonalDataExport> {
+  const res = await authFetch("/api/users/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    credentials: "include",
+    body: JSON.stringify(secret),
+  });
+
+  const data = await parseJson<{ success: boolean; data?: PersonalDataExport; error?: string }>(res);
+  if (res.status === 429) throw new Error("Too many attempts. Please try again in an hour.");
+  if (!res.ok || !data.success || !data.data) {
+    throw new Error(extractError(data, "Your data could not be exported."));
   }
   return data.data;
 }

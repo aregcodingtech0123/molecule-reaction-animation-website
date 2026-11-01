@@ -3,7 +3,7 @@ import { AppError } from "../types/index.js";
 import {
   toPublicUserProfile,
   type PublicUserProfile,
-  type UserProfileInput,
+  type ProfileUpdate,
   type UserRow,
 } from "../utils/profile.js";
 
@@ -23,7 +23,7 @@ export async function getProfileByUserId(userId: string): Promise<PublicUserProf
 
 export async function updateProfileByUserId(
   userId: string,
-  updates: Partial<UserProfileInput>,
+  updates: ProfileUpdate,
 ): Promise<PublicUserProfile> {
   const sets: string[] = [];
   const values: unknown[] = [];

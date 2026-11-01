@@ -8,7 +8,6 @@ import { hashPassword, verifyPassword } from "../utils/password.js";
 import { signToken } from "../utils/jwt.js";
 import { normalizeEmail, validateGoogleIdToken, validatePassword } from "../utils/validation.js";
 import {
-  generateRandomProfile,
   toPublicUserProfile,
   validateProfileInput,
   type UserProfileInput,
@@ -86,7 +85,8 @@ async function insertUser(
   params: {
     email: string;
     passwordHash: string;
-    profile: UserProfileInput;
+    /** Absent for accounts created with Google: Google gives us no name or date of birth, so none is stored. */
+    profile?: UserProfileInput;
     signupIp: string | null;
     isVerified: boolean;
   },
@@ -101,9 +101,9 @@ async function insertUser(
       params.email,
       params.passwordHash,
       params.signupIp,
-      params.profile.firstName,
-      params.profile.lastName,
-      params.profile.dateOfBirth,
+      params.profile?.firstName ?? null,
+      params.profile?.lastName ?? null,
+      params.profile?.dateOfBirth ?? null,
       params.isVerified,
     ],
   );
@@ -467,15 +467,12 @@ export async function loginWithGoogle(idTokenInput: unknown, signupIp: string | 
 
   // 3) Brand-new user: create users + oauth_accounts atomically.
   const passwordHash = await createOAuthPasswordHash();
-  const profile = generateRandomProfile();
-
   let user: UserRow;
   try {
     user = await withTransaction(async (client: PoolClient) => {
       const row = await insertUser(client, {
         email,
         passwordHash,
-        profile,
         signupIp,
         isVerified: true,
       });

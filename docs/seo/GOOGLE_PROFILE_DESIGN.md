@@ -1,6 +1,6 @@
 # Design note — stop inventing a name and date of birth for Google sign-ups
 
-**Status: proposal only. Touches the auth service. Nothing here is implemented; waiting for the owner's approval.**
+**Status: approved and IMPLEMENTED (owner: GO for §3, the profile page may clear a stored value, no "created through Google" notice). Tests: `tests/api/users.google-profile.test.ts`, `tests/unit/auth/profile-update.test.ts`, `tests/unit/pure-modules.test.ts` (service).**
 Branch `seo/aeo-geo`, written 2026-11-01 from the code as it is today.
 
 ## 1. What happens today

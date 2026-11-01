@@ -2,18 +2,6 @@ import { ValidationError } from "./validation.js";
 
 const NAME_RE = /^[\p{L}\p{M}' -]+$/u;
 
-const FIRST_NAMES = [
-  "Emma", "Liam", "Olivia", "Noah", "Ava", "Ethan", "Sophia", "Mason", "Isabella", "Lucas",
-  "Mia", "James", "Charlotte", "Benjamin", "Amelia", "Henry", "Harper", "Alexander", "Evelyn", "Daniel",
-  "Ayşe", "Mehmet", "Zeynep", "Can", "Elif", "Yuki", "Hiro", "Sakura", "Carlos", "Maria",
-];
-
-const LAST_NAMES = [
-  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
-  "Wilson", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White",
-  "Yılmaz", "Kaya", "Demir", "Şahin", "Çelik", "Tanaka", "Suzuki", "Sato", "Fernandez", "Lopez",
-];
-
 export interface UserProfileInput {
   firstName: string;
   lastName: string;
@@ -104,50 +92,31 @@ export function validateProfileInput(input: {
   };
 }
 
+/**
+ * A profile update: a field that is absent is left alone, a string is validated and stored, and `null` clears the stored
+ * value (the user removing their own data; accounts created with Google start with all three empty).
+ */
+export type ProfileUpdate = { [K in keyof UserProfileInput]?: string | null };
+
 export function validateProfileUpdateInput(input: {
   firstName?: unknown;
   lastName?: unknown;
   dateOfBirth?: unknown;
-}): Partial<UserProfileInput> {
-  const result: Partial<UserProfileInput> = {};
+}): ProfileUpdate {
+  const result: ProfileUpdate = {};
   if (input.firstName !== undefined) {
-    result.firstName = validateFirstName(input.firstName);
+    result.firstName = input.firstName === null ? null : validateFirstName(input.firstName);
   }
   if (input.lastName !== undefined) {
-    result.lastName = validateLastName(input.lastName);
+    result.lastName = input.lastName === null ? null : validateLastName(input.lastName);
   }
   if (input.dateOfBirth !== undefined) {
-    result.dateOfBirth = validateDateOfBirth(input.dateOfBirth);
+    result.dateOfBirth = input.dateOfBirth === null ? null : validateDateOfBirth(input.dateOfBirth);
   }
   if (Object.keys(result).length === 0) {
     throw new ValidationError("At least one profile field must be provided.");
   }
   return result;
-}
-
-function randomItem<T>(items: readonly T[]): T {
-  return items[Math.floor(Math.random() * items.length)]!;
-}
-
-/** Assign realistic placeholder profile data for legacy or OAuth-created accounts. */
-export function generateRandomProfile(): UserProfileInput {
-  const today = new Date();
-  const ageYears = 18 + Math.floor(Math.random() * 52);
-  const birthYear = today.getUTCFullYear() - ageYears;
-  const birthMonth = 1 + Math.floor(Math.random() * 12);
-  const birthDay = 1 + Math.floor(Math.random() * 28);
-
-  const dateOfBirth = [
-    String(birthYear),
-    String(birthMonth).padStart(2, "0"),
-    String(birthDay).padStart(2, "0"),
-  ].join("-");
-
-  return {
-    firstName: randomItem(FIRST_NAMES),
-    lastName: randomItem(LAST_NAMES),
-    dateOfBirth,
-  };
 }
 
 export interface UserRow {
