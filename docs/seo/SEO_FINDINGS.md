@@ -291,10 +291,10 @@ failing launch check, answer-first "Common questions" on home and pricing. Test 
 | ID | Pri | Area | Evidence | Status |
 | --- | --- | --- | --- | --- |
 | SEO-28 | Note | Repo | `seo/technical` was **not** in `main` (local or `origin`) when Part 2 started, although the brief said it was merged. Merged locally with `--no-ff` (`5d4c982 Merge branch 'seo/technical'`), the same way as the earlier phases; `seo/aeo-geo` branches from it. Nothing pushed | done locally — please confirm this is the merge you meant |
-| SEO-29 | P1 | Data | 8 of the 14 3D molecule models do not contain their formula's atoms (e.g. adrenaline has C10 for C9, caffeine 1 H for 10) and several have impossible bond lengths; Explore's sidebar and the home page's comparison tiles print atom/bond counts from them | open — owner decision (`DATA_REVIEW.md` §6.3); the molecule pages state no counts |
+| SEO-29 | P1 | Data | 8 of the 14 3D molecule models do not contain their formula's atoms (e.g. adrenaline has C10 for C9, caffeine 1 H for 10) and several have impossible bond lengths; Explore's sidebar and the home page's comparison tiles print atom/bond counts from them | **7 fixed** (regenerated from PubChem computed conformers, counts restored, tests). **Open:** heme (PubChem has no 3D record; wwPDB `HEM` licence unclear) keeps counts hidden; aspirin and serotonin match their formula but have impossible bond lengths (`DATA_REVIEW.md` §6.3) |
 | SEO-30 | P1 | Privacy | Google sign-ups get a **generated** first name, last name and date of birth (`generateRandomProfile`); `signup_ip` has no retention; no account deletion exists | **partly fixed**: `signup_ip` is cleared after 90 days (migration 016, daily job — `PRIVACY_FOLLOWUPS.md` §1). **Waiting for your go:** no fake name/date of birth for Google sign-ups (§2) and account deletion/export (§3) — both touch the auth service; the draft privacy policy describes the current behaviour |
 | SEO-31 | Note | Audit | Part 0 said 15 molecules; the data has 14 (`ALL_MOLECULES`) | corrected (14 pages) |
-| SEO-32 | Note | Data | The phase illustration (now the only element visual) draws Og as a gas and "Crystalline solid" for elements never made in bulk | open — owner decision (`DATA_REVIEW.md` §8) |
+| SEO-32 | Note | Data | The phase illustration (now the only element visual) draws Og as a gas and "Crystalline solid" for elements never made in bulk | **fixed**: Og no longer a gas; At, Fr and Fm–Og show "State unknown / not produced in bulk". **Open:** that cutoff has no readable source (`DATA_REVIEW.md` §8) |
 
 ### Part 2 verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6 test container)
 
@@ -309,3 +309,22 @@ failing launch check, answer-first "Common questions" on home and pricing. Test 
 | `npm run test:seo` | **25 passed** | includes JSON-LD under the enforced CSP in Chromium with a working control |
 | `npm run check:launch-content` | **exit 1** (11 placeholders) | expected until the owner details are filled |
 | ESLint on every file Part 2 touched | no errors | the 26 pre-existing errors elsewhere are unchanged (SEO-27) |
+
+### Part 2 follow-ups (after the owner's review) — verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Done: the 8 elements on NIST's mass numbers (TC-69); the 14 doubtful molecule facts corrected with a cited source or removed (TC-70);
+counts hidden for mismatched models, then 7 models regenerated from PubChem 3D and the counts restored (TC-71, TC-72); categories
+labelled "common classification, not an IUPAC designation" with IUPAC wording for Po/Ts/Og, Og no longer a gas, "state unknown /
+not produced in bulk" (TC-73); `signup_ip` cleared after 90 days — migration 016 (TC-74). Design note: `PRIVACY_FOLLOWUPS.md`.
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 40 files, **704 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly (no service source changed; +17 tests for migration 016) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 52 files, **783 passed** · BFF set **94.83 %** lines (275/290) | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; new routes 345.2 / 380 KiB; `/` 812.5, `/explore` 830.2, `/periodic-table` 363.6 KiB (all under their ceilings) | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (11 placeholders) | expected |
+| ESLint on every changed file | no errors (3 pre-existing unused-variable warnings in `MoleculeInfoPanel.tsx`) | |
