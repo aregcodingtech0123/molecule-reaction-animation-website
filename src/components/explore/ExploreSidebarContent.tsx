@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { FlaskConical, Sparkles } from "lucide-react";
 import type { MoleculeData } from "@/lib/molecules/types";
+import { modelMatchesFormula } from "@/lib/molecules/model-check";
 import type { ReactionData } from "@/lib/reactions/types";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -153,7 +154,7 @@ export function ExploreSidebarContent({
                   >
                     {mol.formula}
                   </p>
-                  {isActive && (
+                  {isActive && modelMatchesFormula(mol) && (
                     <p className={cn("text-xs mt-1 pl-[34px] leading-snug line-clamp-2", ui.sidebar.meta)}>
                       {mol.atoms.length}a · {mol.bonds.length}b
                     </p>

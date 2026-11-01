@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MoleculeData, MoleculeEducation } from "@/lib/molecules/types";
+import { modelMatchesFormula } from "@/lib/molecules/model-check";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { formatMessage, translateState } from "@/lib/i18n/localize";
@@ -86,7 +87,7 @@ export function MoleculeInfoPanel({ molecule, onClose }: MoleculeInfoPanelProps)
 
           {/* Stats row */}
           {edu && (
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className={cn("grid gap-2 mt-4", modelMatchesFormula(molecule) ? "grid-cols-3" : "grid-cols-1")}>
               <StatChip
                 icon={Weight}
                 label={t.panel_stat_weight}
@@ -94,20 +95,25 @@ export function MoleculeInfoPanel({ molecule, onClose }: MoleculeInfoPanelProps)
                 unit={edu.molecularWeight.split(" ").slice(1).join(" ")}
                 color={accentColor}
               />
-              <StatChip
-                icon={Atom}
-                label={t.panel_stat_atoms}
-                value={String(molecule.atoms.length)}
-                unit={t.panel_stat_total}
-                color={accentColor}
-              />
-              <StatChip
-                icon={Zap}
-                label={t.panel_stat_bonds}
-                value={String(molecule.bonds.length)}
-                unit={t.panel_stat_total}
-                color={accentColor}
-              />
+              {/* Counts come from the 3D model: shown only when the model has the formula's atoms (SEO-19). */}
+              {modelMatchesFormula(molecule) && (
+                <>
+                  <StatChip
+                    icon={Atom}
+                    label={t.panel_stat_atoms}
+                    value={String(molecule.atoms.length)}
+                    unit={t.panel_stat_total}
+                    color={accentColor}
+                  />
+                  <StatChip
+                    icon={Zap}
+                    label={t.panel_stat_bonds}
+                    value={String(molecule.bonds.length)}
+                    unit={t.panel_stat_total}
+                    color={accentColor}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>
@@ -225,12 +231,14 @@ function OverviewTab({
         >
           {molecule.category}
         </span>
-        <span className={cn("text-xs", ui.typography.muted)}>
-          {formatMessage(t.card_atoms_bonds, {
-            atoms: molecule.atoms.length,
-            bonds: molecule.bonds.length,
-          })}
-        </span>
+        {modelMatchesFormula(molecule) && (
+          <span className={cn("text-xs", ui.typography.muted)}>
+            {formatMessage(t.card_atoms_bonds, {
+              atoms: molecule.atoms.length,
+              bonds: molecule.bonds.length,
+            })}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -267,7 +275,8 @@ function BondsTab({
         ))}
       </div>
 
-      {/* Bond counts */}
+      {/* Bond counts and element composition come from the 3D model: hidden while it does not match the formula. */}
+      {modelMatchesFormula(molecule) && (
       <div className="space-y-2">
         {singleBonds > 0 && (
           <BondBar label={t.panel_single_bonds} count={singleBonds} total={molecule.bonds.length} accent="#94a3b8" />
@@ -279,13 +288,16 @@ function BondsTab({
           <BondBar label={t.panel_triple_bonds} count={tripleBonds} total={molecule.bonds.length} accent="#f97316" />
         )}
       </div>
+      )}
 
-      <div>
-        <p className={cn("text-xs mb-2 uppercase tracking-wider", ui.panel.cardLabel)}>
-          {t.panel_element_composition}
-        </p>
-        <ElementBreakdown atoms={molecule.atoms} accent={accent} />
-      </div>
+      {modelMatchesFormula(molecule) && (
+        <div>
+          <p className={cn("text-xs mb-2 uppercase tracking-wider", ui.panel.cardLabel)}>
+            {t.panel_element_composition}
+          </p>
+          <ElementBreakdown atoms={molecule.atoms} accent={accent} />
+        </div>
+      )}
     </div>
   );
 }

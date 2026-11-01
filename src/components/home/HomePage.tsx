@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { HomeAiLabSection } from "@/components/ai/HomeAiLabSection";
 import { HomeStudioShowcases } from "@/components/home/HomeStudioShowcases";
 import { CommonQuestions, HOME_QUESTIONS, SiteInfoLinks } from "@/components/seo/CommonQuestions";
+import { modelMatchesFormula } from "@/lib/molecules/model-check";
 
 export function HomePage() {
   const { locale, t } = useLanguage();
@@ -175,10 +176,12 @@ export function HomePage() {
                 </p>
                 <div className={cn("flex items-center justify-between text-xs", ui.typography.muted)}>
                   <span>
-                    {formatMessage(t.card_atoms_bonds, {
-                      atoms: mol.atoms.length,
-                      bonds: mol.bonds.length,
-                    })}
+                    {modelMatchesFormula(mol)
+                      ? formatMessage(t.card_atoms_bonds, {
+                          atoms: mol.atoms.length,
+                          bonds: mol.bonds.length,
+                        })
+                      : ""}
                   </span>
                   <span
                     className={cn(
@@ -346,12 +349,14 @@ export function HomePage() {
                   </h3>
                   <span className={cn("font-mono text-xs", ui.typography.monoMuted)}>{mol.formula}</span>
                 </div>
-                <p className={cn("text-xs mt-2", ui.typography.muted)}>
-                  {formatMessage(t.card_atoms_bonds, {
-                    atoms: mol.atoms.length,
-                    bonds: mol.bonds.length,
-                  })}
-                </p>
+                {modelMatchesFormula(mol) && (
+                  <p className={cn("text-xs mt-2", ui.typography.muted)}>
+                    {formatMessage(t.card_atoms_bonds, {
+                      atoms: mol.atoms.length,
+                      bonds: mol.bonds.length,
+                    })}
+                  </p>
+                )}
                 <span
                   className={cn(
                     "mt-3 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1",
