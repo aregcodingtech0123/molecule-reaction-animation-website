@@ -183,12 +183,12 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 `014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 > **Empty database (first deployment)?** Skip `--baseline`: run `node scripts/migrate.mjs` and expect
-> `mode=fresh baselined=0 applied=14` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
+> `mode=fresh baselined=0 applied=17` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
 > before the runner did.
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–015)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–016)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -227,6 +227,9 @@ base64 above.)
 | Variable | Next.js (BFF) | Express (`auth-billing-service`) | Notes |
 | --- | --- | --- | --- |
 | `INTERNAL_SERVICE_SECRET` | **required** | **required** | identical on both; ≥ 32 chars, random. Both services refuse to start without it |
+| `EMAIL_TOMBSTONE_SECRET` | — | **required while the guard is on** | key of the 12-month e-mail hash of deleted accounts (account deletion, migration 017). ≥ 32 chars, random, **its own value** (≠ `JWT_SECRET`, ≠ `INTERNAL_SERVICE_SECRET`); also needed by the machine running `db:process-deletions`. The service refuses to start in production without it (or with a weak/shared one); `check:config` checks it. Never printed |
+| `EMAIL_TOMBSTONE_GUARD` | — | optional (`true`) | `false`/`0`/`no`/`off` switches the guard off completely (no hash computed, looked up or stored; the secret is then not required) — for the case legal review rejects it. Any other value is refused at start-up |
+| `PURGE_HEARTBEAT_URL`, `DELETION_HEARTBEAT_URL` | — | optional | heartbeat-monitor ping URLs for the two daily jobs (read by the job processes, not the web service); the URL is a secret and only its host is ever printed |
 | `GEMINI_TIMEOUT_MS` | optional (30000) | — | a timed-out turn is released (not charged) |
 | `BILLING_RETRY_DELAYS_MS` | optional (`250,1000,3000,8000,15000`) | — | backoff for capture/release retries: ≈ 27 s, so a turn is still charged after a ~30 s billing or database outage (R20; was `250,1000,3000`, ≈ 4 s). The answer waits for the capture, so an outage delays it by up to this much |
 | `AI_HOLD_TTL_SECONDS` | — | optional (600) | an unsettled reservation expires uncharged after this. Keep it well above `GEMINI_TIMEOUT_MS` + the `BILLING_RETRY_DELAYS_MS` total, or slow successful turns go uncharged |
@@ -439,6 +442,19 @@ Where to run them, which log lines to alert on and how long logs survive on each
   On platforms with scheduled jobs (Render cron, GitHub Actions `schedule`, Neon + a worker) run the
   same command; the scheduler's "job failed" alert is the signal. Both behaviours are covered by
   `services/auth-billing-service/tests/db/cli.test.ts`.
+  **Signup address retention** (daily, privacy): `node scripts/purge-signup-ips.mjs` (`--days N`, default 90) clears
+  `users.signup_ip` for older accounts (migration 016) and prints how many; it never prints an address and touches no
+  ledger, balance or billing row. Non-zero exit = alert (`1` the job failed or 016 is not applied, `2` it purged but the
+  heartbeat ping failed, `64` bad argument). **Mandatory dead-man's switch:** set `PURGE_HEARTBEAT_URL` to a heartbeat
+  monitor's ping URL (it is sent once, only after a successful purge, and never printed beyond its host) and alert when no
+  ping arrives within 26 hours — a job that never runs sends no exit code. Same scheduler and owner URL as the
+  reconciliation above; covered by `tests/db/purge-signup-ips.test.ts`.
+  **Account deletion** (daily, mandatory, privacy): `node scripts/process-deletions.mjs` (`--dry-run` to list what is due) anonymises accounts whose
+  deletion request is ≥ 14 days old (`anonymise_user()`, migration 017), postpones accounts with an open AI reservation or pending checkout (and counts
+  them), stores the keyed e-mail hash when `EMAIL_TOMBSTONE_GUARD` is on, removes hashes older than 12 months, and prints counts only. It never touches
+  the ledger or balances. Exit `1` = failure / migration 017 missing / `EMAIL_TOMBSTONE_SECRET` missing or short (it refuses rather than store an unkeyed
+  hash), `2` = work done but the heartbeat ping failed (`DELETION_HEARTBEAT_URL`), `64` = bad argument. Alert on a non-zero exit **and** on a missing
+  heartbeat (26 h). Covered by `tests/db/account-deletion.test.ts`. By hand for one account: §11.3.
   Issues: `balance_mismatch`, `missing_balance_row`, `capture_failed` (a debit reached the service but
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
@@ -479,10 +495,20 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–015 (only if they cause a problem)
+### 10.1 Migrations 008–017 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 017 (account deletion + re-registration guard; also stop the daily `db:process-deletions` job. Accounts already anonymised stay
+-- anonymised — their e-mail is gone and cannot be restored; only the bookkeeping columns and the tombstone table are removed)
+DROP FUNCTION IF EXISTS anonymise_user(UUID, TEXT, BYTEA, INTERVAL);
+DROP FUNCTION IF EXISTS purge_email_tombstones(INTERVAL);
+DROP TABLE IF EXISTS deleted_email_tombstones;
+DROP INDEX IF EXISTS idx_users_deletion_due;
+ALTER TABLE users DROP COLUMN IF EXISTS deletion_requested_at;
+ALTER TABLE users DROP COLUMN IF EXISTS anonymised_at;
+-- 016 (a function nothing in the application calls; also stop the daily `db:purge-signup-ips` job)
+DROP FUNCTION IF EXISTS purge_signup_ips(INTERVAL);
 -- 015 (first run `npm run webhooks:replay` and check `db:reconcile`: unprocessed stored deliveries would be
 -- lost — Lemon got a 200 for them; export lemon_webhook_events if you need the history)
 DROP FUNCTION IF EXISTS webhook_events_to_review(INTERVAL);
@@ -515,7 +541,8 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
-                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql');
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql',
+                   '016_signup_ip_retention.sql', '017_account_deletion.sql');
 COMMIT;
 ```
 
@@ -551,6 +578,112 @@ written after the backup — sign-ups, purchases, AI usage — is lost and must 
 can be re-delivered from the dashboard).
 
 ---
+
+## 11. Handling a deletion or data request by hand
+
+Use this when someone e-mails `SITE_OWNER.contactEmail` instead of using the profile page, or until the self-service path
+(`Delete my account` / `Download my data`) has been proven end to end. Deadlines and legal grounds are for your lawyer; as I understand
+them GDPR allows one month to answer (Art. 12(3)) and KVKK 30 days (Art. 13) **(unverified: not read in this project)**. Keep a private log:
+date received, how identity was checked, what you did where, date answered.
+
+### 11.1 Check who is asking
+
+Answer only to the address on the account, and ask the person to **sign in and use the profile page** if they can: re-entering the password
+(or a fresh Google sign-in) is exactly the identity check the service applies. If they cannot sign in, ask them to use "Forgot password"
+first — the reset e-mail goes to the account's address, which proves control of it. Do not act on a request from a different address.
+
+### 11.2 A copy of their data (access / portability)
+
+Preferred: the person signs in and uses **Download my data** on the profile page (one JSON file, no secrets). By hand, with the owner URL
+(never send query results through chat; they contain personal data):
+
+```text
+SELECT id, email, first_name, last_name, date_of_birth, is_verified, created_at, host(signup_ip) AS signup_ip, deletion_requested_at
+  FROM users WHERE id = '<user id>';
+SELECT provider, created_at FROM oauth_accounts WHERE user_id = '<user id>';           -- not the provider id
+SELECT balance FROM user_balances WHERE user_id = '<user id>';
+SELECT id, amount, transaction_type, reference_id, provider, created_at FROM credit_ledger_transactions WHERE user_id = '<user id>' ORDER BY id;
+SELECT id, package_id, provider, currency, amount_minor, credits, status, created_at, completed_at FROM pending_checkout_orders WHERE user_id = '<user id>';
+SELECT reference_id, operation_type, amount, status, created_at, settled_at FROM ai_credit_holds WHERE user_id = '<user id>';
+```
+
+Never include `password_hash`, any `*_tokens` table, or the stored Lemon message (`lemon_webhook_events.payload`).
+
+### 11.3 Deletion in our own database
+
+The account is **anonymised, never deleted** (the credit ledger is immutable and refers to the user id). Check first that the person is not an
+administrator and understands the credits are lost. Then, with the owner URL, in the service folder:
+
+```text
+SELECT id, is_admin, deletion_requested_at, anonymised_at FROM users WHERE lower(email) = lower('<address>');
+-- They asked in writing, so the 14-day cancellation window is treated as already served:
+UPDATE users SET deletion_requested_at = NOW() - INTERVAL '15 days' WHERE id = '<id>' AND anonymised_at IS NULL AND NOT is_admin;
+```
+```bash
+npm run db:process-deletions -- --dry-run   # shows how many accounts are due (this one, plus any other pending request that is 14 days old)
+npm run db:process-deletions                # anonymises them, stores the keyed e-mail hash (if the guard is on) and prints counts only
+```
+
+An account with an open AI reservation or a recent pending checkout is postponed (the output says "postponed"); run it again the next day.
+After it runs: the e-mail is `deleted-<id>@invalid`, name/date of birth/signup address are gone, the Google link and any one-time links are
+deleted, every session is revoked, the ledger and balance are untouched. Tell the person what is **kept**: the purchase and credit records
+(without their name or e-mail) as the accounting record.
+
+### 11.4 Lemon Squeezy (payment provider, merchant of record) — what its official documents say (read 2026-11-01)
+
+* **We cannot delete a customer there with an API call.** The API reference lists *Create, Retrieve, Update, List all* for customers and no
+  delete (https://docs.lemonsqueezy.com/api/customers/the-customer-object); orders have *Retrieve, List, Generate invoice, Issue a refund* and
+  no update/delete (https://docs.lemonsqueezy.com/api/orders). Subscriptions and license keys likewise list no delete endpoint.
+* The only "archive" is a status on the customer: `PATCH /v1/customers/:id` accepts `name`, `email`, `city`, `region`, `country`, `status`, and
+  `archived` means "This customer has been archived and will no longer receive marketing emails."
+  (https://docs.lemonsqueezy.com/api/customers/update-customer). **The page does not say that archiving deletes or anonymises anything**, nor whether
+  changing `name`/`email` reaches existing orders.
+* Lemon Squeezy is the **merchant of record**: "The merchant of record is responsible for handling all payments and takes responsibility for
+  everything relating to the purchase, including collecting sales tax, processing refunds and chargebacks"
+  (https://docs.lemonsqueezy.com/help/payments/merchant-of-record). Its privacy policy (page dated 1 June 2021) says "You may have a right to request
+  that we delete the personal information we hold about you at any time" and "we may retain your personal information for our compliance with a
+  legal, accounting, or reporting obligation" (https://www.lemonsqueezy.com/privacy).
+* Its DPA (https://www.lemonsqueezy.com/dpa) makes Lemon Squeezy the **processor** for data the merchant supplies: it will "promptly notify Company if it
+  receives a request from a Data Subject" and "ensure that it does not respond to that request except on the documented instructions of Company";
+  notices go to "Lemon Squeezy ATTN: Privacy Officer, 222 South Main Street Suite 500, Salt Lake City, UT 84101". (The privacy policy and the DPA
+  describe its role differently — "Data Controller and/or Processor" versus "Data Processor" — so ask counsel which applies to buyers' data.)
+* **Not answered by the documents I could read:** whether and how a buyer's name/e-mail on past orders can be erased or anonymised on request;
+  the retention period for orders and invoices; a request channel for buyers (the contact address on the privacy page is obfuscated and I found no
+  form); dashboard steps to archive or delete a customer; whether the DPA must be signed or applies automatically. `https://www.lemonsqueezy.com/gdpr` returns 404.
+
+**What to do:** (1) tell the requester that the payment record at Lemon Squeezy is separate and is held under Lemon Squeezy's own terms; (2) write to
+Lemon Squeezy's Privacy Officer (postal address above, or the contact address shown on the page when you open it in a browser) naming the customer's
+order ids and e-mail, asking what they will erase or anonymise and what they must retain; keep the answer in your log and pass the relevant part on; (3) in the
+dashboard, archive the customer if the option is there (this stops marketing e-mail only — do not describe it as erasure).
+
+### 11.5 Resend (e-mail sending) — what its official documents say (read 2026-11-01)
+
+* **Retention is automatic:** "While your account is active, email and log data is retained for 30 days on Free, Pro, and Scale plans. Enterprise plans
+  include flexible data retention." Backups persist 7 days (https://resend.com/security/gdpr; same on https://resend.com/pricing). After you terminate the account,
+  remaining data is deleted within 90 days (https://resend.com/legal/dpa).
+* **No delete-an-email call is documented.** The email API pages list send, retrieve, list, update, cancel; the dashboard offers view, share link (valid 48 hours),
+  logs and a CSV export (https://resend.com/docs/dashboard/emails/manage-emails). The only documented route to remove one message early is to ask:
+  "If you need a specific message removed before the retention window ends, contact us" (https://resend.com/security/gdpr). The *Delete Contact* call
+  (https://resend.com/docs/api-reference/contacts/delete-contact) is irrelevant here: this service only sends transactional mail through `POST /emails` and
+  keeps no Resend contacts or audiences.
+* **Roles:** for the mail content and addresses Resend is a **processor** and you are responsible for answering the person: "For Customer Data processed through the
+  Service, you are responsible for responding to data subject requests" (https://resend.com/security/gdpr); the DPA says Resend "will advise the Data Subject to
+  submit their request to Customer" and will assist you on request (https://resend.com/legal/dpa §7.1–7.2). Contacts: `privacy@resend.com` (DPA) and
+  `support@resend.com` (their privacy policy, for erasure of their own processing).
+* **Reduce what it stores:** Resend can turn off message-content storage for eligible teams (Pro/Scale for at least a month, a domain with an active website, over
+  3,000 e-mails sent, under 5 % bounces; a paid add-on; via support) — https://resend.com/docs/knowledge-base/how-do-i-ensure-sensitive-data-isnt-stored-on-resend.md.
+* **For counsel:** Resend stores customer data in the United States (https://resend.com/security/gdpr), and states "We don't sign third-party or country-specific data
+  processing agreements or standard contracts, including … the Türkiye KVKK Standard Contract" (https://resend.com/security).
+* **Not answered:** whether a single message can be deleted from logs and backups before 30 days; whether a suppression-list entry is removed on request.
+
+**What to do:** nothing is needed for mail older than 30 days (it is gone). For a message younger than that which must go now, e-mail `privacy@resend.com` with the
+recipient address and the approximate send time and ask for removal; log the answer. Remember our own e-mails contain a first name, links (not secrets that outlive
+an hour/24 hours) and, for receipts, the order and amount.
+
+### 11.6 After the request
+
+Answer the person in writing: what you removed (our database: e-mail, name, date of birth, sign-in methods, signup address), what is kept and why (credit and
+purchase records), what third parties hold (Lemon Squeezy per §11.4, Resend for at most 30 days per §11.5), and that the credits are gone. Add the request to your log.
 
 ## Optional hardening (recommended, not required for launch)
 

@@ -94,7 +94,8 @@ export default function PeriodicTablePage() {
             Atomic Weights and Isotopic Compositions for All Elements
           </a>
           , rounded to three decimals (where NIST gives an interval, one conventional value inside it is shown). Elements
-          with no stable isotope have no standard weight; they show the mass number of their longest-lived isotope.
+          with no stable isotope have no standard weight: up to plutonium (94) they show the mass number NIST gives for the
+          longest-lived isotope; from americium (95) on, where NIST gives none, the mass number of a known isotope.
           Electron shells are counted from the ground-state configurations in the NIST Atomic Spectra Database
           (Kramida, A., Ralchenko, Yu., Reader, J. and NIST ASD Team (2024), version 5.12,{" "}
           <a
@@ -106,7 +107,9 @@ export default function PeriodicTablePage() {
             physics.nist.gov/asd
           </a>
           , National Institute of Standards and Technology); electrons are grouped by principal quantum number.
-          NIST lists no measured ground state for elements 109–118, so no shells are shown for them.
+          NIST lists no measured ground state for elements 109–118, so no shells are shown for them. Element categories
+          follow the common textbook classification, not IUPAC designations; for polonium, tennessine and oganesson the
+          panel gives IUPAC&apos;s own wording (IUPAC Red Book 2005, IR-3.5; IUPAC announcement of 30 November 2016).
         </p>
       </div>
     </main>

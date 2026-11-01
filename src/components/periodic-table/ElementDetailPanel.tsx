@@ -5,6 +5,8 @@ import { Atom, Hash, Layers, Scale, Sparkles } from "lucide-react";
 import { AtomicOrbitAnimation } from "@/components/periodic-table/AtomicOrbitAnimation";
 import { RealWorldView } from "@/components/periodic-table/RealWorldView";
 import { CATEGORY_STYLES } from "@/lib/periodic-table/category-styles";
+import { massNumberNote } from "@/lib/periodic-table/elements";
+import { CLASSIFICATION_NOTE, iupacNote } from "@/lib/periodic-table/classification";
 import type { ChemicalElement } from "@/lib/periodic-table/types";
 import { cn } from "@/lib/utils";
 
@@ -67,14 +69,19 @@ export function ElementDetailPanel({ element, className }: ElementDetailPanelPro
                   {element.symbol}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-semibold",
-                  CATEGORY_STYLES[element.category].badge,
-                )}
-              >
-                {CATEGORY_STYLES[element.category].label}
-              </span>
+              <div className="flex flex-col items-end gap-1 text-right">
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-semibold",
+                    CATEGORY_STYLES[element.category].badge,
+                  )}
+                >
+                  {CATEGORY_STYLES[element.category].label}
+                </span>
+                <span className="max-w-[12rem] text-[10px] leading-snug text-neutral-500 dark:text-neutral-400">
+                  {CLASSIFICATION_NOTE}
+                </span>
+              </div>
             </div>
 
             <AtomicOrbitAnimation element={element} className="mb-5" />
@@ -87,7 +94,7 @@ export function ElementDetailPanel({ element, className }: ElementDetailPanelPro
                   icon={Scale}
                   label="Mass number"
                   value={String(element.atomicMass)}
-                  note="No stable isotope — longest-lived isotope"
+                  note={massNumberNote(element) ?? undefined}
                 />
               ) : (
                 <DetailStat icon={Scale} label="Atomic Mass" value={`${element.atomicMass} u`} />
@@ -105,6 +112,12 @@ export function ElementDetailPanel({ element, className }: ElementDetailPanelPro
             >
               {element.description}
             </motion.p>
+
+            {iupacNote(element.symbol) && (
+              <p className="mt-3 rounded-xl border border-neutral-200/60 bg-neutral-100/60 px-3 py-2 text-xs leading-relaxed text-neutral-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-300">
+                {iupacNote(element.symbol)}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

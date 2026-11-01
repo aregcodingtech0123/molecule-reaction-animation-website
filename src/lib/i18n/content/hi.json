@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "जल",
-      "description": "सभी ज्ञात जीवन रूपों के लिए आवश्यक सार्वभौमिक विलायक।",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,15 +10,11 @@
         "हाइड्रोजन बंध"
       ],
       "uses": [
-        "सार्वभौमिक जैविक विलायक",
-        "औद्योगिक शीतलन प्रणालियाँ",
-        "जलविद्युत ऊर्जा उत्पादन",
-        "रासायनिक अभिक्रिया माध्यम"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
-        "जल एकमात्र प्राकृतिक पदार्थ है जो पृथ्वी पर सामान्य तापमान पर तीनों भौतिक अवस्थाओं में मौजूद रहता है।",
-        "एक जल अणु वर्षा के रूप में गिरने से पहले वायुमंडल में केवल लगभग 9 दिन रहता है।",
-        "गर्म जल ठंडे जल से तेज़ जम सकता है — इसे म्पेम्बा प्रभाव कहते हैं।"
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -31,15 +27,11 @@
         "चतुष्फलकीय"
       ],
       "uses": [
-        "तापन और खाना पकाने के लिए प्राकृतिक गैस ईंधन",
-        "बिजली घरों में बिजली उत्पादन",
-        "हाइड्रोजन गैस उत्पादन",
-        "रासायनिक संश्लेषण के लिए कच्चा माल"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
-        "20 वर्ष की अवधि में मीथेन CO₂ से 80 गुना अधिक शक्तिशाली ग्रीनहाउस गैस है।",
-        "इसके पूर्ण चतुष्फलकीय आकार से चारों C–H बंधों की लंबाई समान (1.09 Å) होती है।",
-        "मीथेनोजेनिक आर्किया गहरे समुद्री तलछट और पशु पाचन तंत्र में मीथेन उत्पन्न करते हैं।"
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -54,14 +46,10 @@
       ],
       "uses": [
         "ग्लाइकोलाइसिस के माध्यम से प्राथमिक कोशिकीय ऊर्जा स्रोत",
-        "चिकित्सा में IV ग्लूकोज ड्रिप",
-        "खेल और ऊर्जा पेय",
-        "इथेनॉल और CO₂ उत्पादन के लिए किण्वन"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "आपका मस्तिष्क प्रतिदिन लगभग 120 ग्राम ग्लूकोज खपत करता है — लगभग आपके कुल ग्लूकोज उपयोग का 60%।",
-        "ग्लूकोज दो रूपों में मौजूद है: α-ग्लूकोज और β-ग्लूकोज, जो केवल एक हाइड्रॉक्सिल समूह की दिशा में भिन्न हैं।",
-        "एक ग्राम ग्लूकोज चयापचय होने पर लगभग 4 कैलोरी ऊर्जा देता है।"
+        "ग्लूकोज दो रूपों में मौजूद है: α-ग्लूकोज और β-ग्लूकोज, जो केवल एक हाइड्रॉक्सिल समूह की दिशा में भिन्न हैं।"
       ]
     },
     "caffeine": {
@@ -82,7 +70,6 @@
       ],
       "funFacts": [
         "कैफीन मस्तिष्क में एडेनोसीन रिसेप्टर अवरुद्ध करती है, थकान की अनुभूति रोकती है।",
-        "एक औसत एस्प्रेसो कप में लगभग 63 मिलीग्राम कैफीन होती है — घातक खुराक के लिए लगभग 80 कप बहुत तेज़ी से पीने होंगे।",
         "कैफीन दुनिया में सबसे अधिक उपयोग की जाने वाली मनोसक्रिय पदार्थ है।"
       ]
     },
@@ -93,18 +80,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "सुगंधित",
-        "हाइड्रोजन बंध (×2 A–T)",
-        "ग्लाइकोसिडिक बंध"
+        "हाइड्रोजन बंध (×2 A–T)"
       ],
       "uses": [
         "सभी जीवित जीवों में आनुवंशिक सूचना संग्रहण",
         "mRNA प्रतिलेखन के लिए टेम्पलेट",
-        "CRISPR-Cas9 जीन संपादन लक्ष्य स्थल",
         "फोरेंसिक विज्ञान में DNA फिंगरप्रिंटिंग"
       ],
       "funFacts": [
         "एडेनिन हमेशा थाइमिन के साथ 2 हाइड्रोजन बंधों से जुड़ता है — यह वाटसन-क्रिक बेस पेयरिंग है।",
-        "यदि आपकी सभी कोशिकाओं का DNA खोला और सिरे से सिरे जोड़ा जाए, तो पृथ्वी से सूर्य तक और वापस लगभग 600 बार पहुँचेगा।",
         "मानव जीनोम में लगभग 3 अरब बेस जोड़े हैं।"
       ]
     },
@@ -115,24 +99,20 @@
       "disciplineTag": null,
       "bondTypes": [
         "पेप्टाइड बंध (C–N)",
-        "एमाइड अनुनाद",
         "α-कार्बन बंध"
       ],
       "uses": [
-        "सभी प्रोटीन संरचनाओं की मौलिक इकाई",
-        "सिंथेटिक पेप्टाइड दवा डिज़ाइन के लिए टेम्पलेट",
-        "पेप्टाइड हार्मोन के माध्यम से कोशिका संकेतन",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "खाद्य स्वाद एजेंट (जैसे एस्पार्टेम एक डाइपेप्टाइड है)"
       ],
       "funFacts": [
-        "पेप्टाइड बंध में अनुनाद के कारण आंशिक दोहरे-बंध चरित्र होता है — यह समतल है और स्वतंत्र रूप से नहीं घूमता।",
-        "20 मानक अमीनो अम्ल हैं, और जीवन उन्हें मिलाकर 100,000 से अधिक विशिष्ट मानव प्रोटीन बनाता है।",
-        "राइबोसोम लगभग हर 0.05 सेकंड में एक नया पेप्टाइड बंध संश्लेषित करता है।"
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
       "name": "इथेनॉल",
-      "description": "बियर, वाइन और एंटीसेप्टिक जेल के पीछे परिचित दो-कार्बन शराब — छोटा, ध्रुवीय, और रसायन प्रयोगशालाओं तथा जीवन दोनों में आश्चर्यजनक रूप से प्रभावशाली।",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "दैनिक जीवन",
       "bondTypes": [
@@ -143,16 +123,16 @@
       "uses": [
         "मादक पेय (पतला घोल)",
         "प्रयोगशालाओं और टिंक्चर में विलायक",
-        "एंटीसेप्टिक और जैव ईंधन योजक"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "आपका यकृत इथेनॉल को एसिटेट में बदलने से पहले एसिटाल्डिहाइड में बदलता है — गति मायने रखती है।",
-        "इथेनॉल झिल्ली द्रव्यता और प्रोटीन संरचना बाधित करता है, इसलिए यह व्यापक जैविक विलायक है।"
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
       "name": "एस्पिरिन",
-      "description": "एसिटाइलसैलिसिलिक अम्ल: एक क्लासिक दर्द निवारक जो अपरिवर्तनीय रूप से प्लेटलेट रसायन बदलता है — चिकित्सा, इतिहास और कार्बनिक संश्लेषण एक छोटी गोली में।",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "चिकित्सा",
       "bondTypes": [
@@ -166,13 +146,12 @@
         "कम खुराक एंटीप्लेटलेट थेरेपी (चिकित्सक मार्गदर्शन में)"
       ],
       "funFacts": [
-        "विलो छाल की सैलिसिन इस सिंथेटिक सुपरस्टार की वनस्पति जगत की पूर्वज है।",
-        "इसका एसिटाइल समूह इसे अकेले सैलिसिलिक अम्ल की तुलना में पेट के अम्ल में बेहतर सहन करने देता है।"
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "कैप्साइसिन",
-      "description": "मिर्च में तीखापन देने वाला वैनिलॉइड — स्तनधारियों के लिए विकासवादी निरोधक और TRPV1 अध्ययन का पसंदीदा विषय।",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "कार्बनिक",
       "bondTypes": [
@@ -186,13 +165,12 @@
         "कीट निरोधक फ़ॉर्मुलेशन"
       ],
       "funFacts": [
-        "पक्षी अक्सर स्तनधारियों जैसी रिसेप्टर संवेदनशीलता से वंचित होते हैं — मिर्च के बीज दूर तक फैलते हैं।",
-        "मसाले की «गर्मी» जीभ के स्वाद मानचित्र पर स्वाद नहीं है; यह नोसिसेप्टर नाटक है।"
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "सेरोटोनिन",
-      "description": "5-HT: मूड, नींद और आंत गतिशीलता में भूमिका वाला मोनोअमीन संकेत — एक ही ढाँचा कई जैविक भूमिकाएँ निभा सकता है।",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "तंत्रिका विज्ञान",
       "bondTypes": [
@@ -202,17 +180,16 @@
       ],
       "uses": [
         "न्यूरोट्रांसमिशन और न्यूरोमॉड्यूलेशन",
-        "औषध विज्ञान लक्ष्य (जैसे SSRI मार्गों में ऊपर की ओर क्रियाशील)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "एंटेरिक तंत्रिका तंत्र में परिधीय भूमिकाएँ"
       ],
       "funFacts": [
-        "आपके शरीर का अधिकांश सेरोटोनिन «मूड में» नहीं है — बड़ा हिस्सा आंत और प्लेटलेट से जुड़ा है।",
-        "इसका नाम रक्त सीरम की ओर इशारा करता है, जहाँ पहली बार वाहिकाओं को संकुचित करते देखा गया।"
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
       "name": "डोपामाइन",
-      "description": "कैटेकॉल पर एक छोटी एथिलअमीन पूँछ वाला कैटेकॉलामीन — प्रेरणा, गति और मेसोलिम्बिक मिथक इस संरचना के चारों ओर घूमते हैं।",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "तंत्रिका विज्ञान",
       "bondTypes": [
@@ -222,17 +199,16 @@
       ],
       "uses": [
         "पुरस्कार और मोटर मार्गों में न्यूरोट्रांसमीटर",
-        "क्लिनिकल शॉक सहायता (हाइड्रोक्लोराइड लवण, IV, देखभाल में)",
-        "GPCR और ट्रांसपोर्टर जीव विज्ञान के लिए शिक्षण लिगैंड"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "पार्किंसंस रोगविज्ञान सब्स्टैंटिया निग्रा में डोपामाइन न्यूरॉन हानि से घनिष्ठ जुड़ा है।",
-        "यह इतना ध्रुवीय है कि मुक्त डोपामाइन आसानी से रक्त-मस्तिष्क अवरोध पार नहीं करता।"
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
       "name": "एड्रेनालिन",
-      "description": "एपिनेफ्रिन: झाड़ियों से कुछ कूदने पर धड़कन बढ़ने वाला अणु — तीन ऑक्सीजन की तात्कालिकता में संक्षिप्त सहानुभूतिक रसायन।",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "तंत्रिका विज्ञान",
       "bondTypes": [
@@ -242,17 +218,16 @@
       ],
       "uses": [
         "एनाफिलैक्सिस बचाव ऑटोइंजेक्टर (चिकित्सा प्रशिक्षण/संकेत के साथ)",
-        "स्थानीय एनेस्थीसिया सहायक (वासोकंस्ट्रिक्टर तर्क के साथ)",
-        "लड़ो-या-भागो संकेतन के शारीरिक प्रदर्शन"
+        "स्थानीय एनेस्थीसिया सहायक (वासोकंस्ट्रिक्टर तर्क के साथ)"
       ],
       "funFacts": [
-        "«एड्रेनालिन» बनाम «एपिनेफ्रिन» मुख्यतः UK/US नामकरण है — वही अधीर छोटा हार्मोन।",
-        "यह α- और β-एड्रिनर्जिक रिसेप्टरों पर क्रियाशील है, वासोकंस्ट्रिक्शन और ब्रोंकोडिलेटर दोनों उपयोग समझाता है।"
+        "Adrenaline and epinephrine are two names for the same hormone.",
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
       "name": "बकमिन्स्टरफुलरीन",
-      "description": "शुद्ध कार्बन में फ़ुटबॉल सममिति — नोबेल-सम्मानित पिंजरा जिसने सिखाया कि सुगंधितता के लिए समतल षट्कोण ज़रूरी नहीं।",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "नैनोतकनीक",
       "bondTypes": [
@@ -260,18 +235,15 @@
         "वक्र सतहों पर विस्थापित π प्रणालियाँ"
       ],
       "uses": [
-        "पदार्थ विज्ञान प्रोटोटाइप (पतली फ़िल्में, कम्पोज़िट)",
-        "कार्बनिक इलेक्ट्रॉनिक्स में इलेक्ट्रॉन स्वीकर्ता मोटिफ",
-        "नैनोस्केल कार्बन अपरूप शिक्षण उपकरण"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 पेंटागन और 20 षट्कोण — यूलर का ग्रेफ़ाइट के जंगली चचेरे भाई से हाथ मिलाना।",
-        "वास्तुकार बकमिन्स्टर फ़ुलर के नाम पर, जिन्होंने जियोडेसिक गुंबद लोकप्रिय किए।"
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "हीमोग्लोबिन हीम समूह",
-      "description": "लौह-चेलेटिंग पोर्फिरिन प्रोस्थेटिक समूह जो हीमोग्लोबिन को ऑक्सीजन वाहक बनाता है: प्रोटीन एलोस्टेरी के साथ प्रतिवर्ती O₂ बंधन।",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "जैविक",
       "bondTypes": [
@@ -280,13 +252,11 @@
         "प्रोपियोनेट/कार्बोक्सिलेट जैसे प्रतिस्थापक (संदर्भ-निर्भर प्रोटोनेशन)"
       ],
       "uses": [
-        "हीम प्रोटीन में O₂ परिवहन और भंडारण",
-        "एंजाइम सक्रिय स्थल (जैसे कैटालेज, साइटोक्रोम)",
-        "लिगैंड-क्षेत्र और सहकारी बंधन के लिए जैव रसायन शिक्षा"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "हीमोग्लोबिन में चार हीम इकाइयाँ सहकारी बंधन सक्षम करती हैं — सिग्मॉइडल वक्र रसायन जिज्ञासा नहीं, शरीरक्रिया हैं।",
-        "अक्षीय हिस्टिडीन खिंचाव ऑक्सीजन आबंधन बनाम CO प्रतिस्पर्धा को ठीक करता है।"
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },
@@ -645,7 +615,8 @@
     "footer_copyright": "© {year} Molecule Studio. सर्वाधिकार सुरक्षित।",
     "footer_about": "परिचय",
     "footer_github": "GitHub रिपॉज़िटरी",
-    "footer_canvas_guide": "इंटरैक्टिव कैनवास गाइड",    "panel_tab_overview": "अवलोकन",
+    "footer_canvas_guide": "इंटरैक्टिव कैनवास गाइड",
+    "panel_tab_overview": "अवलोकन",
     "panel_tab_structure": "संरचना",
     "panel_tab_uses": "उपयोग",
     "panel_tab_fun_facts": "रोचक तथ्य",

@@ -6,8 +6,10 @@ import type {
   AuthUser,
   BalanceApiResponse,
   BalanceData,
+  PersonalDataExport,
   ProfileApiResponse,
   ProfileUpdateInput,
+  ReauthSecret,
   RegisterProfileInput,
 } from "./types";
 
@@ -133,6 +135,52 @@ export async function updateProfileRequest(updates: ProfileUpdateInput): Promise
     throw new Error(extractError(data, "Profile could not be updated."));
   }
   return data.data;
+}
+
+/** Downloads the user's own data. 403 means the password / Google sign-in did not match; 429 means too many attempts. */
+export async function exportDataRequest(secret: ReauthSecret): Promise<PersonalDataExport> {
+  const res = await authFetch("/api/users/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    credentials: "include",
+    body: JSON.stringify(secret),
+  });
+
+  const data = await parseJson<{ success: boolean; data?: PersonalDataExport; error?: string }>(res);
+  if (res.status === 429) throw new Error("Too many attempts. Please try again in an hour.");
+  if (!res.ok || !data.success || !data.data) {
+    throw new Error(extractError(data, "Your data could not be exported."));
+  }
+  return data.data;
+}
+
+/** Asks for the account to be deleted after the 14-day grace period. Every session is revoked on success. */
+export async function requestDeletionRequest(secret: ReauthSecret): Promise<{ scheduledFor: string }> {
+  const res = await authFetch("/api/users/deletion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    credentials: "include",
+    body: JSON.stringify(secret),
+  });
+  const data = await parseJson<{ success: boolean; data?: { scheduledFor: string }; error?: string }>(res);
+  if (res.status === 429) throw new Error("Too many attempts. Please try again in an hour.");
+  if (!res.ok || !data.success || !data.data) {
+    throw new Error(extractError(data, "Your deletion request could not be sent."));
+  }
+  return data.data;
+}
+
+/** Cancels a pending deletion request (during the grace period). */
+export async function cancelDeletionRequest(): Promise<void> {
+  const res = await authFetch("/api/users/deletion", {
+    method: "DELETE",
+    cache: "no-store",
+    credentials: "include",
+  });
+  const data = await parseJson<{ success: boolean; error?: string }>(res);
+  if (!res.ok || !data.success) throw new Error(extractError(data, "The deletion request could not be cancelled."));
 }
 
 export async function verifyEmailRequest(token: string): Promise<AuthSuccessData> {

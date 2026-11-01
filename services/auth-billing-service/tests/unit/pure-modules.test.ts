@@ -18,7 +18,6 @@ import { extractBearerToken, signToken, verifyToken } from "../../src/utils/jwt.
 import { generateSecureToken, hashToken, hoursFromNow, safeEqualHex } from "../../src/utils/secureToken.js";
 import { normalizeEmail, validateGoogleIdToken, validatePassword, ValidationError } from "../../src/utils/validation.js";
 import {
-  generateRandomProfile,
   toPublicUserProfile,
   validateDateOfBirth,
   validateProfileInput,
@@ -157,8 +156,18 @@ describe("validation", () => {
     expect(() => validateProfileUpdateInput({})).toThrow(/At least one/);
   });
 
-  it("generateRandomProfile always produces input that passes validation (100 samples)", () => {
-    for (let i = 0; i < 100; i++) expect(() => validateProfileInput(generateRandomProfile())).not.toThrow();
+  it("a profile update: absent fields are left alone, null clears, strings are validated, an empty string is still invalid", () => {
+    expect(validateProfileUpdateInput({ firstName: "Ada" })).toEqual({ firstName: "Ada" });
+    expect(validateProfileUpdateInput({ firstName: null, dateOfBirth: null })).toEqual({ firstName: null, dateOfBirth: null });
+    expect(validateProfileUpdateInput({ lastName: null })).toEqual({ lastName: null });
+    expect(() => validateProfileUpdateInput({ firstName: "" })).toThrow(/First name/);
+    expect(() => validateProfileUpdateInput({ dateOfBirth: "nope" })).toThrow(/YYYY-MM-DD/);
+    expect(() => validateProfileUpdateInput({ firstName: undefined })).toThrow(/At least one/);
+  });
+
+  it("toPublicUserProfile maps NULL name and date of birth to empty strings (the API shape for a Google user)", () => {
+    const row = { id: "u", email: "g@x.io", first_name: null, last_name: null, date_of_birth: null, is_admin: false, is_verified: true, created_at: new Date("2026-01-01T00:00:00Z") };
+    expect(toPublicUserProfile(row)).toMatchObject({ firstName: "", lastName: "", dateOfBirth: "" });
   });
 
   it("toPublicUserProfile never exposes the password hash", () => {
@@ -174,7 +183,7 @@ describe("validation", () => {
       password_hash: "$2b$10$secret",
     };
     const out = toPublicUserProfile(row);
-    expect(out).toEqual({ id: "u", email: "e@x.io", firstName: "", lastName: "", dateOfBirth: "", isAdmin: false, isVerified: true, createdAt: "2026-01-01T00:00:00.000Z" });
+    expect(out).toEqual({ id: "u", email: "e@x.io", firstName: "", lastName: "", dateOfBirth: "", isAdmin: false, isVerified: true, createdAt: "2026-01-01T00:00:00.000Z", deletionScheduledFor: null });
     expect(JSON.stringify(out)).not.toContain("secret");
   });
 });

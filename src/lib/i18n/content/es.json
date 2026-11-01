@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Agua",
-      "description": "El disolvente universal esencial para todas las formas de vida conocidas.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,15 +10,11 @@
         "Enlace de hidrógeno"
       ],
       "uses": [
-        "Disolvente biológico universal",
-        "Sistemas industriales de refrigeración",
-        "Generación de energía hidroeléctrica",
-        "Medio para reacciones químicas"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
-        "El agua es la única sustancia natural que existe en los tres estados físicos a temperaturas habituales en la Tierra.",
-        "Una molécula de agua permanece en la atmósfera solo unos 9 días antes de caer como precipitación.",
-        "El agua caliente puede congelarse más rápido que el agua fría; esto se conoce como efecto Mpemba."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -31,15 +27,11 @@
         "Tetraédrico"
       ],
       "uses": [
-        "Combustible de gas natural para calefacción y cocina",
-        "Generación de electricidad en centrales",
-        "Producción de gas hidrógeno",
-        "Materia prima para síntesis química"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
-        "El metano es 80 veces más potente que el CO₂ como gas de efecto invernadero en un periodo de 20 años.",
-        "Su forma tetraédrica perfecta da a los cuatro enlaces C–H la misma longitud (1,09 Å).",
-        "Las arqueas metanogénicas producen metano en sedimentos oceánicos profundos y en el aparato digestivo del ganado."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -54,14 +46,10 @@
       ],
       "uses": [
         "Fuente principal de energía celular mediante la glucólisis",
-        "Sueros intravenosos de glucosa en atención médica",
-        "Bebidas deportivas y energéticas",
-        "Fermentación para producir etanol y CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "El cerebro consume unos 120 g de glucosa al día, aproximadamente el 60 % del uso total de glucosa.",
-        "La glucosa existe en dos formas: α-glucosa y β-glucosa, que solo difieren en la orientación de un grupo hidroxilo.",
-        "Un gramo de glucosa libera aproximadamente 4 calorías al metabolizarse."
+        "La glucosa existe en dos formas: α-glucosa y β-glucosa, que solo difieren en la orientación de un grupo hidroxilo."
       ]
     },
     "caffeine": {
@@ -82,7 +70,6 @@
       ],
       "funFacts": [
         "La cafeína bloquea los receptores de adenosina en el cerebro, impidiendo la sensación de cansancio.",
-        "Una taza media de espresso contiene unos 63 mg de cafeína; una dosis letal requeriría unas 80 tazas consumidas muy rápidamente.",
         "La cafeína es la sustancia psicoactiva más consumida del mundo."
       ]
     },
@@ -93,18 +80,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromático",
-        "Enlace de hidrógeno (×2 A–T)",
-        "Enlace glucosídico"
+        "Enlace de hidrógeno (×2 A–T)"
       ],
       "uses": [
         "Almacenamiento de información genética en todos los organismos vivos",
         "Plantilla para la transcripción del ARNm",
-        "Sitios diana de edición génica CRISPR-Cas9",
         "Identificación genética en ciencias forenses"
       ],
       "funFacts": [
         "La adenina siempre se empareja con la timina mediante 2 enlaces de hidrógeno; esto es el emparejamiento de bases de Watson-Crick.",
-        "Si el ADN de todas tus células se desenrollara y se colocara de extremo a extremo, llegaría de la Tierra al Sol y volvería unas 600 veces.",
         "El genoma humano contiene aproximadamente 3 mil millones de pares de bases."
       ]
     },
@@ -115,24 +99,20 @@
       "disciplineTag": null,
       "bondTypes": [
         "Enlace peptídico (C–N)",
-        "Resonancia amida",
         "Enlaces del carbono α"
       ],
       "uses": [
-        "Unidad fundamental de todas las estructuras proteicas",
-        "Plantilla para el diseño de fármacos peptídicos sintéticos",
-        "Señalización celular mediante hormonas peptídicas",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Agentes aromatizantes alimentarios (p. ej., el aspartamo es un dipéptido)"
       ],
       "funFacts": [
-        "El enlace peptídico tiene carácter de doble enlace parcial por resonancia: es plano y no rota libremente.",
-        "Existen 20 aminoácidos estándar, y la vida los combina para construir más de 100 000 proteínas humanas distintas.",
-        "El ribosoma sintetiza un nuevo enlace peptídico aproximadamente cada 0,05 segundos."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
       "name": "Etanol",
-      "description": "El alcohol de dos carbonos detrás de la cerveza, el vino y los geles antisépticos: pequeño, polar e influyente tanto en laboratorios de química como en la vida social.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "VIDA COTIDIANA",
       "bondTypes": [
@@ -143,16 +123,16 @@
       "uses": [
         "Bebidas alcohólicas (soluciones diluidas)",
         "Disolvente en laboratorios y tinturas",
-        "Antiséptico y aditivos para biocombustibles"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "El hígado convierte el etanol en acetaldehído antes de transformarlo en acetato; el ritmo importa.",
-        "El etanol altera la fluidez de las membranas y la estructura de las proteínas, lo que explica en parte su amplio papel como disolvente biológico."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
       "name": "Aspirina",
-      "description": "Ácido acetilsalicílico: un clásico analgésico que modifica de forma irreversible la química plaquetaria; medicina, historia y síntesis orgánica en un comprimido diminuto.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "MEDICINA",
       "bondTypes": [
@@ -166,13 +146,12 @@
         "Terapia antiplaquetaria en dosis bajas (bajo supervisión médica)"
       ],
       "funFacts": [
-        "La salicina de la corteza de sauce es el ancestro vegetal de esta estrella sintética.",
-        "Su grupo acetilo le permite resistir mejor el ácido estomacal que el ácido salicílico solo."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Capsaicina",
-      "description": "El vanilloide ardiente que da picante a los chiles: disuasivo evolutivo para mamíferos y favorito de los neurocientíficos que estudian el TRPV1.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGÁNICO",
       "bondTypes": [
@@ -186,13 +165,12 @@
         "Formulaciones repelentes de plagas"
       ],
       "funFacts": [
-        "Las aves suelen carecer de la sensibilidad receptora de los mamíferos; así las semillas de chile se dispersan más lejos.",
-        "El «picor» no es un sabor en el mapa lingual; es teatro de nociceptores."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonina",
-      "description": "5-HT: una señal monoaminérgica con trayectoria en el estado de ánimo, el sueño y la motilidad intestinal; prueba de que un mismo esqueleto puede desempeñar muchos papeles biológicos.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROCIENCIA",
       "bondTypes": [
@@ -202,17 +180,16 @@
       ],
       "uses": [
         "Neurotransmisión y neuromodulación",
-        "Dianas farmacológicas (p. ej., los ISRS actúan aguas arriba en las vías)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Papeles periféricos en el sistema nervioso entérico"
       ],
       "funFacts": [
-        "La mayor parte de la serotonina del cuerpo no está «en el ánimo»; buena parte está ligada al intestino y a las plaquetas.",
-        "Su nombre alude al suero sanguíneo, donde se observó por primera vez que contraía los vasos."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
       "name": "Dopamina",
-      "description": "Una catecolamina con una cola de etilamina sobre un anillo catecol: la motivación, el movimiento y los mitos mesolímbicos giran en torno a esta estructura.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NEUROCIENCIA",
       "bondTypes": [
@@ -222,17 +199,16 @@
       ],
       "uses": [
         "Neurotransmisor en vías de recompensa y motoras",
-        "Soporte clínico en shock (como clorhidrato, IV, bajo atención médica)",
-        "Ligando didáctico para GPCR y biología de transportadores"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "La patología del Parkinson está estrechamente ligada a la pérdida de neuronas dopaminérgicas en la sustancia negra.",
-        "Es lo bastante polar como para que la dopamina libre no cruce casualmente la barrera hematoencefálica."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
       "name": "Adrenalina",
-      "description": "Epinefrina: la molécula detrás del latido acelerado cuando algo salta del monte; química simpática destilada en tres oxígenos de urgencia.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NEUROCIENCIA",
       "bondTypes": [
@@ -242,17 +218,16 @@
       ],
       "uses": [
         "Autoinyectores de rescate en anafilaxia (con formación e indicación clínica)",
-        "Coadyuvantes en anestesia local (con racional vasoconstrictor)",
-        "Demostraciones fisiológicas de la señal de lucha o huida"
+        "Coadyuvantes en anestesia local (con racional vasoconstrictor)"
       ],
       "funFacts": [
-        "«Adrenalina» frente a «epinefrina» es en gran medida nomenclatura británica frente a estadounidense; es la misma hormona impaciente.",
-        "Actúa sobre receptores α y β adrenérgicos, lo que explica tanto la vasoconstricción como los usos broncodilatadores."
+        "Adrenaline and epinephrine are two names for the same hormone.",
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullereno",
-      "description": "Simetría de balón de fútbol en carbono puro: una jaula celebrada con el Nobel que demostró que la aromaticidad no exige hexágonos planos.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECNOLOGÍA",
       "bondTypes": [
@@ -260,18 +235,15 @@
         "Sistemas π deslocalizados en superficies curvas"
       ],
       "uses": [
-        "Prototipos en ciencia de materiales (películas delgadas, compuestos)",
-        "Motivos aceptor de electrones en electrónica orgánica",
-        "Herramienta didáctica de alótropos de carbono a nanoescala"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 pentágonos y 20 hexágonos: el saludo de Euler al primo salvaje del grafito.",
-        "Lleva el nombre del arquitecto Buckminster Fuller, quien popularizó las cúpulas geodésicas."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Grupo hemo de la hemoglobina",
-      "description": "El grupo prostético porfirínico que quelata hierro y convierte la hemoglobina en transportador de oxígeno: unión reversible de O₂ con alosteria proteica entre bastidores.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BIOLÓGICO",
       "bondTypes": [
@@ -280,13 +252,11 @@
         "Sustituyentes tipo propionato/carboxilato (protonación según contexto)"
       ],
       "uses": [
-        "Transporte y almacenamiento de O₂ en hemoproteínas",
-        "Sitios activos enzimáticos (p. ej., catalasa, citocromos)",
-        "Enseñanza bioquímica de campos de ligandos y unión cooperativa"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Cuatro unidades hemo en la hemoglobina permiten la unión cooperativa; las curvas sigmoidales no son curiosidad química, son fisiología.",
-        "El tirón de la histidina axial ajusta la afinidad por el oxígeno frente a la competencia del CO."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },
@@ -645,7 +615,8 @@
     "footer_copyright": "© {year} Molecule Studio. Todos los derechos reservados.",
     "footer_about": "Acerca de",
     "footer_github": "Repositorio en GitHub",
-    "footer_canvas_guide": "Guía del lienzo interactivo",    "panel_tab_overview": "Resumen",
+    "footer_canvas_guide": "Guía del lienzo interactivo",
+    "panel_tab_overview": "Resumen",
     "panel_tab_structure": "Estructura",
     "panel_tab_uses": "Usos",
     "panel_tab_fun_facts": "Datos curiosos",

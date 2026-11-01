@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { PROTECTED_PREFIXES } from "@/proxy";
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
 import { INDEXABLE_ROUTES, SEO_ROUTES, seoRoute } from "@/lib/seo/routes";
+import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
+import { ALL_MOLECULES } from "@/lib/molecules/data";
 
 const appDir = path.resolve(__dirname, "../../../src/app");
 
@@ -26,8 +28,20 @@ describe("SEO route registry", () => {
     expect(SEO_ROUTES.map((r) => r.path).sort()).toEqual(pageRoutes().sort());
   });
 
-  it("indexes only the public product pages", () => {
-    expect(INDEXABLE_ROUTES.map((r) => r.path)).toEqual(["/", "/explore", "/atom-models", "/periodic-table", "/pricing"]);
+  it("indexes only the public product pages, the molecule pages, and the trust pages once they are not drafts", () => {
+    const trust = ["/about", "/contact", "/privacy", "/terms"];
+    const expected = ["/", "/explore", "/atom-models", "/periodic-table", "/molecules", "/molecules/[id]", ...(TRUST_PAGES_ARE_DRAFTS ? [] : trust), "/pricing"];
+    expect(INDEXABLE_ROUTES.map((r) => r.path)).toEqual(expected);
+  });
+
+  it("the trust pages are noindex (links followed) while any owner detail is a placeholder (D6)", () => {
+    expect(TRUST_PAGES_ARE_DRAFTS).toBe(true); // today: placeholders remain (npm run check:launch-content fails)
+    for (const p of ["/about", "/contact", "/privacy", "/terms"]) expect(seoRoute(p).robots, p).toBe("noindex-follow");
+  });
+
+  it("the only dynamic route is /molecules/[id], with exactly one id per molecule", () => {
+    expect(SEO_ROUTES.filter((r) => r.dynamic).map((r) => r.path)).toEqual(["/molecules/[id]"]);
+    expect(seoRoute("/molecules/[id]").dynamic!.ids).toEqual(ALL_MOLECULES.map((m) => m.id));
   });
 
   it.each(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"])("%s is noindex, nofollow", (p) => {
@@ -46,7 +60,8 @@ describe("SEO route registry", () => {
   it("titles and descriptions are unique and a sensible length", () => {
     const titles = SEO_ROUTES.map((r) => r.title);
     expect(new Set(titles).size).toBe(titles.length);
-    for (const r of INDEXABLE_ROUTES) {
+    // a dynamic route's title/description are templates; the filled-in ones are checked in metadata.test.ts
+    for (const r of INDEXABLE_ROUTES.filter((x) => !x.dynamic)) {
       expect(r.description.length, r.path).toBeGreaterThanOrEqual(70);
       expect(r.description.length, r.path).toBeLessThanOrEqual(240);
       expect(r.title.length, r.path).toBeLessThanOrEqual(60);

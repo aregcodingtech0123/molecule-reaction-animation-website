@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Wasser",
-      "description": "Das universelle Lösungsmittel, das für alle bekannten Lebensformen unverzichtbar ist.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,15 +10,11 @@
         "Wasserstoffbrücke"
       ],
       "uses": [
-        "Universelles biologisches Lösungsmittel",
-        "Industrielle Kühlsysteme",
-        "Wasserkraft-Erzeugung",
-        "Reaktionsmedium in der Chemie"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
-        "Wasser ist der einzige natürliche Stoff, der bei auf der Erde üblichen Temperaturen in allen drei Aggregatzuständen vorkommt.",
-        "Ein Wassermolekül verweilt in der Atmosphäre nur etwa 9 Tage, bevor es als Niederschlag fällt.",
-        "Heißes Wasser kann schneller gefrieren als kaltes — der Mpemba-Effekt."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -31,15 +27,11 @@
         "Tetraedrisch"
       ],
       "uses": [
-        "Erdgas als Brennstoff für Heizung und Kochen",
-        "Stromerzeugung in Kraftwerken",
-        "Produktion von Wasserstoffgas",
-        "Ausgangsstoff für chemische Synthesen"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
-        "Methan ist über 20 Jahre etwa 80-mal wirksamer als CO₂ als Treibhausgas.",
-        "Seine perfekte Tetraederform macht alle vier C–H-Bindungen gleich lang (1,09 Å).",
-        "Methanogene Archaea erzeugen Methan in Meeressedimenten und im Verdauungstrakt von Rindern."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -54,14 +46,10 @@
       ],
       "uses": [
         "Primäre zelluläre Energiequelle über Glykolyse",
-        "Glucose-Infusionen in der Medizin",
-        "Sport- und Energy-Drinks",
-        "Gärung zu Ethanol und CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Ihr Gehirn verbraucht etwa 120 g Glucose pro Tag — rund 60 % Ihres Gesamtglucosebedarfs.",
-        "Glucose existiert als α-Glucose und β-Glucose; sie unterscheiden sich nur in der Ausrichtung einer Hydroxylgruppe.",
-        "Ein Gramm Glucose liefert beim Stoffwechsel etwa 4 Kilokalorien."
+        "Glucose existiert als α-Glucose und β-Glucose; sie unterscheiden sich nur in der Ausrichtung einer Hydroxylgruppe."
       ]
     },
     "caffeine": {
@@ -82,7 +70,6 @@
       ],
       "funFacts": [
         "Koffein blockiert Adenosin-Rezeptoren im Gehirn und verhindert so das Müdigkeitsgefühl.",
-        "Eine Tasse Espresso enthält etwa 63 mg Koffein — eine tödliche Dosis würde sehr schnell etwa 80 Tassen erfordern.",
         "Koffein ist die weltweit am häufigsten konsumierte psychoaktive Substanz."
       ]
     },
@@ -93,18 +80,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromatisch",
-        "Wasserstoffbrücke (×2 A–T)",
-        "Glycosidische Bindung"
+        "Wasserstoffbrücke (×2 A–T)"
       ],
       "uses": [
         "Speicherung genetischer Information in allen Lebewesen",
         "Vorlage für mRNA-Transkription",
-        "Zielstellen der CRISPR-Cas9-Genomeditierung",
         "DNA-Fingerabdruck in der Forensik"
       ],
       "funFacts": [
         "Adenin paart sich stets mit Thymin über 2 Wasserstoffbrücken — Watson-Crick-Basenpaarung.",
-        "Wäre die DNA all Ihrer Zellen entrollt und aneinandergereiht, reichte sie etwa 600-mal von der Erde zur Sonne und zurück.",
         "Das menschliche Genom enthält etwa 3 Milliarden Basenpaare."
       ]
     },
@@ -115,24 +99,20 @@
       "disciplineTag": null,
       "bondTypes": [
         "Peptidbindung (C–N)",
-        "Amid-Resonanz",
         "α-Kohlenstoff-Bindungen"
       ],
       "uses": [
-        "Grundbaustein aller Proteinstrukturen",
-        "Vorlage für synthetisches Peptid-Drug-Design",
-        "Zellsignalübertragung über Peptidhormone",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Aromastoffe in Lebensmitteln (z. B. Aspartam ist ein Dipeptid)"
       ],
       "funFacts": [
-        "Die Peptidbindung hat durch Resonanz teilweise Doppelbindungscharakter — sie ist planar und rotiert nicht frei.",
-        "Es gibt 20 Standard-Aminosäuren; daraus entstehen beim Menschen über 100.000 verschiedene Proteine.",
-        "Das Ribosom bildet etwa alle 0,05 Sekunden eine neue Peptidbindung."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
       "name": "Ethanol",
-      "description": "Der vertraute Zweikohlenstoff-Alkohol in Bier, Wein und Desinfektionsgel — klein, polar und in Labor und Alltag überraschend einflussreich.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "ALLTAG",
       "bondTypes": [
@@ -143,16 +123,16 @@
       "uses": [
         "Alkoholische Getränke (verdünnte Lösungen)",
         "Lösungsmittel im Labor und in Tinkturen",
-        "Desinfektionsmittel und Kraftstoff-Biozusätze"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "Die Leber wandelt Ethanol zuerst in Acetaldehyd, dann in Acetat um — das Tempo zählt.",
-        "Ethanol stört Membranfluidität und Proteinstruktur — deshalb ist es ein so vielseitiges biologisches Lösungsmittel."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
       "name": "Aspirin",
-      "description": "Acetylsalicylsäure: ein klassisches Schmerzmittel, das die Thrombozyten-Chemie irreversibel beeinflusst — Medizin, Geschichte und organische Synthese in einer Tablette.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "MEDIZIN",
       "bondTypes": [
@@ -166,13 +146,12 @@
         "Niedrig dosierte Thrombozyten-Hemmung (nur unter ärztlicher Anleitung)"
       ],
       "funFacts": [
-        "Salicin aus Weidenrinde ist der pflanzliche Vorläufer dieses synthetischen Klassikers.",
-        "Die Acetylgruppe hilft, Magensäure besser zu überstehen als reine Salicylsäure."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Capsaicin",
-      "description": "Das feurige Vanilloid der Chilischoten — evolutionäre Abschreckung für Säugetiere und Liebling der TRPV1-Neuroforschung.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANIK",
       "bondTypes": [
@@ -186,13 +165,12 @@
         "Schädlingsabwehr-Formulierungen"
       ],
       "funFacts": [
-        "Vögel reagieren oft weniger empfindlich als Säugetiere — Chilisamen verbreiten sich so weiter.",
-        "Schärfe ist kein Geschmack auf der Zunge, sondern Schmerzrezeptor-Signal."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonin",
-      "description": "5-HT: ein Monoamin-Signal für Stimmung, Schlaf und Darmmotilität — ein Gerüst, viele biologische Rollen.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROWISSENSCHAFT",
       "bondTypes": [
@@ -202,17 +180,16 @@
       ],
       "uses": [
         "Neurotransmission und Neuromodulation",
-        "Pharmakologische Ziele (z. B. SSRIs wirken stromaufwärts in Wegen)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Periphere Rollen im enterischen Nervensystem"
       ],
       "funFacts": [
-        "Der Großteil des Körper-Serotonins sitzt nicht „in der Stimmung“, sondern im Darm und in Thrombozyten.",
-        "Der Name verweist auf Blutserum, wo es erstmals als gefäßverengend beobachtet wurde."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
       "name": "Dopamin",
-      "description": "Ein Katecholamin mit Ethylamin an einem Katechol-Ring — Motivation, Bewegung und mesolimbische Mythen kreisen um diese Struktur.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NEUROWISSENSCHAFT",
       "bondTypes": [
@@ -222,17 +199,16 @@
       ],
       "uses": [
         "Neurotransmitter in Belohnungs- und Motorikbahnen",
-        "Klinische Kreislaufstütze (als Hydrochlorid-Salz i.v., unter Aufsicht)",
-        "Lehr-Ligand für GPCR- und Transporter-Biologie"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "Die Parkinson-Pathologie hängt eng mit dem Verlust von Dopamin-Neuronen in der Substantia nigra zusammen.",
-        "Es ist polar genug, dass freies Dopamin die Blut-Hirn-Schranke nicht leicht passiert."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
       "name": "Adrenalin",
-      "description": "Epinephrin: das Molekül hinter dem Pulsanstieg, wenn im Gebüsch etwas raschelt — sympathische Chemie in drei dringlichen Sauerstoffen.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NEUROWISSENSCHAFT",
       "bondTypes": [
@@ -242,17 +218,16 @@
       ],
       "uses": [
         "Autoinjektoren bei Anaphylaxie (mit klinischer Schulung/Indikation)",
-        "Zusatz bei Lokalanästhesie (vasokonstriktive Begründung)",
-        "Physiologie-Demos der Kampf-oder-Flucht-Signalgebung"
+        "Zusatz bei Lokalanästhesie (vasokonstriktive Begründung)"
       ],
       "funFacts": [
-        "„Adrenalin“ und „Epinephrin“ sind weitgehend UK/US-Namen — dasselbe eilige Hormon.",
-        "Es wirkt an α- und β-adrenergen Rezeptoren — Vasokonstriktion und Bronchodilatation erklärt sich so."
+        "Adrenaline and epinephrine are two names for the same hormone.",
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullerene",
-      "description": "Fußball-Symmetrie aus reinem Kohlenstoff — ein Nobel-preisgekröntes Käfigmolekül, das zeigte: Aromatizität braucht keine flachen Hexagone.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECHNOLOGIE",
       "bondTypes": [
@@ -260,18 +235,15 @@
         "Delokalisierte π-Systeme auf gekrümmten Flächen"
       ],
       "uses": [
-        "Materialwissenschaftliche Prototypen (Dünnschichten, Verbundstoffe)",
-        "Elektronenakzeptor-Motive in der organischen Elektronikforschung",
-        "Lehrmittel für Kohlenstoff-Nanoallotrope"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 Fünfecke und 20 Sechsecke — Eulers Handschlag mit dem wilden Cousin des Graphits.",
-        "Benannt nach Buckminster Fuller, der Geodätische Kuppeln popularisierte."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Hämoglobin-Hämgruppe",
-      "description": "Die eisenchelierende Porphyrin-Prosthetische Gruppe, die Hämoglobin zum O₂-Transport macht: reversibles O₂-Binden mit Protein-Allosterie im Hintergrund.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BIOLOGIE",
       "bondTypes": [
@@ -280,13 +252,11 @@
         "Propionat-/Carboxylat-ähnliche Substituenten (kontextabhängige Protonierung)"
       ],
       "uses": [
-        "O₂-Transport und -Speicher in Hämoproteinen",
-        "Enzymaktive Zentren (z. B. Katalase, Cytochrome)",
-        "Biochemie-Lehre zu Ligandenfeld und kooperativem Binden"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Vier Häme in Hämoglobin ermöglichen kooperatives Binden — sigmoide Kurven sind Physiologie, kein Trivia.",
-        "Das axiale Histidin-Tuning feinjustiert O₂-Affinität gegenüber CO-Konkurrenz."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },
@@ -645,7 +615,8 @@
     "footer_copyright": "© {year} Molecule Studio. Alle Rechte vorbehalten.",
     "footer_about": "Über uns",
     "footer_github": "GitHub-Repository",
-    "footer_canvas_guide": "Interaktiver Canvas-Leitfaden",    "panel_tab_overview": "Überblick",
+    "footer_canvas_guide": "Interaktiver Canvas-Leitfaden",
+    "panel_tab_overview": "Überblick",
     "panel_tab_structure": "Struktur",
     "panel_tab_uses": "Anwendungen",
     "panel_tab_fun_facts": "Kuriositäten",

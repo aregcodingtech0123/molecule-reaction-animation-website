@@ -97,3 +97,29 @@ function escapeHtml(value: string): string {
 function escapeAttr(value: string): string {
   return escapeHtml(value).replace(/'/g, "&#39;");
 }
+
+export function buildDeletionRequestedEmail(params: {
+  email: string;
+  firstName: string;
+  scheduledFor: Date;
+  accountUrl: string;
+}): SendEmailParams {
+  const name = params.firstName || "there";
+  const date = params.scheduledFor.toISOString().slice(0, 10);
+  return {
+    to: params.email,
+    subject: "Your MoleculeStudio account is scheduled for deletion",
+    text:
+      `Hi ${name},\n\nYou asked us to delete your MoleculeStudio account. It will be deleted on ${date} (UTC). ` +
+      `Your remaining credits are permanently lost at that point and cannot be restored.\n\n` +
+      `Changed your mind? Sign in before then and choose "Cancel deletion" on your profile page:\n${params.accountUrl}\n\n` +
+      `If you did not ask for this, sign in and cancel it, then change your password.\n`,
+    html: `
+      <p>Hi ${escapeHtml(name)},</p>
+      <p>You asked us to delete your MoleculeStudio account. It will be deleted on <strong>${escapeHtml(date)} (UTC)</strong>. Your remaining credits are permanently lost at that point and cannot be restored.</p>
+      <p>Changed your mind? Sign in before then and choose &ldquo;Cancel deletion&rdquo; on your <a href="${escapeAttr(params.accountUrl)}">profile page</a>.</p>
+      <p style="color:#64748b;font-size:12px">If you did not ask for this, sign in and cancel it, then change your password.</p>
+    `,
+  };
+}
+

@@ -16,6 +16,8 @@ export interface VerifiedGoogleIdentity {
   email: string;
   googleSub: string;
   emailVerified: boolean;
+  /** Seconds since the epoch at which Google issued the token (0 when absent); used to require a recent sign-in. */
+  issuedAt: number;
 }
 
 /** Verify a Google ID token from the frontend Sign-In flow. */
@@ -49,5 +51,6 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
     email: payload.email.trim().toLowerCase(),
     googleSub: payload.sub,
     emailVerified: Boolean(payload.email_verified),
+    issuedAt: typeof payload.iat === "number" ? payload.iat : 0,
   };
 }

@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useCreditCheckout } from "@/lib/billing/useCreditCheckout";
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
+import { CommonQuestions, PRICING_QUESTIONS } from "@/components/seo/CommonQuestions";
 import { cn } from "@/lib/utils";
 
 export default function PricingPage() {
@@ -97,6 +98,7 @@ export default function PricingPage() {
           </p>
         </motion.section>
       </div>
+      <CommonQuestions questions={PRICING_QUESTIONS} className="mt-16" />
     </main>
   );
 }

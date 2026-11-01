@@ -37,13 +37,10 @@ describe("buildContentSecurityPolicy", () => {
       expect(directive(prod, name), name).not.toContain("*");
     }
     expect(directive(prod, "frame-src")).toEqual(["https://accounts.google.com/gsi/"]);
-    expect(directive(prod, "connect-src")).toEqual([
-      "'self'",
-      "https://pubchem.ncbi.nlm.nih.gov",
-      "https://en.wikipedia.org",
-      "https://accounts.google.com/gsi/",
-    ]);
-    expect(directive(prod, "img-src")).toEqual(["'self'", "data:", "blob:", "https://upload.wikimedia.org"]);
+    // SEO Part 2: Wikipedia (element images) removed, so en.wikipedia.org and upload.wikimedia.org are gone (TC-64).
+    expect(directive(prod, "connect-src")).toEqual(["'self'", "https://pubchem.ncbi.nlm.nih.gov", "https://accounts.google.com/gsi/"]);
+    expect(directive(prod, "img-src")).toEqual(["'self'", "data:", "blob:"]);
+    expect(buildContentSecurityPolicy({ nonce: "n", isDev: false, upgradeInsecureRequests: false })).not.toMatch(/wikipedia|wikimedia/);
   });
 
   it("'unsafe-eval' only in development; upgrade-insecure-requests only when asked", () => {

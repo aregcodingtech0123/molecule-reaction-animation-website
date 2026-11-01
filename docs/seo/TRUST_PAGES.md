@@ -1,0 +1,60 @@
+# Trust pages — sources and open points (D6, SEO-10)
+
+**Status: drafts that need legal review.** `/about`, `/contact`, `/privacy`, `/terms` exist, are linked from the footer
+of every page and from a links row on the home page, carry a visible "Draft — needs legal review" notice, and are
+`noindex` (out of the sitemap) while any owner detail is a placeholder. `npm run check:launch-content` fails until every
+placeholder in `src/lib/legal/site-owner.ts` is replaced (14 today, including `signupIpPurgeJob`, `accountDeletionJob` and `emailTombstoneGuard`). No Organization JSON-LD is emitted until then.
+
+Nothing below is legal advice. The privacy text states only what the code does; every statement is listed here with the
+code it comes from, so a reviewer can check it and so a code change that makes it untrue can be found.
+
+## 1. Privacy policy — each statement and its source
+
+| Statement on `/privacy` | Source in the code |
+| --- | --- |
+| No analytics, no advertising cookies | no analytics/tracking package or script in `src/` (searched for gtag, dataLayer, analytics, posthog, plausible, sentry: none) |
+| Theme and language stored on the device (`moleculestudio-theme`, `moleculestudio-locale`) | `src/lib/theme/types.ts`, `src/lib/i18n/languages.ts`, `ThemeContext`, `LanguageContext` |
+| Email/password signup stores email, bcrypt hash, first/last name, date of birth, signup IP, verified flag, creation time | `database/init/001…`, `002_user_profile_fields.sql` (names, DOB, `signup_ip`), `004_email_verification.sql` (`is_verified`); `services/…/utils/password.ts` (bcrypt); `services/…/services/auth.service.ts` (insert incl. `signup_ip`) |
+| Google sign-in stores the Google account id and the confirmed email; name/DOB are **not stored** (empty until the user enters them; GOOGLE_PROFILE_DESIGN, implemented) | `services/…/utils/google.ts` (returns `email`, `googleSub` only); `oauth_accounts` table; `services/…/services/auth.service.ts` (the Google branch passes no profile: `first_name`, `last_name`, `date_of_birth` stay NULL; `tests/api/users.google-profile.test.ts`) |
+| One-time links stored as hashes; verification 24 h, reset 1 h | `verification_tokens` / `password_reset_tokens` (`token_hash`), `auth.service.ts` `VERIFICATION_TTL_HOURS = 24`, `RESET_TTL_HOURS = 1` |
+| `session_token` cookie: HttpOnly, SameSite=Strict, Secure on https, session lifetime (7 days by default) | BFF cookie code (TC-29 assertions), `JWT_EXPIRES_IN` default `7d` in `services/…/config/env.ts` |
+| `/privacy` "Download my data": one JSON of the user's own data after password or fresh-Google confirmation, no secrets | `services/…/services/export.service.ts`, `POST /api/users/export` (`tests/api/users.export.test.ts`) |
+| Profile copy in local storage, removed on sign-out | `AUTH_USER_STORAGE_KEY` in `src/context/AuthContext.tsx` (`persistUser` / `clearPersistedUser` in `logout`) |
+| Sign-out revokes the session until it would have expired | `services/…/controllers/auth.controller.ts` `logout` → `logoutCurrentToken` → `revoked_tokens` |
+| Checkout sends email and account id to Lemon Squeezy; card data never reaches us | `services/…/lib/lemonsqueezy.ts` (`email`, `custom_data.user_id`), hosted checkout redirect |
+| Order messages stored as received (with the buyer's email), credits ledger permanent, refunds stored, receipts emailed | `lemon_webhook_events.payload` (`015`), `credit_ledger_transactions` (`ON DELETE RESTRICT`, immutability triggers), `lemon_order_refunds` (`013`), `email.service.ts` `sendPurchaseReceiptEmail` |
+| AI Lab: conversation sent to Gemini; messages not stored; one charge record per answer; logs carry account id + reference, never text | `src/app/api/chat/route.ts` (`boundConversation(messages)` → Gemini; `console.*` calls log `userId`, `referenceId` only), `ai_credit_holds` |
+| Browser loads 3D structures from PubChem, sending the SMILES string and the IP | `src/lib/molecules/sdf-parser.ts` `fetchMoleculeFromSMILES` (browser `fetch` to `pubchem.ncbi.nlm.nih.gov`) |
+| Emails through Resend | `services/…/lib/email.ts` |
+| `signup_ip` cleared when the account is 90 days old — **conditional**: the page says it only when `SITE_OWNER.signupIpPurgeJob` is filled in; otherwise "kept with the account for now; an automatic clearing after 90 days is planned" | migration `016_signup_ip_retention.sql` `purge_signup_ips()` + daily `npm run db:purge-signup-ips` with a heartbeat alert (true only while the job runs: launch checklist §5.1, mandatory; `tests/unit/legal/privacy-signup-ip.test.tsx`) |
+| The stored Lemon order message is cleared 30 days after processing | `services/…/services/webhookInbox.service.ts` `PAYLOAD_RETENTION = "30 days"` (`UPDATE lemon_webhook_events SET payload = NULL …`) |
+| Ledger records cannot be deleted | `credit_ledger_transactions` FKs `ON DELETE RESTRICT`, `tests/db/immutability-and-constraints.test.ts` |
+
+Not mentioned because the code no longer does it: Wikipedia/Wikimedia requests (removed in Part 2). Google Identity
+Services: the Google sign-in button loads Google's script on the sign-in dialog; the policy says sign-in "with Google" but does
+not yet describe the script's own data use — **add to legal review**.
+
+## 2. Placeholders (owner and lawyer)
+
+`legalName`, `country`, `postalAddress`, `contactEmail`, `governingLaw`, `refundPolicy`, `hostingProviders`
+(`LAUNCH_CHECKLIST.md` recommends Vercel + Render + Neon, not decided), `logRetention` (decided by the hosting plans:
+Vercel 1 h–30 days, Render 7–30 days per the checklist), `geminiDataUse` (Google's terms differ between paid and unpaid
+Gemini API use — depends on the plan you choose), `accountDeletion` (the code has **no** self-service deletion, and the
+database refuses to delete a user who has purchase records), `signupIpPurgeJob` (where the daily purge runs and which heartbeat alert watches it — declaring it is what lets the policy state the 90 days), `accountDeletionJob` (same for the daily deletion job — declaring it is what lets the policy describe self-service deletion as active), `emailTombstoneGuard` ("enabled …"/"disabled …" after legal review of the 12-month e-mail hash; the policy mentions the hash only when enabled), `effectiveDate`.
+
+## 3. Points for your decision (found while writing)
+
+* **Name and date of birth for Google sign-ups — done.** Google accounts no longer get invented values (they stay empty until the user enters them, and the profile page can clear any stored value). `GOOGLE_PROFILE_DESIGN.md`.
+* **Date of birth at signup** is required by validation; the policy needs a purpose for it (legal review), or it can be dropped.
+* **`signup_ip`**: now cleared after 90 days (migration 016 + a daily job, `PRIVACY_FOLLOWUPS.md` §1). The policy still needs a *purpose* for collecting it (the column comment says "abuse heuristics"; the code never reads it) — legal review.
+* **Account deletion** does not exist as a feature; a privacy request process is needed before launch in most
+  jurisdictions.
+* **Content-policy blocks are charged** (`route.ts`: "Deliberately charged (captured)"); the terms and the pricing FAQ say so.
+* **Credit expiry** is not decided anywhere in the code; the FAQ does not answer it.
+
+## 4. Pages and links
+
+Footer "Company" column: About → `/about` (was `/`), Contact, Privacy policy, Terms of use; the placeholder
+"GitHub → https://github.com" link is removed from the footer and the Resources menu. The home page ends with "Common
+questions" and a "Site information" links row (molecules, about, contact, privacy, terms). New labels are English (D1:
+English-only indexing); the 12 locale dictionaries were not changed.

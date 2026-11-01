@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ElementCell, SeriesLabel } from "@/components/periodic-table/ElementCell";
 import { CATEGORY_STYLES, CATEGORY_LEGEND } from "@/lib/periodic-table/category-styles";
+import { CLASSIFICATION_NOTE } from "@/lib/periodic-table/classification";
 import { buildPeriodicGrid, GRID_COLS } from "@/lib/periodic-table/elements";
 import type { ChemicalElement } from "@/lib/periodic-table/types";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,9 @@ export function PeriodicTableGrid({ selected, onSelect, className }: PeriodicTab
             {CATEGORY_STYLES[category].label}
           </span>
         ))}
+        <span className="basis-full text-[10px] text-neutral-500 dark:text-neutral-400 sm:text-xs">
+          Categories: {CLASSIFICATION_NOTE.toLowerCase()}.
+        </span>
       </motion.div>
     </div>
   );

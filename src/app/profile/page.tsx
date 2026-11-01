@@ -20,12 +20,10 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { fetchProfileRequest, resendVerificationRequest, updateProfileRequest } from "@/lib/auth/api";
 import type { AuthUser } from "@/lib/auth/types";
-import {
-  formatDateOfBirthForDisplay,
-  validateDateOfBirth,
-  validateFirstName,
-  validateLastName,
-} from "@/lib/auth/profile-validation";
+import { formatDateOfBirthForDisplay } from "@/lib/auth/profile-validation";
+import { buildProfileUpdate } from "@/lib/auth/profile-update";
+import { DeleteAccountSection } from "@/components/profile/DeleteAccountSection";
+import { ExportDataSection } from "@/components/profile/ExportDataSection";
 import { safeNavigate } from "@/lib/navigation/safe-navigate";
 import { isCheckoutReturnPending } from "@/lib/billing/pre-checkout-view";
 import { toast } from "@/lib/toast";
@@ -114,30 +112,27 @@ export default function ProfilePage() {
   const onSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      const firstNameError = validateFirstName(firstName);
-      if (firstNameError) {
-        setFormError(firstNameError);
+      if (!profile) return;
+      // Only what changed is sent; a field the user emptied is sent as null (cleared), a field that was and is empty is not sent.
+      const result = buildProfileUpdate(
+        { firstName: profile.firstName, lastName: profile.lastName, dateOfBirth: profile.dateOfBirth },
+        { firstName, lastName, dateOfBirth },
+      );
+      if (result.error !== null) {
+        setFormError(result.error);
         return;
       }
-      const lastNameError = validateLastName(lastName);
-      if (lastNameError) {
-        setFormError(lastNameError);
-        return;
-      }
-      const dobError = validateDateOfBirth(dateOfBirth);
-      if (dobError) {
-        setFormError(dobError);
+      const updates = result.updates;
+      if (Object.keys(updates).length === 0) {
+        setFormError(null);
+        setEditMode(false);
         return;
       }
 
       setFormError(null);
       setSaving(true);
       try {
-        const updated = await updateProfileRequest({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          dateOfBirth,
-        });
+        const updated = await updateProfileRequest(updates);
         setProfile(updated);
         patchUser(updated);
         setEditMode(false);
@@ -153,7 +148,7 @@ export default function ProfilePage() {
         setSaving(false);
       }
     },
-    [firstName, lastName, dateOfBirth, patchUser, t.profile_save_failed, t.profile_save_success],
+    [profile, firstName, lastName, dateOfBirth, patchUser, t.profile_save_failed, t.profile_save_success],
   );
 
   const onResendVerification = useCallback(async () => {
@@ -561,6 +556,14 @@ export default function ProfilePage() {
             )}
           </div>
         </motion.section>
+
+        {!loading && !error && profile && <ExportDataSection />}
+        {!loading && !error && profile && (
+          <DeleteAccountSection
+            scheduledFor={profile.deletionScheduledFor}
+            onCancelled={() => setProfile((p) => (p ? { ...p, deletionScheduledFor: null } : p))}
+          />
+        )}
       </div>
     </main>
   );

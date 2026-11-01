@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "물",
-      "description": "알려진 모든 생명 형태에 필수적인 범용 용매.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,15 +10,11 @@
         "수소 결합"
       ],
       "uses": [
-        "생물학적 범용 용매",
-        "산업용 냉각 시스템",
-        "수력 발전",
-        "화학 반응 매질"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
-        "물은 지구에서 흔히 나타나는 온도에서 세 가지 물리 상태 모두에 존재하는 유일한 자연 물질입니다.",
-        "물 분자는 대기 중에서 약 9일만 머문 뒤 강수로 떨어집니다.",
-        "뜨거운 물이 차가운 물보다 더 빨리 얼 수 있는데, 이를 음페바 효과라고 합니다."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -31,15 +27,11 @@
         "사면체"
       ],
       "uses": [
-        "난방·요리용 천연가스 연료",
-        "발전소 전력 생산",
-        "수소 가스 생산",
-        "화학 합성 원료"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
-        "메탄은 20년 기준으로 CO₂보다 온실 효과가 약 80배 강합니다.",
-        "완벽한 사면체 구조로 네 개의 C–H 결합 길이가 모두 같습니다(1.09 Å).",
-        "메탄 생성 고세균이 해양 퇴적물과 소화기관 깊숙이에서 메탄을 만듭니다."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -54,14 +46,10 @@
       ],
       "uses": [
         "해당 과정을 통한 세포 주 에너지원",
-        "의료용 포도당 수액",
-        "스포츠·에너지 음료",
-        "에탄올·CO₂ 발효"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "뇌는 하루 약 120g의 포도당을 소비하며, 전체 사용량의 약 60%를 차지합니다.",
-        "포도당은 α-포도당과 β-포도당 두 형태가 있으며, 하나의 히드록실기 방향만 다릅니다.",
-        "포도당 1g을 대사하면 약 4칼로리가 방출됩니다."
+        "포도당은 α-포도당과 β-포도당 두 형태가 있으며, 하나의 히드록실기 방향만 다릅니다."
       ]
     },
     "caffeine": {
@@ -82,7 +70,6 @@
       ],
       "funFacts": [
         "카페인은 뇌의 아데노신 수용체를 차단해 피로감을 막습니다.",
-        "에스프레소 한 잔에는 약 63mg의 카페인이 들어 있으며, 치사량에 가까우려면 매우 빠르게 약 80잔을 마셔야 합니다.",
         "카페인은 세계에서 가장 널리 소비되는 정신활성 물질입니다."
       ]
     },
@@ -93,18 +80,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "방향족",
-        "수소 결합(×2 A–T)",
-        "글리코시드 결합"
+        "수소 결합(×2 A–T)"
       ],
       "uses": [
         "모든 생명체의 유전 정보 저장",
         "mRNA 전사의 템플릿",
-        "CRISPR-Cas9 유전자 편집 표적",
         "법의학 DNA 지문 분석"
       ],
       "funFacts": [
         "아데닌은 항상 티민과 2개의 수소 결합으로 짝을 이룹니다 — 왓슨-크릭 염기쌍입니다.",
-        "모든 세포의 DNA를 펼쳐 이어 붙이면 지구에서 태양까지 왕복 약 600번 갈 수 있습니다.",
         "인간 게놈에는 약 30억 개의 염기쌍이 있습니다."
       ]
     },
@@ -115,24 +99,20 @@
       "disciplineTag": null,
       "bondTypes": [
         "펩타이드 결합(C–N)",
-        "아미드 공명",
         "α-탄소 결합"
       ],
       "uses": [
-        "모든 단백질 구조의 기본 단위",
-        "합성 펩타이드 약물 설계의 틀",
-        "펩타이드 호르몬을 통한 세포 신호",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "식품 향료(예: 아스파탐은 디펩타이드)"
       ],
       "funFacts": [
-        "펩타이드 결합은 공명으로 이중 결합 성질이 있어 평면이며 자유롭게 회전하지 않습니다.",
-        "20가지 표준 아미노산이 있으며, 이들의 조합으로 10만 종 이상의 인체 단백질이 만들어집니다.",
-        "리보솜은 약 0.05초마다 새 펩타이드 결합을 합성합니다."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
       "name": "에탄올",
-      "description": "맥주·와인·소독 겔 뒤에 있는 두 탄소 알코올 — 작고 극성이며, 실험실과 일상 모두에서 영향력 있는 분자.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "DAILY LIFE",
       "bondTypes": [
@@ -143,16 +123,16 @@
       "uses": [
         "주류(희석 용액)",
         "실험실·틴크처 용매",
-        "소독제·바이오 연료 첨가제"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "간은 에탄올을 아세트알데히드로, 다시 아세트산염으로 바꿉니다 — 속도가 중요합니다.",
-        "에탄올은 막 유동성과 단백질 구조를 교란해, 생물학적 용매로서 폭넓게 작용하는 이유 중 하나입니다."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
       "name": "아스피린",
-      "description": "아세틸살리실산: 혈소판 화학을 비가역적으로 바꾸는 고전적 진통제 — 의학·역사·유기 합성이 한 알에 담깁니다.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "MEDICINE",
       "bondTypes": [
@@ -166,13 +146,12 @@
         "저용량 항혈소판 요법(의료 지도 하)"
       ],
       "funFacts": [
-        "버드나무 껍질의 살리신이 이 합성 스타의 식물계 조상입니다.",
-        "아세틸기 덕분에 위산에서 살리실산만 단독으로 복용할 때보다 잘 견딥니다."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "캡사이신",
-      "description": "고추의 매운맛을 만드는 바닐로이드 — 포유류에 대한 진화적 억제제이자 TRPV1 연구의 단골 화제.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANIC",
       "bondTypes": [
@@ -186,13 +165,12 @@
         "해충 억제 제형"
       ],
       "funFacts": [
-        "새는 종종 포유류만큼 수용체에 민감하지 않아 — 고추 씨가 더 멀리 퍼집니다.",
-        "매운맛은 혀의 맛 지도에 있는 맛이 아니라, 통각 수용체의 연극입니다."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "세로토닌",
-      "description": "5-HT: 기분·수면·장 운동에 걸친 단일아민 신호 — 하나의 골격이 여러 생물학적 역할을 맡는다는 증거.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -202,17 +180,16 @@
       ],
       "uses": [
         "신경전달·신경조절",
-        "약리학 표적(예: SSRI는 상류 경로에 작용)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "장신경계의 말초 역할"
       ],
       "funFacts": [
-        "몸속 세로토닌 대부분은 '기분 속'이 아닙니다 — 상당량이 장과 혈소판과 얽혀 있습니다.",
-        "이름은 혈청에서 혈관을 수축시키는 것이 처음 발견된 데서 유래했습니다."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
       "name": "도파민",
-      "description": "카테콜 고리에 에틸아민 꼬리가 달린 카테콜아민 — 동기·운동·중뇌변연계 신화가 이 구조를 둘러쌉니다.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -222,17 +199,16 @@
       ],
       "uses": [
         "보상·운동 경로의 신경전달물질",
-        "쇼크 시 임상 지원(염산염, 정맥, 의료 하)",
-        "GPCR·수송체 생물학 교육용 리간드"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "파킨슨병 병리는 흑질의 도파민 뉴런 손실과 밀접합니다.",
-        "극성이 커서 자유 도파민이 혈뇌장벽을 쉽게 넘지 않습니다."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
       "name": "아드레날린",
-      "description": "에피네프린: 덤불에서 무언가 튀어나올 때 맥박이 치솟는 분자 — 교감신경 화학이 세 개의 산소에 응급을 담은 것.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -242,17 +218,16 @@
       ],
       "uses": [
         "아나필락시스 구급 자동주사기(임상 교육·적응증 하)",
-        "국소 마취 보조(수축 혈관 목적)",
-        "투쟁-도피 신호의 생리학 시연"
+        "국소 마취 보조(수축 혈관 목적)"
       ],
       "funFacts": [
-        "'아드레날린'과 '에피네프린'은 영·미 명칭 차이일 뿐 — 같은 성급한 호르몬입니다.",
-        "α·β 아드레너르기 수용체에 작용해 수축·기관지 확장 용도가 모두 설명됩니다."
+        "Adrenaline and epinephrine are two names for the same hormone.",
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
       "name": "버크민스터풀러렌",
-      "description": "순수 탄소의 축구공 대칭 — 노벨상을 받은 케이지로, 방향족성이 평평한 육각 고리만은 아니라는 것을 가르쳤습니다.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECH",
       "bondTypes": [
@@ -260,18 +235,15 @@
         "곡면의 비국소화 π계"
       ],
       "uses": [
-        "재료과학 시제품(박막, 복합재)",
-        "유기 전자 연구의 전자 수용체 모티프",
-        "나노 규모 탄소 동소체 교육 도구"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12개 오각형과 20개 육각형 — 오일러와 흑연의 거친 사촌의 악수.",
-        "지오데식 돔을 대중화한 건축가 버크민스터 풀러의 이름을 따았습니다."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "헤모글로빈 헴 군",
-      "description": "헤모글로빈을 산소 운반체로 바꾸는 철 킬레이트 포르핀 보조기: 단백질 알로스테리 조절 뒤에서 가역적 O₂ 결합.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BIOLOGICAL",
       "bondTypes": [
@@ -280,13 +252,11 @@
         "프로피온산/카르복실산 유사 치환기(맥락에 따른 양이온)"
       ],
       "uses": [
-        "헤모단백질 내 O₂ 운반·저장",
-        "효소 활성 부위(예: 카탈라제, 사이토크롬)",
-        "배위장·협동 결합 생화학 교육"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "헤모글로빈의 네 헴 단위가 협동 결합을 가능하게 합니다 — S자 곡선은 생리학입니다.",
-        "축 히스티딘의 당김-밀림이 산소 친화도와 CO 경쟁을 미세 조정합니다."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },
@@ -645,7 +615,8 @@
     "footer_copyright": "© {year} Molecule Studio. All rights reserved.",
     "footer_about": "소개",
     "footer_github": "GitHub 저장소",
-    "footer_canvas_guide": "인터랙티브 캔버스 가이드",    "panel_tab_overview": "개요",
+    "footer_canvas_guide": "인터랙티브 캔버스 가이드",
+    "panel_tab_overview": "개요",
     "panel_tab_structure": "구조",
     "panel_tab_uses": "용도",
     "panel_tab_fun_facts": "재미있는 사실",

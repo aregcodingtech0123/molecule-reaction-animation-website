@@ -33,6 +33,8 @@ function serviceEnv(over: Record<string, string | undefined> = {}) {
     RESEND_API_KEY: `re_${secret()}`,
     SENDER_EMAIL: "Molecule Studio <hello@studio.example>",
     AI_HOLD_TTL_SECONDS: "600",
+    // Its own secret (not shared with the web side): keys the re-registration guard.
+    EMAIL_TOMBSTONE_SECRET: secret(),
     ...over,
   };
 }
@@ -53,6 +55,23 @@ function webEnv(over: Record<string, string | undefined> = {}) {
 describe("checkConfig", () => {
   it("a complete, consistent production configuration passes without warnings", () => {
     expect(checkConfig(serviceEnv(), webEnv())).toMatchObject({ problems: [], warnings: [] });
+  });
+
+  it("the re-registration guard needs its own secret: missing, weak or equal to JWT_SECRET is a problem; switched off it is not needed", () => {
+    const missing = checkConfig(serviceEnv({ EMAIL_TOMBSTONE_SECRET: undefined }), webEnv());
+    expect(missing.problems.join("\n")).toMatch(/service: EMAIL_TOMBSTONE_SECRET is not set/);
+    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_SECRET: shared.JWT_SECRET }), webEnv()).problems.join("\n")).toMatch(
+      /EMAIL_TOMBSTONE_SECRET must not be the same value as JWT_SECRET/,
+    );
+    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_SECRET: "a".repeat(40) }), webEnv()).problems.join("\n")).toMatch(/EMAIL_TOMBSTONE_SECRET has too little variety/);
+    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_GUARD: "false", EMAIL_TOMBSTONE_SECRET: undefined }), webEnv())).toMatchObject({ problems: [], warnings: [] });
+    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_GUARD: "perhaps" }), webEnv()).problems.join("\n")).toMatch(/EMAIL_TOMBSTONE_GUARD must be/);
+  });
+
+  it("the secret is never printed in a problem message", () => {
+    const leaked = "Zq8Lm3Vx7Rt1Nb5Kc9Dj2Hs6Gy4Fw0Pa-leak-check";
+    const { problems } = checkConfig(serviceEnv({ EMAIL_TOMBSTONE_SECRET: leaked, JWT_SECRET: leaked }), webEnv({ JWT_SECRET: leaked }));
+    expect(problems.join("\n")).not.toContain(leaked);
   });
 
   it.each([

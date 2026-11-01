@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { FlaskConical, Sparkles } from "lucide-react";
 import type { MoleculeData } from "@/lib/molecules/types";
+import { modelMatchesFormula } from "@/lib/molecules/model-check";
 import type { ReactionData } from "@/lib/reactions/types";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -152,7 +154,7 @@ export function ExploreSidebarContent({
                   >
                     {mol.formula}
                   </p>
-                  {isActive && (
+                  {isActive && modelMatchesFormula(mol) && (
                     <p className={cn("text-xs mt-1 pl-[34px] leading-snug line-clamp-2", ui.sidebar.meta)}>
                       {mol.atoms.length}a · {mol.bonds.length}b
                     </p>
@@ -160,6 +162,17 @@ export function ExploreSidebarContent({
                 </SidebarListItem>
               );
             })}
+            {/* Part 2: from the workbench to the article pages about the molecules (server-rendered, indexable). */}
+            <p className={cn("mt-1 flex flex-col gap-1 px-1 text-xs", ui.sidebar.meta)}>
+              {molecules.some((m) => m.id === activeMoleculeId) && (
+                <Link href={`/molecules/${activeMoleculeId}`} className="underline-offset-2 hover:underline">
+                  Read about {molecules.find((m) => m.id === activeMoleculeId)!.name} →
+                </Link>
+              )}
+              <Link href="/molecules" className="underline-offset-2 hover:underline">
+                All molecule pages →
+              </Link>
+            </p>
           </motion.div>
         ) : (
           <motion.div

@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Вода",
-      "description": "Универсальный растворитель, необходимый для всех известных форм жизни.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,15 +10,11 @@
         "Водородная связь"
       ],
       "uses": [
-        "Универсальный биологический растворитель",
-        "Промышленные системы охлаждения",
-        "Гидроэлектроэнергетика",
-        "Среда для химических реакций"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
-        "Вода — единственное природное вещество, которое при обычных для Земли температурах существует во всех трёх агрегатных состояниях.",
-        "Молекула воды находится в атмосфере лишь около 9 дней, прежде чем выпасть в виде осадков.",
-        "Горячая вода может замерзать быстрее холодной — это эффект Мпембы."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -31,15 +27,11 @@
         "Тетраэдрическая"
       ],
       "uses": [
-        "Природный газ для отопления и приготовления пищи",
-        "Выработка электроэнергии на ТЭС",
-        "Производство водорода",
-        "Сырьё для химического синтеза"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
-        "Метан в 80 раз сильнее CO₂ как парниковый газ за 20-летний период.",
-        "Идеальная тетраэдрическая форма даёт четыре одинаковые связи C–H (1,09 Å).",
-        "Метаногенные археи выделяют метан в океанических осадках и в пищеварительном тракте коров."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -54,14 +46,10 @@
       ],
       "uses": [
         "Основной клеточный источник энергии через гликолиз",
-        "Внутривенные глюкозные капельницы в медицине",
-        "Спортивные и энергетические напитки",
-        "Брожение для получения этанола и CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Мозг потребляет около 120 г глюкозы в сутки — примерно 60% всего расхода глюкозы организмом.",
-        "Глюкоза существует в двух формах: α- и β-глюкоза, различающихся лишь ориентацией одной гидроксильной группы.",
-        "Один грамм глюкозы при метаболизме выделяет примерно 4 калории."
+        "Глюкоза существует в двух формах: α- и β-глюкоза, различающихся лишь ориентацией одной гидроксильной группы."
       ]
     },
     "caffeine": {
@@ -82,7 +70,6 @@
       ],
       "funFacts": [
         "Кофеин блокирует аденозиновые рецепторы в мозге, снимая ощущение усталости.",
-        "В средней чашке эспрессо около 63 мг кофеина — летальная доза потребовала бы ~80 чашек, выпитых очень быстро.",
         "Кофеин — самое распространённое в мире психоактивное вещество."
       ]
     },
@@ -93,18 +80,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Ароматические",
-        "Водородная связь (×2 A–T)",
-        "Гликозидная связь"
+        "Водородная связь (×2 A–T)"
       ],
       "uses": [
         "Хранение генетической информации у всех живых организмов",
         "Матрица для транскрипции мРНК",
-        "Мишени редактирования генов CRISPR-Cas9",
         "ДНК-отпечатки в криминалистике"
       ],
       "funFacts": [
         "Аденин всегда спаривается с тимином через 2 водородные связи — это спаривание Уотсона — Крика.",
-        "Если развернуть всю ДНК ваших клеток в одну нить, она протянется от Земли до Солнца и обратно примерно 600 раз.",
         "Геном человека содержит около 3 миллиардов пар оснований."
       ]
     },
@@ -115,24 +99,20 @@
       "disciplineTag": null,
       "bondTypes": [
         "Пептидная связь (C–N)",
-        "Амидный резонанс",
         "Связи α-углерода"
       ],
       "uses": [
-        "Фундаментальная единица всех белковых структур",
-        "Основа для дизайна синтетических пептидных лекарств",
-        "Клеточная сигнализация через пептидные гормоны",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Ароматизаторы в пище (например, аспартам — дипептид)"
       ],
       "funFacts": [
-        "Пептидная связь из-за резонанса частично имеет характер двойной связи — она плоская и не вращается свободно.",
-        "Существует 20 стандартных аминокислот; из их сочетаний у человека строится более 100 000 различных белков.",
-        "Рибосома синтезирует новую пептидную связь примерно каждые 0,05 с."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
       "name": "Этанол",
-      "description": "Знакомый двухуглеродный спирт из пива, вина и антисептиков — маленькая, полярная молекула с большим влиянием и в лаборатории, и в быту.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "ПОВСЕДНЕВНАЯ ЖИЗНЬ",
       "bondTypes": [
@@ -143,16 +123,16 @@
       "uses": [
         "Алкогольные напитки (разбавленные растворы)",
         "Растворитель в лаборатории и настойках",
-        "Антисептик и биодобавки к топливу"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "Печень сначала превращает этанол в ацетальдегид, затем в ацетат — темп имеет значение.",
-        "Этанол нарушает текучесть мембран и структуру белков — отсюда его роль универсального биологического растворителя."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
       "name": "Аспирин",
-      "description": "Ацетилсалициловая кислота: классическое обезболивающее, необратимо меняющее химию тромбоцитов — медицина, история и органический синтез в одной таблетке.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "МЕДИЦИНА",
       "bondTypes": [
@@ -166,13 +146,12 @@
         "Низкодозовая антиагрегантная терапия (только по назначению врача)"
       ],
       "funFacts": [
-        "Салицин из коры ивы — растительный предок этого синтетического классика.",
-        "Ацетильная группа помогает лучше переносить желудочную кислоту, чем одна салициловая кислота."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Капсаицин",
-      "description": "Огненный ваниллоид перца чили — эволюционный барьер для млекопитающих и любимый объект нейронауки рецептора TRPV1.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ОРГАНИКА",
       "bondTypes": [
@@ -186,13 +165,12 @@
         "Составы для отпугивания вредителей"
       ],
       "funFacts": [
-        "Птицы часто не чувствуют остроту так, как млекопитающие — семена перца распространяются дальше.",
-        "«Острота» — не вкус на карте языка, а сигнал ноцицепторов."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Серотонин",
-      "description": "5-HT: моноаминовый сигнал на стыке настроения, сна и моторики кишечника — один каркас, множество биологических ролей.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "НЕЙРОНАУКА",
       "bondTypes": [
@@ -202,17 +180,16 @@
       ],
       "uses": [
         "Нейротрансмиссия и нейромодуляция",
-        "Мишени в фармакологии (например, СИОЗС действуют выше по путям)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Периферические роли в кишечной нервной системе"
       ],
       "funFacts": [
-        "Большая часть серотонина тела не «в настроении» — значительная доля связана с кишечником и тромбоцитами.",
-        "Название отсылает к сыворотке крови, где его впервые заметили как сосудосуживающее вещество."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
       "name": "Дофамин",
-      "description": "Катехоламин с этиламиновым хвостом на катехольном кольце — мотивация, движение и мезолимбические мифы вращаются вокруг этой структуры.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "НЕЙРОНАУКА",
       "bondTypes": [
@@ -222,17 +199,16 @@
       ],
       "uses": [
         "Нейромедиатор в путях вознаграждения и движения",
-        "Поддержка кровообращения в клинике (гидрохлорид в/в, под наблюдением)",
-        "Учебный лиганд для GPCR и транспортёров"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "Патология болезни Паркинсона тесно связана с гибелью дофаминовых нейронов в чёрной субстанции.",
-        "Дофамин достаточно полярен, чтобы свободно не проезжать через гематоэнцефалический барьер."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
       "name": "Адреналин",
-      "description": "Эпинефрин: молекула скачка пульса, когда в кустах что-то шелохнулось — симпатическая химия, сжатая в трёх срочных атомах кислорода.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "НЕЙРОНАУКА",
       "bondTypes": [
@@ -242,17 +218,16 @@
       ],
       "uses": [
         "Автоинжекторы при анафилаксии (при клиническом обучении и показаниях)",
-        "Добавка к местной анестезии (вазоконстрикция)",
-        "Демонстрации физиологии реакции «бей или беги»"
+        "Добавка к местной анестезии (вазоконстрикция)"
       ],
       "funFacts": [
-        "«Адреналин» и «эпинефрин» — в основном британское и американское названия одного и того же гормона.",
-        "Он действует на α- и β-адренергические рецепторы — отсюда и сосудосужение, и бронхорасширение."
+        "Adrenaline and epinephrine are two names for the same hormone.",
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
       "name": "Бакминстерфуллерен",
-      "description": "Футбольная симметрия из чистого углерода — нобелевская клетка, показавшая, что ароматичность не требует плоских гексагонов.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "НАНОТЕХНОЛОГИИ",
       "bondTypes": [
@@ -260,18 +235,15 @@
         "Делокализованные π-системы на изогнутых поверхностях"
       ],
       "uses": [
-        "Прототипы в материаловедении (тонкие плёнки, композиты)",
-        "Мотивы акцепторов электронов в органической электронике",
-        "Учебный инструмент для углеродных наноаллотропов"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 пятиугольников и 20 шестиугольников — рукопожатие Эйлера с диким кузеном графита.",
-        "Назван в честь архитектора Бакминстера Фуллера, популяризировавшего геодезические купола."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Гемовая группа гемоглобина",
-      "description": "Протетическая порфириновая группа с хелатированием железа, превращающая гемоглобин в кислородный шаттл: обратимое связывание O₂ с аллостерией белка за кулисами.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "БИОЛОГИЯ",
       "bondTypes": [
@@ -280,13 +252,11 @@
         "Пропионат-/карбоксилат-подобные заместители (зависит от протонирования)"
       ],
       "uses": [
-        "Транспорт и запас O₂ в гемопротеинах",
-        "Активные центры ферментов (каталаза, цитохромы)",
-        "Обучение биохимии: поле лиганда и кооперативное связывание"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Четыре гема в гемоглобине обеспечивают кооперативное связывание — сигмоидальные кривые это физиология, а не любопытство.",
-        "Осевой гистидин тонко настраивает аффинность к O₂ относительно конкуренции с CO."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },
@@ -645,7 +615,8 @@
     "footer_copyright": "© {year} Molecule Studio. Все права защищены.",
     "footer_about": "О проекте",
     "footer_github": "Репозиторий GitHub",
-    "footer_canvas_guide": "Руководство по интерактивному холсту",    "panel_tab_overview": "Обзор",
+    "footer_canvas_guide": "Руководство по интерактивному холсту",
+    "panel_tab_overview": "Обзор",
     "panel_tab_structure": "Структура",
     "panel_tab_uses": "Применение",
     "panel_tab_fun_facts": "Интересные факты",

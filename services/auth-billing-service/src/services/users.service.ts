@@ -3,11 +3,11 @@ import { AppError } from "../types/index.js";
 import {
   toPublicUserProfile,
   type PublicUserProfile,
-  type UserProfileInput,
+  type ProfileUpdate,
   type UserRow,
 } from "../utils/profile.js";
 
-const USER_COLUMNS = `id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at`;
+const USER_COLUMNS = `id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, deletion_requested_at`;
 
 export async function getProfileByUserId(userId: string): Promise<PublicUserProfile> {
   const result = await pool.query<UserRow>(
@@ -23,7 +23,7 @@ export async function getProfileByUserId(userId: string): Promise<PublicUserProf
 
 export async function updateProfileByUserId(
   userId: string,
-  updates: Partial<UserProfileInput>,
+  updates: ProfileUpdate,
 ): Promise<PublicUserProfile> {
   const sets: string[] = [];
   const values: unknown[] = [];

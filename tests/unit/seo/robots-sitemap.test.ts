@@ -5,6 +5,8 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { AI_CRAWLERS, disallowedCrawlerTokens, type AiCrawler } from "@/lib/seo/crawler-policy";
 import { INDEXABLE_ROUTES, SEO_ROUTES } from "@/lib/seo/routes";
+import { ALL_MOLECULES } from "@/lib/molecules/data";
+import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
 
 afterEach(() => vi.unstubAllEnvs());
 const indexable = () => {
@@ -50,16 +52,20 @@ describe("sitemap.xml", () => {
       "https://studio.example/explore",
       "https://studio.example/atom-models",
       "https://studio.example/periodic-table",
+      "https://studio.example/molecules",
+      ...ALL_MOLECULES.map((m) => `https://studio.example/molecules/${m.id}`),
       "https://studio.example/pricing",
     ]);
-    expect(entries.length).toBe(INDEXABLE_ROUTES.length);
+    // one entry per static indexable route plus one per molecule (the template path itself never appears)
+    expect(entries.length).toBe(INDEXABLE_ROUTES.length - 1 + ALL_MOLECULES.length);
+    expect(entries.some((e) => e.url.includes("["))).toBe(false);
     for (const e of entries) expect(e).not.toHaveProperty("lastModified");
   });
 
   it("never contains a gated, auth or coming-soon route", () => {
     indexable();
     const urls = sitemap().map((e) => e.url);
-    for (const p of ["/dashboard", "/ai-lab", "/profile", "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/learn", "/showcase"]) {
+    for (const p of ["/dashboard", "/ai-lab", "/profile", "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/learn", "/showcase", ...(TRUST_PAGES_ARE_DRAFTS ? ["/about", "/contact", "/privacy", "/terms"] : [])]) {
       expect(urls.some((u) => u.endsWith(p)), p).toBe(false);
     }
   });

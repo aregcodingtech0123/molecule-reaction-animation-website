@@ -72,3 +72,26 @@ describe("productionConfigProblems (SEC-08)", () => {
     expect(productionConfigProblems({} as NodeJS.ProcessEnv).length).toBeGreaterThanOrEqual(7);
   });
 });
+
+describe("re-registration guard settings (account deletion)", () => {
+  it.each([
+    ["secret missing", { EMAIL_TOMBSTONE_SECRET: undefined }, /EMAIL_TOMBSTONE_SECRET is not set/],
+    ["secret too short", { EMAIL_TOMBSTONE_SECRET: "short-secret-12" }, /EMAIL_TOMBSTONE_SECRET must be at least 32/],
+    ["secret low entropy", { EMAIL_TOMBSTONE_SECRET: "a".repeat(40) }, /EMAIL_TOMBSTONE_SECRET has too little variety/],
+    [".env.example placeholder", { EMAIL_TOMBSTONE_SECRET: "replace-with-another-32-characters-email-tombstone-key" }, /EMAIL_TOMBSTONE_SECRET/],
+    ["same value as JWT_SECRET", { EMAIL_TOMBSTONE_SECRET: "Zq8Lm3Vx7Rt1Nb5Kc9Dj2Hs6Gy4Fw0Pa", JWT_SECRET: "Zq8Lm3Vx7Rt1Nb5Kc9Dj2Hs6Gy4Fw0Pa" }, /EMAIL_TOMBSTONE_SECRET must not be the same value as JWT_SECRET/],
+    ["same value as INTERNAL_SERVICE_SECRET", { EMAIL_TOMBSTONE_SECRET: "Zq8Lm3Vx7Rt1Nb5Kc9Dj2Hs6Gy4Fw0Pa", INTERNAL_SERVICE_SECRET: "Zq8Lm3Vx7Rt1Nb5Kc9Dj2Hs6Gy4Fw0Pa" }, /EMAIL_TOMBSTONE_SECRET must not be the same value as INTERNAL_SERVICE_SECRET/],
+    ["guard flag that is neither true nor false", { EMAIL_TOMBSTONE_GUARD: "maybe" }, /EMAIL_TOMBSTONE_GUARD must be "true" or "false"/],
+  ])("%s → refused", (_label, overrides, message) => {
+    expect(problems(overrides).join("\n")).toMatch(message);
+  });
+
+  it.each(["true", "TRUE", "1", "yes", "on", ""])("EMAIL_TOMBSTONE_GUARD=%j keeps the guard on (and so requires the secret)", (flag) => {
+    expect(problems({ EMAIL_TOMBSTONE_GUARD: flag, EMAIL_TOMBSTONE_SECRET: undefined }).join("\n")).toMatch(/EMAIL_TOMBSTONE_SECRET is not set/);
+  });
+
+  it.each(["false", "FALSE", "0", "no", "off"])("EMAIL_TOMBSTONE_GUARD=%j switches the guard off: no secret needed, nothing else changes", (flag) => {
+    expect(problems({ EMAIL_TOMBSTONE_GUARD: flag, EMAIL_TOMBSTONE_SECRET: undefined })).toEqual([]);
+  });
+});
+

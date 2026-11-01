@@ -20,6 +20,9 @@ const AGENTS = {
 const PUBLIC = ["/", "/explore", "/atom-models", "/periodic-table", "/pricing"];
 const NOINDEX = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/learn", "/showcase"];
 const GATED = ["/dashboard", "/ai-lab", "/profile"];
+// Part 2: the 14 molecule pages (same ids as src/lib/molecules) and the trust pages (drafts while placeholders remain).
+const MOLECULES = ["water", "methane", "glucose", "caffeine", "dna-fragment", "protein-fragment", "ethanol", "aspirin", "capsaicin", "serotonin", "dopamine", "adrenaline", "buckminsterfullerene", "heme-group"];
+const TRUST = ["/about", "/contact", "/privacy", "/terms"];
 const SITE = "https://studio.example";
 
 function freePort(): Promise<number> {
@@ -112,9 +115,11 @@ test.describe("indexable production site (SITE_URL = https origin)", () => {
   test("sitemap.xml: exactly the public routes, absolute, no lastmod, no gated / auth / coming-soon route", async () => {
     const body = await (await fetch(`${srv.origin}/sitemap.xml`)).text();
     const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    expect(locs).toEqual(PUBLIC.map((p) => (p === "/" ? SITE : `${SITE}${p}`)));
+    // Part 2 (TC-68): the molecule index and one URL per molecule join the public routes, in registry order.
+    const expected = ["/", "/explore", "/atom-models", "/periodic-table", "/molecules", ...MOLECULES.map((id) => `/molecules/${id}`), "/pricing"];
+    expect(locs).toEqual(expected.map((p) => (p === "/" ? SITE : `${SITE}${p}`)));
     expect(body).not.toContain("lastmod");
-    for (const p of [...GATED, ...NOINDEX]) expect(locs.some((l) => l.endsWith(p)), p).toBe(false);
+    for (const p of [...GATED, ...NOINDEX, ...TRUST]) expect(locs.some((l) => l.endsWith(p)), p).toBe(false);
   });
 
   for (const [name, agent] of Object.entries(AGENTS)) {
@@ -224,6 +229,105 @@ test.describe("indexable production site (SITE_URL = https origin)", () => {
     }
   });
 
+  // ── Part 2: molecule pages, trust pages, JSON-LD ────────────────────────────────────────────────────────────
+
+  for (const [name, agent] of Object.entries(AGENTS)) {
+    test(`molecule pages: title, description, self-canonical in <head>, one h1, content in the first HTML, for ${name}`, async () => {
+      const titles = new Set<string>();
+      for (const path of ["/molecules", ...MOLECULES.map((id) => `/molecules/${id}`)]) {
+        const p = await page(srv, path, agent);
+        expect(p.status, path).toBe(200);
+        expect(p.headTitles, `${path} title in <head>`).toHaveLength(1);
+        titles.add(p.headTitles[0]);
+        expect(p.head, path).toContain('<meta name="description"');
+        expect(p.canonical, path).toEqual([`${SITE}${path}`]);
+        expect(p.robots, path).toEqual([]);
+        expect(p.html.match(/<h1/g), `${path} one h1`).toHaveLength(1);
+        expect(p.hiddenStreamed, `${path}: no hidden streamed block`).toBe(false);
+      }
+      expect(titles.size).toBe(MOLECULES.length + 1);
+      const caffeine = await page(srv, "/molecules/caffeine", agent);
+      expect(caffeine.html).toContain("C₈H₁₀N₄O₂");
+      expect(caffeine.html).toContain("194.19 g/mol");
+      expect(caffeine.html).toContain('href="/explore?molecule=caffeine"');
+    });
+  }
+
+  test("molecule pages: unknown or wrongly-cased ids are the site's 404 (noindex)", async () => {
+    for (const path of ["/molecules/xyz", "/molecules/Caffeine", "/molecules/__proto__"]) {
+      const p = await page(srv, path);
+      expect(p.status, path).toBe(404);
+      expect(p.robots[0], path).toMatch(/noindex/);
+    }
+  });
+
+  test("trust pages: reachable, visibly drafts, noindex (links followed), out of the sitemap, linked from the home page footer", async () => {
+    for (const path of TRUST) {
+      const p = await page(srv, path);
+      expect(p.status, path).toBe(200);
+      expect(p.robots, path).toEqual(["noindex, follow"]);
+      expect(p.canonical, path).toEqual([]);
+      expect(p.html, path).toContain("Draft — needs legal review.");
+      expect(p.html, path).toContain("[to be provided:");
+    }
+    const home = await page(srv, "/");
+    for (const path of TRUST) expect(home.html, `home links ${path}`).toContain(`href="${path}"`);
+    expect(home.html).not.toContain('href="https://github.com"');
+  });
+
+  test("JSON-LD in the first HTML: WebSite on /, WebApplication with the three packs on /pricing, BreadcrumbList on molecule pages; no Organization (placeholders), no FAQPage", async () => {
+    const blocks = async (path: string) =>
+      [...(await page(srv, path)).html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+    expect(await blocks("/")).toEqual([{ "@context": "https://schema.org", "@type": "WebSite", name: "Molecule Architecture Studio", url: `${SITE}/` }]);
+    const pricing = await blocks("/pricing");
+    expect(pricing.map((b) => b["@type"])).toEqual(["WebApplication"]);
+    expect(pricing[0].offers.map((o: { price: string }) => o.price)).toEqual(["5.00", "20.00", "50.00"]);
+    expect((await blocks("/molecules/water"))[0].itemListElement.map((i: { name: string }) => i.name)).toEqual(["Home", "Molecules", "Water"]);
+    for (const path of [...PUBLIC, "/molecules", "/molecules/water", ...TRUST]) {
+      const html = (await page(srv, path)).html;
+      expect(html, path).not.toContain('"Organization"');
+      expect(html, path).not.toContain("FAQPage");
+    }
+  });
+
+  test("JSON-LD under the real enforced CSP in Chromium: no CSP violation, every block parses", async ({ browser }) => {
+    const context = await browser.newContext();
+    // Only this server may be reached (the pages need nothing else).
+    await context.route(/^(?!http:\/\/127\.0\.0\.1:)/, (route) => route.abort());
+    const tab = await context.newPage();
+    const consoleCsp: string[] = [];
+    tab.on("console", (m) => {
+      if (/Content Security Policy|Refused to (execute|load)/i.test(m.text())) consoleCsp.push(m.text());
+    });
+    await tab.addInitScript(() => {
+      (window as unknown as { __cspViolations: string[] }).__cspViolations = [];
+      document.addEventListener("securitypolicyviolation", (e) =>
+        (window as unknown as { __cspViolations: string[] }).__cspViolations.push(`${e.violatedDirective} ${e.blockedURI}`),
+      );
+    });
+    for (const path of ["/", "/pricing", "/molecules", "/molecules/caffeine"]) {
+      const res = await tab.goto(`${srv.origin}${path}`, { waitUntil: "load" });
+      expect(res!.headers()["content-security-policy"], path).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+      await tab.waitForTimeout(500);
+      const parsed = await tab.evaluate(() =>
+        Array.from(document.querySelectorAll('script[type="application/ld+json"]')).map((s) => JSON.parse(s.textContent ?? "")["@type"]),
+      );
+      expect(parsed.length, `${path} has JSON-LD`).toBeGreaterThan(0);
+      expect(await tab.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations), path).toEqual([]);
+    }
+    expect(consoleCsp).toEqual([]);
+    // Control: the listener does see violations — an injected inline event handler (never allowed under
+    // 'strict-dynamic' without the nonce; a createElement("script") from trusted code would be allowed by design)
+    // is blocked and reported.
+    await tab.evaluate(() => {
+      document.body.insertAdjacentHTML("beforeend", '<img src="data:," onerror="window.__injected = 1">');
+    });
+    await tab.waitForTimeout(200);
+    expect(await tab.evaluate(() => (window as unknown as { __injected?: number }).__injected)).toBeUndefined();
+    expect(await tab.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations.length)).toBeGreaterThan(0);
+    await context.close();
+  });
+
   test("the language switcher creates no crawlable duplicate URLs (English only, no hreflang)", async () => {
     for (const path of PUBLIC) {
       const p = await page(srv, path);
@@ -258,6 +362,10 @@ test.describe("fail closed: SITE_URL missing, not https, or a non-production dep
             expect(p.robots[0], `${path} meta`).toMatch(/^noindex/);
             expect(p.canonical, `${path} canonical`).toEqual([]);
           }
+        }
+        // Part 2: JSON-LD needs the indexable origin, so a fail-closed deployment emits none.
+        for (const path of ["/", "/pricing", "/molecules/water"]) {
+          expect((await page(srv, path)).html, `${path} JSON-LD`).not.toContain("application/ld+json");
         }
         const gated = await page(srv, "/dashboard");
         expect(gated.status).toBe(307);

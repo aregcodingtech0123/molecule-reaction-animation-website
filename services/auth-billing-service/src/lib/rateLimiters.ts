@@ -68,3 +68,29 @@ export const tokenActionRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Personal-data export: 5 requests per hour per account (counted whether or not the password was right, so it also
+ * limits password guessing through this route). Mounted after requireAuth, so req.user is set.
+ */
+export const exportRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `export:${req.user?.sub ?? ip(req)}`,
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  validate,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Requesting or cancelling account deletion: 5 per hour per account (wrong passwords count). Mounted after requireAuth. */
+export const deletionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `deletion:${req.user?.sub ?? ip(req)}`,
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  validate,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+

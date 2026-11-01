@@ -9,7 +9,7 @@
  * Styles keep 'unsafe-inline': React / framer-motion / R3F set inline style attributes, and CSS
  * injection is not script execution. Third parties are listed by purpose:
  *  - Google Identity Services (Google's documented values): gsi/style, gsi/ iframes and endpoints
- *  - PubChem (3D structures for AI-suggested molecules), Wikipedia (element summaries + images)
+ *  - PubChem (3D structures for AI-suggested molecules). Wikipedia was removed in SEO Part 2 (no third-party images)
  */
 export type CspMode = "enforce" | "report-only";
 
@@ -21,9 +21,9 @@ export function buildContentSecurityPolicy(opts: { nonce: string; isDev: boolean
     // React uses eval only in development (server error stacks); never in production.
     "script-src": ["'self'", `'nonce-${opts.nonce}'`, "'strict-dynamic'", ...(opts.isDev ? ["'unsafe-eval'"] : [])],
     "style-src": ["'self'", "'unsafe-inline'", `${GSI}style`],
-    "img-src": ["'self'", "data:", "blob:", "https://upload.wikimedia.org"],
+    "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'", "https://pubchem.ncbi.nlm.nih.gov", "https://en.wikipedia.org", GSI],
+    "connect-src": ["'self'", "https://pubchem.ncbi.nlm.nih.gov", GSI],
     "frame-src": [GSI],
     "worker-src": ["'self'", "blob:"],
     "media-src": ["'self'"],

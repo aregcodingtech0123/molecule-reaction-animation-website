@@ -16,18 +16,19 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 async function findUserIdByEmail(email: string): Promise<string | null> {
   const result = await pool.query<{ id: string }>(
-    `SELECT id::text FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1`,
+    `SELECT id::text FROM users WHERE lower(trim(email)) = lower(trim($1)) AND anonymised_at IS NULL LIMIT 1`,
     [email],
   );
   return result.rows[0]?.id ?? null;
 }
 
 async function userExists(userId: string): Promise<boolean> {
-  const result = await pool.query(`SELECT 1 FROM users WHERE id = $1 LIMIT 1`, [userId]);
+  const result = await pool.query(`SELECT 1 FROM users WHERE id = $1 AND anonymised_at IS NULL LIMIT 1`, [userId]);
   return (result.rowCount ?? 0) > 0;
 }
 
-async function loadReceiptRecipient(userId: string): Promise<{
+/** Exported for tests: the receipt goes to a real, non-anonymised account only. */
+export async function loadReceiptRecipient(userId: string): Promise<{
   email: string;
   userName: string;
   balance: number;
@@ -44,7 +45,7 @@ async function loadReceiptRecipient(userId: string): Promise<{
             COALESCE(b.balance, 0)::int AS balance
      FROM users u
      LEFT JOIN user_balances b ON b.user_id = u.id
-     WHERE u.id = $1
+     WHERE u.id = $1 AND u.anonymised_at IS NULL
      LIMIT 1`,
     [userId],
   );

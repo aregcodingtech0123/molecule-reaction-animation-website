@@ -56,6 +56,10 @@ GRANT SELECT, INSERT                 ON lemon_order_refunds                     
 -- 30-day payload clean-up. Deleting stored events is owner-only.
 GRANT SELECT, INSERT, UPDATE         ON lemon_webhook_events                     TO moleculestudio_app;
 
+-- Account deletion (migration 017): registration looks up the keyed e-mail hash of anonymised accounts. Writing tombstones,
+-- anonymising accounts and purging tombstones are owner-only (the daily db:process-deletions job).
+GRANT SELECT                         ON deleted_email_tombstones                 TO moleculestudio_app;
+
 GRANT EXECUTE ON FUNCTION
   post_credit_transaction(uuid, integer, credit_transaction_type, character varying, character varying),
   release_expired_ai_holds()

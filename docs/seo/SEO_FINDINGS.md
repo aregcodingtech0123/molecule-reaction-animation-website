@@ -57,19 +57,19 @@ benefit, low risk · **P2** worthwhile, larger or needs content · **Note** reco
 | SEO-07 | P1 | Open Graph / Twitter | No `og:*` or `twitter:*` tags; no share image anywhere | `openGraph` + `twitter` (`summary_large_image`) in the root metadata with per-route title/description. One real site image generated at build with `next/og` (`opengraph-image.tsx`, 1200 × 630 — Meta's recommended size, 1.91:1) showing the product name and tagline only. No per-route images unless you want them | `345e8a3` | **fixed** (Part 1) |
 | SEO-08 | P1 | Favicon / manifest / template leftovers | `src/app/favicon.ico` is unchanged since `8ac123c` "Initial commit from Create Next App" (the template icon). No `apple-touch-icon`, no web manifest (CSP already allows `manifest-src 'self'`). `public/{file,globe,next,vercel,window}.svg` are template files referenced nowhere in `src/` | A real icon set (`icon.svg`/`icon.png`, `apple-icon.png`) and `manifest.ts`. **Needs a logo from you** — I can generate a simple glyph from the navbar's existing Atom mark if you prefer. Delete the five unused template SVGs | `467dc60` | **fixed** (Part 1): icon.svg + apple-icon + manifest from the Atom mark; template favicon and 5 template SVGs removed. `/favicon.ico` now 404 (browsers use the `<link rel=icon>` tags) |
 | SEO-09 | P1 | Thin pages | `/learn` and `/showcase` are "coming soon" pages (≈ 440 characters, most of it navigation), answer 200, and are linked from navbar, footer and the home page ("View Showcase") | `noindex` until they have content; keep them out of the sitemap | `5cc8d9c` | **fixed** (Part 1) |
-| SEO-10 | P0 | Trust pages (launch) | No about, contact, privacy or terms page. Footer "About" links to `/`; footer and Resources menu "GitHub" link to `https://github.com` (a placeholder, not a repository) | Add `/about`, `/contact`, `/privacy`, `/terms` (and a refund statement on terms or pricing). **Content must come from you** (legal entity, contact address, data processing, refund policy). Google OAuth verification requires the privacy policy to be "hosted within the domain that hosts your homepage" and linked on the home page. Lemon Squeezy's activation page does not list website requirements **(not verified)**. Fix or remove the GitHub link | — | open (Part 2, D6) |
+| SEO-10 | P0 | Trust pages (launch) | No about, contact, privacy or terms page. Footer "About" links to `/`; footer and Resources menu "GitHub" link to `https://github.com` (a placeholder, not a repository) | Add `/about`, `/contact`, `/privacy`, `/terms` (and a refund statement on terms or pricing). **Content must come from you** (legal entity, contact address, data processing, refund policy). Google OAuth verification requires the privacy policy to be "hosted within the domain that hosts your homepage" and linked on the home page. Lemon Squeezy's activation page does not list website requirements **(not verified)**. Fix or remove the GitHub link | Part 2 | **built as drafts** (Part 2): `/about`, `/contact`, `/privacy`, `/terms` with a visible draft notice, noindex while 11 owner placeholders remain, `npm run check:launch-content` fails until filled; placeholder GitHub link removed; privacy text derived from the code (`TRUST_PAGES.md`). Open: owner details + legal review |
 | SEO-11 | Note | Language | `<html lang="en">` in every server response; `LanguageContext` switches `lang` and strings only after reading `localStorage`. Crawlers therefore always see English, consistently | Nothing for English-only indexing. hreflang needs per-locale URLs (D1) | — | — |
 | SEO-12 | P1 | Streaming metadata vs AI crawlers | Next 16 streams `generateMetadata` output into `<body>` for any user agent not matching its "HTML-limited bots" list (`node_modules/next/dist/shared/lib/router/utils/html-bots.js`). The list contains Bingbot, Twitterbot, facebookexternalhit, Slackbot … but **not** `GPTBot`, `OAI-SearchBot`, `ClaudeBot`, `Claude-SearchBot`, `PerplexityBot` or `CCBot`. Static `metadata` objects are not streamed: today `<title>` and the description are in `<head>` for all four UAs tested | Use static `metadata` exports wherever possible. If dynamic routes need `generateMetadata` (element / molecule pages), set `htmlLimitedBots` to Next's default list **plus** the AI crawler tokens (setting it replaces the default), and test that `<title>` is in `<head>` for those UAs | — | **verified, no change needed**: in this app (every page rendered per request) metadata is in `<head>` for GPTBot, ClaudeBot, PerplexityBot, Googlebot, Bingbot **and** an unlisted bot, with or without `htmlLimitedBots` (tested both). Pinned by `tests/e2e/seo.spec.mts`. Re-check when Part 2 adds data-driven `generateMetadata` |
 | SEO-13 | P1 | Server-rendered content | Pages are client components but are server-rendered, so a crawler gets real text (table above). Gaps: (a) on `/explore`, `/login`, `/signup` the main content is a Suspense boundary streamed after the footer in `<div hidden id="S:0">` and revealed by JavaScript: the text is in the HTML but hidden; Google renders it, non-rendering AI crawlers may skip hidden content. (b) The periodic table renders symbols and masses as text; element names exist only in `aria-label`s; descriptions only after a click. (c) `/explore` and `/pricing` have little prose explaining what they are | (a) Move the `useSearchParams` read below the page's static header/intro so headline and intro render outside the Suspense boundary (no hydration change: same markup on server and client). (b, c) A short server-rendered intro/answer section per public page (also AEO, Part 2). No hidden text: everything added is visible | `d8cfddc` | **fixed for `/explore`** (Part 1). `/login`, `/signup`, `/reset-password`, `/verify-email` keep their hidden streamed block: they are `noindex` (decision), so no crawler needs it. Periodic-table names/descriptions and intro prose → Part 2 |
 | SEO-14 | P1 | Headings / 404 page | `/pricing`: `h1` then `h3` (no `h2`). `/explore` `h1` is the generic "Molecules". The 404 page has **two** `<title>` elements (root metadata plus Next's built-in not-found title) and `h1` "404" | Fix the heading levels; descriptive `h1`s; a custom `not-found.tsx` (one title, `noindex` kept, links back to public sections, status stays 404) | `ad57a97` | **fixed** (Part 1) |
 | SEO-15 | Note | Status codes / redirects | Unknown paths 404 with `noindex`; trailing slash 308s to the slash-less URL; paths are case-sensitive (404, not duplicates); gated routes 307. No soft 404s except SEO-03's unknown `?molecule=` | Canonical-host redirect (`www` ↔ apex, http → https) is a Vercel domain setting, documented in Part 3 | — | — |
-| SEO-16 | P2 | Structured data | No JSON-LD on any page | Part 2: `WebSite` + `Organization` on `/` only (Google's site-name docs require `WebSite` on the home page), `WebApplication` with the three credit packs as `Offer`s (prices visible on `/pricing`), `BreadcrumbList` for any new detail pages. No ratings or reviews exist, so **Google's software-app rich result is not reachable** (it requires `aggregateRating` or `review`); the markup still describes the page. Nothing on gated pages. JSON-LD is a non-executable data block; CSP verification in a real browser is part of Part 2 | — | open (Part 2) |
+| SEO-16 | P2 | Structured data | No JSON-LD on any page | Part 2: `WebSite` + `Organization` on `/` only (Google's site-name docs require `WebSite` on the home page), `WebApplication` with the three credit packs as `Offer`s (prices visible on `/pricing`), `BreadcrumbList` for any new detail pages. No ratings or reviews exist, so **Google's software-app rich result is not reachable** (it requires `aggregateRating` or `review`); the markup still describes the page. Nothing on gated pages. JSON-LD is a non-executable data block; CSP verification in a real browser is part of Part 2 | Part 2 | **fixed** (Part 2): WebSite (home), WebApplication + 3 offers (pricing), BreadcrumbList (molecule pages), only while indexable; no Organization while placeholders; no FAQPage (rich result ended 2026-05-07); no CSP violation in Chromium under the enforced policy (production spec) |
 | SEO-17 | Note | Caching | Every HTML page answers `Cache-Control: private, no-cache, no-store` (a consequence of the per-request nonce). No direct ranking effect; it rules out CDN caching of HTML (TTFB) and may limit the back/forward cache | Keep: changing it would weaken the nonce CSP. Record only | — | — |
 | SEO-18 | P1 | Core Web Vitals (R10–R12) | R11: two `woff2` fonts preloaded via `Link` on every page (Inter, Syne); Lighthouse's simulated LCP on public routes waits on them. R12: `/hdri/*.hdr` served `Cache-Control: public, max-age=0`, 1.68 MB each. R10: LCP on `/dashboard` 3.3 s, `/ai-lab` 5.9 s (both gated, so they never appear in search, but CrUX origin-level data includes them) | Part 1, measured before/after with the perf harness: R11 (preload only the display weight above the fold, or `display: optional` — visual trade-off, your call), R12 (versioned file names + `max-age=31536000, immutable` via `next.config` headers; defer loading on mobile after first paint), R10 if it stays small (static greeting markup on `/ai-lab`; server-render the dashboard header) | `839bfd4` | **R12 fixed; R11 measured, no change; R10 done** (dashboard header in the server HTML: observed LCP 3.25 s → 1.17 s, Lighthouse mobile 84 → 92; AI Lab welcome message as plain text: simulated LCP 7.2 s → 3.6 s, score 59 → 71; the 2.5 s simulated target is still not met) - see `docs/seo/CWV_RESULTS.md` |
-| SEO-19 | P1 | Data sources and licence | `src/lib/periodic-table/elements.ts` and `src/lib/molecules/data.ts` cite **no source**. Atomic masses look like IUPAC abridged standard atomic weights (He 4.003, C 12.011) — **needs your confirmation**. Element descriptions and molecule "fun facts" are hand-written and unsourced. Element photos are loaded at runtime from the Wikipedia REST API; the UI links the article, but the image's own Commons licence/author is not shown | Before any of this becomes citeable content: name the source per data set, check licence compatibility, add a visible "Sources" note. Commons images: show licence + author from the image's file page, or link the file page. Facts on new pages flagged for your review | `304faad` (review doc) | **partly fixed** (Part 1): the periodic-table page now carries the NIST attribution and says what was changed; CIAAW is not displayed (licence, `DATA_REVIEW.md` §5). Open (Part 2): molecule data, Wikipedia/Commons image licences, attribution on element pages |
+| SEO-19 | P1 | Data sources and licence | `src/lib/periodic-table/elements.ts` and `src/lib/molecules/data.ts` cite **no source**. Atomic masses look like IUPAC abridged standard atomic weights (He 4.003, C 12.011) — **needs your confirmation**. Element descriptions and molecule "fun facts" are hand-written and unsourced. Element photos are loaded at runtime from the Wikipedia REST API; the UI links the article, but the image's own Commons licence/author is not shown | Before any of this becomes citeable content: name the source per data set, check licence compatibility, add a visible "Sources" note. Commons images: show licence + author from the image's file page, or link the file page. Facts on new pages flagged for your review | `304faad` (review doc) | **fixed** (Parts 1–2): NIST attribution on the periodic table; Wikipedia images removed (own illustration, CSP tightened); molecule facts checked against PubChem with differences withheld from the new pages and listed for review (`DATA_REVIEW.md` §6); categories checked against IUPAC IR-3.5 (§7). Element pages stay deferred (D4) |
 | SEO-20 | P0 | Site URL / fail-closed indexing | No site-URL setting. `FRONTEND_URL` exists (server-side, validated at start). Vercel adds `X-Robots-Tag: noindex` to preview deployments automatically, but not to a custom domain on a non-production branch | One setting (D3). Unset, non-https or invalid → `noindex, nofollow` meta + `X-Robots-Tag: noindex` on every page, robots.txt `Disallow: /`, empty sitemap. Also noindex when `VERCEL_ENV` is set and is not `production`. `check:config` warns when unset in production | `8f04c68` | **fixed** (Part 1) |
 | SEO-21 | P1 | Accuracy of shown data | `estimateElectronShells()` fills shells 2-8-18-32…; correct for light elements, wrong from potassium on (K → 2, 8, 9; real 2, 8, 8, 1; Fe → 2, 8, 16; real 2, 8, 14, 2). It drives the orbit animation | Fine as a visual; it must **not** be stated as a fact on indexable element pages or in structured data. Optional: label it "simplified" in the UI | `304faad` | **fixed** (Part 1): NIST shells for Z 1-108; Z 109-118 nucleus only with a note, no shell data published (owner decision). Mass decisions applied, see SEO-26 |
-| SEO-22 | Note | Internal linking | Navbar and footer link all public sections from every page (server-rendered `<a href>`). No breadcrumbs, no links between related content (molecule ↔ element ↔ reaction), all molecule links are query URLs | Part 2: detail pages (if D4/D5) with related links and breadcrumbs | — | — |
+| SEO-22 | Note | Internal linking | Navbar and footer link all public sections from every page (server-rendered `<a href>`). No breadcrumbs, no links between related content (molecule ↔ element ↔ reaction), all molecule links are query URLs | Part 2: detail pages (if D4/D5) with related links and breadcrumbs | Part 2 | **fixed**: `/molecules` index, 14 molecule pages with breadcrumbs and related molecules, links from footer, Resources menu, home and the Explore sidebar |
 | SEO-23 | Note | Images / alt text | No `<img>` in any server HTML; icons are inline SVG. The one runtime image (Wikipedia element photo) has an `alt`. Canvas scenes have no text alternative | Short visible captions/descriptions next to the 3D canvases (Part 1–2), no hidden text | — | — |
 
 ## 3. Decisions for you
@@ -279,3 +279,101 @@ failed 2 tests for the last two reasons; the root run failed 30 for the first. L
 
 **Environment notes:** `.env.test` does not exist here, so the suites were given `TEST_DATABASE_URL` in the environment.
 `.env.test.example` was present at the end of this run (SEO-25 did not recur). Docker test container left running.
+
+## 8. Part 2 result (branch `seo/aeo-geo`)
+
+Design note first (`PART2_DESIGN.md`), then: elements 95–118 wording (owner decision), molecule and category data review
+(`DATA_REVIEW.md` §6–§8), Wikipedia images removed, `/molecules` + 14 molecule pages, JSON-LD, draft trust pages with a
+failing launch check, answer-first "Common questions" on home and pricing. Test changes TC-63 … TC-68.
+
+### New findings during Part 2
+
+| ID | Pri | Area | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| SEO-28 | Note | Repo | `seo/technical` was **not** in `main` (local or `origin`) when Part 2 started, although the brief said it was merged. Merged locally with `--no-ff` (`5d4c982 Merge branch 'seo/technical'`), the same way as the earlier phases; `seo/aeo-geo` branches from it. Nothing pushed | done locally — please confirm this is the merge you meant |
+| SEO-29 | P1 | Data | 8 of the 14 3D molecule models do not contain their formula's atoms (e.g. adrenaline has C10 for C9, caffeine 1 H for 10) and several have impossible bond lengths; Explore's sidebar and the home page's comparison tiles print atom/bond counts from them | **7 fixed** (regenerated from PubChem computed conformers, counts restored, tests). **Open:** heme (PubChem has no 3D record; wwPDB `HEM` licence unclear) keeps counts hidden; aspirin and serotonin match their formula but have impossible bond lengths (`DATA_REVIEW.md` §6.3) |
+| SEO-30 | P1 | Privacy | Google sign-ups get a **generated** first name, last name and date of birth (`generateRandomProfile`); `signup_ip` has no retention; no account deletion exists | **partly fixed**: `signup_ip` is cleared after 90 days (migration 016, daily job — `PRIVACY_FOLLOWUPS.md` §1). **Waiting for your go:** no fake name/date of birth for Google sign-ups (§2) and account deletion/export (§3) — both touch the auth service; the draft privacy policy describes the current behaviour |
+| SEO-31 | Note | Audit | Part 0 said 15 molecules; the data has 14 (`ALL_MOLECULES`) | corrected (14 pages) |
+| SEO-32 | Note | Data | The phase illustration (now the only element visual) draws Og as a gas and "Crystalline solid" for elements never made in bulk | **fixed**: Og no longer a gas; At, Fr and Fm–Og show "State unknown / not produced in bulk". **Open:** that cutoff has no readable source (`DATA_REVIEW.md` §8) |
+
+### Part 2 verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6 test container)
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 39 files, **687 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly (Part 2 changed no service code) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` (unit + BFF api) | 49 files, **719 passed** · BFF set **94.83 %** lines (275/290) | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; the six new routes 345.2 / 380 KiB (no route-specific client JS); `/periodic-table` 364.1 → 363.0 (Wikipedia code gone), `/pricing` 346.3 → 347.9, `/` 809.2 → 810.8 (FAQ) | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks (the SEO spec now has 25) |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | includes JSON-LD under the enforced CSP in Chromium with a working control |
+| `npm run check:launch-content` | **exit 1** (11 placeholders) | expected until the owner details are filled |
+| ESLint on every file Part 2 touched | no errors | the 26 pre-existing errors elsewhere are unchanged (SEO-27) |
+
+### Part 2 follow-ups (after the owner's review) — verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Done: the 8 elements on NIST's mass numbers (TC-69); the 14 doubtful molecule facts corrected with a cited source or removed (TC-70);
+counts hidden for mismatched models, then 7 models regenerated from PubChem 3D and the counts restored (TC-71, TC-72); categories
+labelled "common classification, not an IUPAC designation" with IUPAC wording for Po/Ts/Og, Og no longer a gas, "state unknown /
+not produced in bulk" (TC-73); `signup_ip` cleared after 90 days — migration 016 (TC-74). Design note: `PRIVACY_FOLLOWUPS.md`.
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 40 files, **704 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly (no service source changed; +17 tests for migration 016) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 52 files, **783 passed** · BFF set **94.83 %** lines (275/290) | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; new routes 345.2 / 380 KiB; `/` 812.5, `/explore` 830.2, `/periodic-table` 363.6 KiB (all under their ceilings) | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (11 placeholders) | expected |
+| ESLint on every changed file | no errors (3 pre-existing unused-variable warnings in `MoleculeInfoPanel.tsx`) | |
+
+## Part 2 follow-ups, round 2 — what changed and the verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Aspirin and serotonin regenerated from PubChem (TC-75); the ~40 unsourced molecule statements sourced, reworded or removed, and the locale bundles brought back in step with the data (TC-76, DATA_REVIEW §6.4); the signup-address purge made a mandatory, heartbeat-monitored launch gate with a conditional privacy sentence (TC-77); design notes for the Google sign-up profile and for account deletion/export (`GOOGLE_PROFILE_DESIGN.md`, `ACCOUNT_DELETION_DESIGN.md`, awaiting approval, nothing implemented).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 40 files, **709 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 54 files, **969 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/` 811.7, `/explore` 829.4, `/periodic-table` 363 KiB; molecule and trust routes 344.6 / 380 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (12 placeholders, incl. `signupIpPurgeJob`) | expected |
+| ESLint on changed source and test folders | no output (clean) | |
+
+## Part 2 follow-ups, round 3 — what changed and the verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Google sign-up stores no invented name/date of birth and the profile page can clear a stored value (TC-78..80, `GOOGLE_PROFILE_DESIGN.md`); account data export `POST /api/users/export` + "Download my data" (TC-81); textbook items pruned to what OpenStax supports and the glucose "4 Calories" line removed (TC-82, DATA_REVIEW §6.4 D); launch checklist §1.7 (28 English-placeholder statements per language, 924 machine-translated strings); `ACCOUNT_DELETION_DESIGN.md` updated for late webhooks, receipts and the keyed-hash re-registration guard — **deletion (Phase B) not implemented**.
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 42 files, **739 passed** · lines **91.98 %** (1366/1485) · branches **81.50 %** (877/1076) | floors 91.89 / 81.36: met (above) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 57 files, **984 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/profile` 350.1 / 384 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (12 placeholders) | expected |
+| ESLint | new and changed files clean; the whole tree still reports 4 `react-hooks` errors in files this round did not introduce (`profile/page.tsx` ×2 — identical at HEAD, `verify-email/page.tsx`, `AuthGatePage.tsx`) | pre-existing |
+
+## Part 2 follow-ups, round 4 — account deletion (Phase B) and the re-registration guard (2026-11-02, Node 24.22.2, PostgreSQL 18.6)
+
+Migration 017 (anonymise by `anonymise_user()`, 12-month keyed e-mail tombstones, `purge_email_tombstones()`), `POST`/`DELETE /api/users/deletion`, daily `db:process-deletions` (heartbeat, refuses without `EMAIL_TOMBSTONE_SECRET`), the bonus guard inside `grantSignupBonus`, webhook/receipt guards, the profile "Delete my account" section with the approved warning text, privacy text conditional on `SITE_OWNER.accountDeletionJob` / `emailTombstoneGuard`, runbook §11 (manual process; Lemon Squeezy and Resend per their official documents), checklist updates, flavour-text clean-up (TC-83..89). Ledger rows, balances and the existing triggers are untouched (asserted).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 44 files, **815 passed** · lines **92.10 %** (1434/1557) · branches **81.81 %** (931/1138) | floors 91.98 / 81.50: met (above) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 59 files, **1002 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/profile` 352.1 / 384 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (14 placeholders) | expected |
+| ESLint on the new and changed files | 0 errors (2 existing warnings in `errorHandler.ts`, `billing.controller.ts`) | the 4 `react-hooks` errors in `profile/page.tsx` (2, identical at the previous commit), `verify-email/page.tsx`, `AuthGatePage.tsx` are unchanged |
+
