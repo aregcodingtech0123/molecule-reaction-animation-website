@@ -16,9 +16,7 @@
         "Meio para reações químicas"
       ],
       "funFacts": [
-        "A água é a única substância natural que existe nos três estados físicos a temperaturas normalmente encontradas na Terra.",
-        "Uma molécula de água permanece na atmosfera apenas cerca de 9 dias antes de cair como precipitação.",
-        "A água quente pode congelar mais depressa que a água fria — este fenómeno é conhecido como efeito Mpemba."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "Matéria-prima para síntese química"
       ],
       "funFacts": [
-        "O metano é 80 vezes mais potente que o CO₂ como gás de efeito de estufa num período de 20 anos.",
-        "A sua forma tetraédrica perfeita confere a todas as quatro ligações C–H o mesmo comprimento (1,09 Å).",
-        "Arqueias metanogénicas produzem metano nas profundezas dos sedimentos oceânicos e no sistema digestivo dos bovinos."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "Fermentação para produção de etanol e CO₂"
       ],
       "funFacts": [
-        "O cérebro consome cerca de 120 g de glucose por dia — aproximadamente 60% do seu consumo total de glucose.",
         "A glucose existe em duas formas: α-glucose e β-glucose, que diferem apenas na orientação de um grupo hidroxilo.",
         "Um grama de glucose liberta aproximadamente 4 calorias quando é metabolizada."
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "A cafeína bloqueia os recetores de adenosina no cérebro, impedindo a sensação de cansaço.",
-        "Uma chávena média de espresso contém cerca de 63 mg de cafeína — uma dose letal exigiria ~80 chávenas consumidas muito rapidamente.",
         "A cafeína é a substância psicoativa mais consumida em todo o mundo."
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromático",
-        "Ponte de hidrogénio (×2 A–T)",
-        "Ligação glicosídica"
+        "Ponte de hidrogénio (×2 A–T)"
       ],
       "uses": [
         "Armazenamento de informação genética em todos os organismos vivos",
         "Modelo para a transcrição de ARNm",
-        "Alvos de edição genética CRISPR-Cas9",
         "Identificação genética em ciências forenses"
       ],
       "funFacts": [
         "A adenina emparelha sempre com a timina através de 2 pontes de hidrogénio — este é o emparelhamento de bases de Watson-Crick.",
-        "Se o ADN de todas as suas células fosse desenrolado e colocado de ponta a ponta, chegaria da Terra ao Sol e voltaria ~600 vezes.",
         "O genoma humano contém aproximadamente 3 mil milhões de pares de bases."
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "Unidade fundamental de todas as estruturas proteicas",
-        "Modelo para o desenho de fármacos peptídicos sintéticos",
         "Sinalização celular via hormonas peptídicas",
         "Agentes aromatizantes alimentares (p. ex., o aspartame é um dipeptídeo)"
       ],
       "funFacts": [
         "A ligação peptídica tem carácter parcial de dupla ligação devido à ressonância — é plana e não roda livremente.",
-        "Existem 20 aminoácidos padrão, e a vida usa combinações deles para construir mais de 100 000 proteínas humanas distintas.",
-        "O ribossoma sintetiza uma nova ligação peptídica aproximadamente a cada 0,05 segundos."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "Bebidas alcoólicas (soluções diluídas)",
         "Solvente em laboratórios e tinturas",
-        "Antisséptico e aditivos para biocombustíveis"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "O fígado converte o etanol em acetaldeído antes de o transformar em acetato — o ritmo importa.",
-        "O etanol altera a fluidez das membranas e a estrutura das proteínas, o que explica em parte o seu papel como solvente biológico tão versátil."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "Terapia antiplaquetária em baixa dose (sob orientação médica)"
       ],
       "funFacts": [
-        "A salicina da casca de salgueiro é a ancestral vegetal desta estrela da síntese.",
-        "O grupo acetilo ajuda-a a resistir melhor ao ácido estomacal do que o ácido salicílico isolado."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Capsaicina",
-      "description": "O vanilloide ardente que dá picante aos pimentos — um dissuasor evolutivo para mamíferos e o favorito dos neurocientistas para falar do TRPV1.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANIC",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "Formulações repelentes de pragas"
       ],
       "funFacts": [
-        "As aves muitas vezes não têm a sensibilidade dos recetores que os mamíferos têm — assim as sementes de pimenta dispersam-se mais longe.",
-        "O «calor» da especiaria não é um sabor no mapa da língua; é teatro dos nociceptores."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonina",
-      "description": "5-HT: um sinal monoaminérgico com um currículo que abrange humor, sono e motilidade intestinal — prova de que um mesmo esqueleto pode desempenhar muitos papéis biológicos.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "Neurotransmissão e neuromodulação",
-        "Alvos farmacológicos (p. ex., os ISRS atuam a montante nas vias)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Papéis periféricos no sistema nervoso entérico"
       ],
       "funFacts": [
-        "A maior parte da serotonina do corpo não está «no humor» — uma grande fração está ligada ao intestino e às plaquetas.",
-        "O nome remete ao soro sanguíneo, onde foi observada pela primeira vez a contrair vasos."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "Neurotransmissor nas vias da recompensa e do movimento",
-        "Suporte clínico no choque (como cloridrato, IV, sob cuidados médicos)",
-        "Ligando de ensino para biologia de GPCR e transportadores"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "A patologia de Parkinson está intimamente ligada à perda de neurónios dopaminérgicos na substância negra.",
-        "É suficientemente polar para que a dopamina livre não atravesse casualmente a barreira hematoencefálica."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "Autoinjetores de resgate na anafilaxia (com formação/indicação clínica)",
-        "Adjuvantes em anestesia local (com racional vasoconstritor)",
-        "Demonstrações fisiológicas da resposta luta-ou-fuga"
+        "Adjuvantes em anestesia local (com racional vasoconstritor)"
       ],
       "funFacts": [
-        "«Adrenalina» vs «epinefrina» é sobretudo nomenclatura UK/EUA — é o mesmo hormónio impaciente.",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "Atua nos recetores α e β-adrenérgicos, o que explica histórias de vasoconstrição e usos broncodilatadores."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullereno",
-      "description": "Simetria de bola de futebol em carbono puro — uma gaiola celebrada com o Nobel que nos ensinou que a aromaticidade não exige hexágonos planos.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECH",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "Sistemas π deslocalizados em superfícies curvas"
       ],
       "uses": [
-        "Protótipos em ciência dos materiais (películas finas, compósitos)",
-        "Motivos aceitadores de eletrões em eletrónica orgânica",
-        "Ferramenta de ensino de alótropos de carbono em nanoescala"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
         "12 pentágonos e 20 hexágonos — o encontro de Euler com o primo selvagem do grafite.",
-        "Batizado em homenagem ao arquiteto Buckminster Fuller, que popularizou as cúpulas geodésicas."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "Transporte e armazenamento de O₂ em hemoproteínas",
-        "Sítios ativos enzimáticos (p. ex., catalase, citocromos)",
-        "Ensino de bioquímica sobre campo de ligandos e ligação cooperativa"
+        "Sítios ativos enzimáticos (p. ex., catalase, citocromos)"
       ],
       "funFacts": [
-        "Quatro unidades de heme na hemoglobina permitem ligação cooperativa — curvas sigmoidais não são curiosidade química, são fisiologia.",
-        "O «tug-of-war» da histidina axial afina a afinidade pelo oxigénio face à competição com o CO."
+        "Quatro unidades de heme na hemoglobina permitem ligação cooperativa — curvas sigmoidais não são curiosidade química, são fisiologia."
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. Todos os direitos reservados.",
     "footer_about": "Sobre",
     "footer_github": "Repositório GitHub",
-    "footer_canvas_guide": "Guia da tela interativa",    "panel_tab_overview": "Visão geral",
+    "footer_canvas_guide": "Guia da tela interativa",
+    "panel_tab_overview": "Visão geral",
     "panel_tab_structure": "Estrutura",
     "panel_tab_uses": "Utilizações",
     "panel_tab_fun_facts": "Curiosidades",

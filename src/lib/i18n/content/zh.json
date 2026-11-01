@@ -16,9 +16,7 @@
         "化学反应介质"
       ],
       "funFacts": [
-        "水是地球上常温下唯一能以固、液、气三种状态自然存在的物质。",
-        "一个水分子在大气中平均仅停留约 9 天便会以降水形式落下。",
-        "热水有时比冷水结冰更快——此即姆潘巴效应。"
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "化学合成原料"
       ],
       "funFacts": [
-        "在 20 年时间尺度上，甲烷的温室效应约为 CO₂ 的 80 倍。",
-        "其完美的四面体结构使四条 C–H 键等长（1.09 Å）。",
-        "产甲烷古菌在深海沉积物与牛消化道中生成甲烷。"
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "发酵制乙醇与 CO₂"
       ],
       "funFacts": [
-        "大脑每天约消耗 120 克葡萄糖——约占全身葡萄糖用量的 60%。",
         "葡萄糖有 α 型和 β 型两种，仅一个羟基取向不同。",
         "每克葡萄糖代谢约释放 4 千卡热量。"
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "咖啡因阻断大脑中的腺苷受体，从而减轻困倦感。",
-        "一杯浓缩咖啡平均约含 63 毫克咖啡因——致死量需极短时间内饮用约 80 杯。",
         "咖啡因是全球消费最广泛的精神活性物质。"
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "芳香性",
-        "氢键（A–T ×2）",
-        "糖苷键"
+        "氢键（A–T ×2）"
       ],
       "uses": [
         "所有生物体的遗传信息储存",
         "mRNA 转录模板",
-        "CRISPR-Cas9 基因编辑靶点",
         "法医学 DNA 指纹鉴定"
       ],
       "funFacts": [
         "腺嘌呤始终通过 2 条氢键与胸腺嘧啶配对——此即沃森-克里克碱基配对。",
-        "若将你所有细胞的 DNA 完全展开首尾相连，长度约为地日往返距离的 600 倍。",
         "人类基因组约含 30 亿个碱基对。"
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "一切蛋白质结构的基本单元",
-        "合成肽类药物设计模板",
         "肽类激素的细胞信号传导",
         "食品调味剂（如阿斯巴甜为二肽）"
       ],
       "funFacts": [
         "肽键因共振具有部分双键特征——呈平面且不能自由旋转。",
-        "标准氨基酸有 20 种，生命用其组合构建逾 10 万种不同的人体蛋白质。",
-        "核糖体合成一个新肽键大约每 0.05 秒一次。"
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "酒精饮料（稀释溶液）",
         "实验室与酊剂的溶剂",
-        "消毒剂与生物燃料添加剂"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "肝脏先将乙醇转化为乙醛，再变为乙酸盐——代谢速度很重要。",
-        "乙醇会干扰膜流动性与蛋白质结构，这也是它成为广泛生物溶剂的原因之一。"
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "小剂量抗血小板治疗（须遵医嘱）"
       ],
       "funFacts": [
-        "柳树皮中的水杨苷是这种合成明星分子的植物界前身。",
-        "乙酰基使其比单纯水杨酸更能耐受胃酸。"
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "辣椒素",
-      "description": "赋予辣椒灼热的香草类化合物——进化上对哺乳动物的威慑，也是神经科学家讨论 TRPV1 的热门话题。",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "有机化学",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "驱避害虫配方"
       ],
       "funFacts": [
-        "鸟类往往缺乏哺乳动物对 TRPV1 的敏感性——有利于辣椒种子传播更远。",
-        "辛辣的「热感」并非舌面味觉图谱上的味觉，而是伤害感受器的戏剧表演。"
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "血清素",
-      "description": "5-HT：一种单胺信号分子，涉足情绪、睡眠与肠道蠕动——同一骨架可承担多种生物学角色。",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "神经科学",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "神经传递与神经调节",
-        "药理学靶点（如 SSRI 作用于上游通路）",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "肠神经系统中的外周作用"
       ],
       "funFacts": [
-        "体内大部分血清素并不直接决定「心情」——相当比例与肠道及血小板相关。",
-        "其名源于血清——最早在血清中观察到其血管收缩作用。"
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "奖赏与运动通路中的神经递质",
-        "临床休克支持（盐酸盐静脉给药，须监护）",
-        "G 蛋白偶联受体与转运体生物学教学配体"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "帕金森病病理与黑质多巴胺能神经元丢失密切相关。",
-        "游离多巴胺极性足够强，不会随意穿越血脑屏障。"
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "过敏性休克急救自动注射器（须培训与适应症）",
-        "局部麻醉辅助（血管收缩原理）",
-        "战斗或逃跑信号传导的生理学演示"
+        "局部麻醉辅助（血管收缩原理）"
       ],
       "funFacts": [
-        "「肾上腺素」与「epinephrine」主要是英美命名差异——是同一急躁的小激素。",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "它作用于 α 与 β 肾上腺素能受体，因而既有血管收缩故事也有支气管扩张用途。"
       ]
     },
     "buckminsterfullerene": {
       "name": "富勒烯",
-      "description": "纯碳的足球对称结构——获诺贝尔奖的笼状分子，告诉我们芳香性不必依赖平面六元环。",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "纳米技术",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "曲面离域 π 体系"
       ],
       "uses": [
-        "材料科学原型（薄膜、复合材料）",
-        "有机电子学中的电子受体研究",
-        "纳米碳同素异形体教学工具"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
         "12 个五边形与 20 个六边形——欧拉定理与石墨狂野表亲的握手。",
-        "以推广测地线穹顶的建筑师巴克敏斯特·富勒命名。"
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "血红素蛋白内的 O₂ 运输与储存",
-        "酶活性中心（如过氧化氢酶、细胞色素）",
-        "配体场与协同结合的生物化学教学"
+        "酶活性中心（如过氧化氢酶、细胞色素）"
       ],
       "funFacts": [
-        "血红蛋白中四个血红素单元实现协同结合——S 形曲线不是化学趣闻，而是生理学。",
-        "轴向组氨酸的「拔河」精细调节氧亲和力与 CO 竞争。"
+        "血红蛋白中四个血红素单元实现协同结合——S 形曲线不是化学趣闻，而是生理学。"
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. 保留所有权利。",
     "footer_about": "关于",
     "footer_github": "GitHub 仓库",
-    "footer_canvas_guide": "交互式画布指南",    "panel_tab_overview": "概览",
+    "footer_canvas_guide": "交互式画布指南",
+    "panel_tab_overview": "概览",
     "panel_tab_structure": "结构",
     "panel_tab_uses": "用途",
     "panel_tab_fun_facts": "趣闻",

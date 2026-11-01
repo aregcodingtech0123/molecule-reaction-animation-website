@@ -67,7 +67,7 @@ export const ETHANOL: MoleculeData = {
     uses: [
       "Alcoholic beverages (dilute solutions)",
       "Solvent in labs and tinctures",
-      "Antiseptic and fuel bio-additives",
+      "Antiseptic and disinfectant (topical)",
     ],
     funFacts: [
       "Your liver turns ethanol into acetaldehyde before it becomes acetate—pace matters.",
@@ -99,7 +99,6 @@ export const ASPIRIN: MoleculeData = {
       "Low-dose antiplatelet therapy (under medical guidance)",
     ],
     funFacts: [
-      "Willow bark salicin is the plant-world ancestor of this synthetic superstar.",
       "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem).",
     ],
     color: "#f43f5e",
@@ -111,7 +110,7 @@ export const CAPSAICIN: MoleculeData = {
   name: "Capsaicin",
   formula: "C₁₈H₂₇NO₃",
   description:
-    "The fiery vanilloid that makes chili peppers bite—an evolutionary deterrent for mammals and a neuroscientist’s favorite TRPV1 conversation starter.",
+    "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
   category: "organic",
   disciplineTag: "ORGANIC",
   modelPath: null,
@@ -128,8 +127,7 @@ export const CAPSAICIN: MoleculeData = {
       "Pest-deterrent formulations",
     ],
     funFacts: [
-      "Birds often lack the receptor sensitivity mammals have—chili seeds spread farther that way.",
-      "Spice “heat” is not a taste on the tongue map; it’s nociceptor theater.",
+      "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001).",
     ],
     color: "#ef4444",
   },
@@ -140,7 +138,7 @@ export const SEROTONIN: MoleculeData = {
   name: "Serotonin",
   formula: "C₁₀H₁₂N₂O",
   description:
-    "5-HT: a monoamine signal with a résumé spanning mood, sleep, and gut motility—proof that one scaffold can wear many biological hats.",
+    "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
   category: "biological",
   disciplineTag: "NEUROSCIENCE",
   modelPath: null,
@@ -152,12 +150,11 @@ export const SEROTONIN: MoleculeData = {
     bondTypes: ["Aromatic indole", "Primary amine", "Phenolic hydroxyl"],
     uses: [
       "Neurotransmission and neuromodulation",
-      "Pharmacology targets (e.g. SSRIs act upstream in pathways)",
+      "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
       "Peripheral roles in the enteric nervous system",
     ],
     funFacts: [
-      "Most of your body’s serotonin isn’t “in your mood”—a large share is entangled with the gut and platelets.",
-      "Its name nods to blood serum, where it was first noticed to constrict vessels.",
+      "Most of the body’s serotonin is produced in the gut, not in the brain.",
     ],
     color: "#22d3ee",
   },
@@ -180,12 +177,11 @@ export const DOPAMINE: MoleculeData = {
     bondTypes: ["Aromatic (catechol)", "Primary amine", "Phenolic O–H"],
     uses: [
       "Neurotransmitter in reward and motor pathways",
-      "Clinical shock support (as hydrochloride salt, IV, under care)",
-      "Teaching ligand for GPCR and transporter biology",
+      "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)",
     ],
     funFacts: [
       "Parkinson’s pathology is tightly linked to dopamine neuron loss in the substantia nigra.",
-      "It’s polar enough that free dopamine doesn’t casually joyride across the blood–brain barrier.",
+      "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent.",
     ],
     color: "#eab308",
   },
@@ -209,10 +205,9 @@ export const ADRENALINE: MoleculeData = {
     uses: [
       "Anaphylaxis rescue autoinjectors (with clinical training/indication)",
       "Local anesthesia adjuncts (with vasoconstrictive rationale)",
-      "Physiology demos of fight-or-flight signaling",
     ],
     funFacts: [
-      "\"Adrenaline\" vs \"epinephrine\" is largely UK/US naming—they’re the same impatient little hormone.",
+      "Adrenaline and epinephrine are two names for the same hormone.",
       "It hits α- and β-adrenergic receptors, explaining both vasoconstriction stories and bronchodilator uses.",
     ],
     color: "#a855f7",
@@ -235,13 +230,11 @@ export const BUCKMINSTERFULLERENE: MoleculeData = {
     state: "solid",
     bondTypes: ["Sp²-like carbon networking (truncated icosahedron)", "Delocalized π systems on curved surfaces"],
     uses: [
-      "Materials science prototypes (thin films, composites)",
-      "Electron acceptor motifs in organic electronics research",
-      "Nanoscale carbon allotrope teaching tool",
+      "Electron acceptors (fullerene derivatives) in organic solar-cell research",
     ],
     funFacts: [
       "12 pentagons and 20 hexagons—Euler’s handshake with graphite’s wild cousin.",
-      "Named after architect Buckminster Fuller, who popularized geodesic domes.",
+      "Named after Buckminster Fuller because its structure resembles his geodesic domes.",
     ],
     color: "#64748b",
   },
@@ -269,7 +262,6 @@ export const HEME_GROUP: MoleculeData = {
     uses: [
       "O₂ transport and storage inside hemoproteins",
       "Enzyme active sites (e.g. catalase, cytochromes)",
-      "Biochemistry teaching for ligand-field and cooperative binding",
     ],
     funFacts: [
       "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren’t chemistry trivia, they’re physiology.",

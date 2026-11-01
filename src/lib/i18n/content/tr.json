@@ -16,9 +16,7 @@
         "Kimyasal reaksiyon ortamı"
       ],
       "funFacts": [
-        "Su, Dünya'da normal olarak bulunan sıcaklıklarda üç fiziksel hâlde de var olan tek doğal maddedir.",
-        "Bir su molekülü atmosferde yalnızca yaklaşık 9 gün kalır, ardından yağış olarak yeryüzüne iner.",
-        "Sıcak su soğuk sudan daha hızlı donabilir — buna Mpemba etkisi denir."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "Kimyasal sentez hammadde"
       ],
       "funFacts": [
-        "Metan, 20 yıllık dönemde CO₂'ye kıyasla sera etkisi açısından 80 kat daha güçlüdür.",
-        "Mükemmel tetrahedral geometrisi dört C–H bağının da eşit uzunlukta (1,09 Å) olmasını sağlar.",
-        "Metanojen arkeler okyanus çökellerinde ve sığır sindirim sisteminde metan üretir."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "Etanol ve CO₂ üretimi için fermantasyon"
       ],
       "funFacts": [
-        "Beyniniz günde yaklaşık 120 g glukoz tüketir — toplam glukoz kullanımınızın kabaca %60'ı.",
         "Glukoz iki biçimde bulunur: α-glukoz ve β-glukoz; yalnızca bir hidroksil grubunun yönü farklıdır.",
         "Bir gram glukoz metabolize edildiğinde yaklaşık 4 kalori enerji açığa çıkar."
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "Kafein beyinde adenozin reseptörlerini bloke ederek yorgunluk hissini engeller.",
-        "Ortalama bir espresso fincanında yaklaşık 63 mg kafein vardır — ölümcül doz için çok hızlı tüketilerek ~80 fincan gerekir.",
         "Kafein dünyada en yaygın tüketilen psikoaktif maddedir."
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromatik",
-        "Hidrojen Bağı (×2 A–T)",
-        "Glikozidik Bağ"
+        "Hidrojen Bağı (×2 A–T)"
       ],
       "uses": [
         "Tüm canlılarda genetik bilgi depolama",
         "mRNA transkripsiyonu için şablon",
-        "CRISPR-Cas9 gen düzenleme hedef bölgeleri",
         "Adli bilimde DNA parmak izi"
       ],
       "funFacts": [
         "Adenin her zaman Timin ile 2 hidrojen bağı kurar — bu Watson-Crick baz eşleşmesidir.",
-        "Tüm hücrelerinizdeki DNA açılıp uç uca dizilse Dünya'dan Güneş'e gidip ~600 kez dönecek kadar uzun olurdu.",
         "İnsan genomu yaklaşık 3 milyar baz çifti içerir."
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "Tüm protein yapılarının temel birimi",
-        "Sentetik peptit ilaç tasarımı için şablon",
         "Peptit hormonlarıyla hücre sinyalleşmesi",
         "Gıda aroma vericileri (ör. aspartam bir dipeptittir)"
       ],
       "funFacts": [
         "Peptit bağı rezonans nedeniyle kısmi çift bağ karakterine sahiptir — düzlemseldir ve serbestçe dönmez.",
-        "20 standart amino asit vardır; yaşam bunların kombinasyonlarıyla 100.000'den fazla insan proteini üretir.",
-        "Ribozom yaklaşık her 0,05 saniyede yeni bir peptit bağı sentezler."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "Alkollü içecekler (seyreltik çözeltiler)",
         "Laboratuvar ve tentürlerde çözücü",
-        "Antiseptik ve biyoyakıt katkıları"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "Karaciğeriniz etanolü önce asetaldehite, ardından asetata dönüştürür — tempo önemlidir.",
-        "Etanol zar akışkanlığını ve protein yapısını bozar; bu da onu geniş kapsamlı bir biyolojik çözücü yapar."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "Düşük doz antitrombosit tedavisi (tıbbi gözetimle)"
       ],
       "funFacts": [
-        "Söğüt kabuğundaki salisin, bu sentetik süperstarın bitki dünyasındaki atasıdır.",
-        "Asetil grubu, yalnız salisilik asitten daha iyi mide asidine dayanmasına yardım eder."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Kapsaisin",
-      "description": "Biberlerin acısını veren ateşli vanilloid — memeliler için evrimsel caydırıcı ve nörobilimcilerin favori TRPV1 konuşma açıcısı.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANİK",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "Haşere caydırıcı formülasyonlar"
       ],
       "funFacts": [
-        "Kuşlar genelde memelilerin sahip olduğu reseptör duyarlılığına sahip değildir — biber tohumları daha uzağa yayılır.",
-        "Baharat \"acılığı\" dil haritasında bir tat değildir; nosiseptör tiyatrosudur."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonin",
-      "description": "5-HT: ruh hâli, uyku ve bağırsak motilitesine uzanan bir monoamin sinyali — tek bir iskeletin birçok biyolojik şapka takabileceğinin kanıtı.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NÖROBİLİM",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "Nörotransmisyon ve nöromodülasyon",
-        "Farmakoloji hedefleri (ör. SSRI'lar yukarı akış yollarda etkilidir)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Enterik sinir sisteminde periferik roller"
       ],
       "funFacts": [
-        "Vücudunuzdaki serotoninun çoğu \"ruh hâlinizde\" değildir — büyük bir pay bağırsak ve trombositlerle ilişkilidir.",
-        "Adı, damarlarda ilk kez daralma etkisi gözlendiği kandan gelir."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "Ödül ve motor yollarında nörotransmitter",
-        "Klinik şok desteği (hidroklorür tuzu, IV, tıbbi gözetimle)",
-        "GPCR ve taşıyıcı biyolojisi için öğretim ligandı"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "Parkinson patolojisi substantia nigra'daki dopamin nöron kaybıyla sıkı bağlantılıdır.",
-        "Serbest dopamin yeterince polardır; kan-beyin bariyerini keyfi geçmez."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "Anafilaksi kurtarma oto-enjektörleri (klinik eğitim/endikasyonla)",
-        "Lokal anestezi yardımcıları (vazokonstriktif gerekçeyle)",
-        "Savaş ya da kaç sinyalleşmesi fizyoloji gösterimleri"
+        "Lokal anestezi yardımcıları (vazokonstriktif gerekçeyle)"
       ],
       "funFacts": [
-        "\"Adrenalin\" ile \"epinefrin\" çoğunlukla UK/ABD adlandırması farkıdır — aynı sabırsız küçük hormondur.",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "α ve β-adrenerjik reseptörlere etki eder; hem vazokonstriksiyon hem bronkodilatör kullanımlarını açıklar."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullerene",
-      "description": "Saf karbonun futbol topu simetrisi — aromatikliğin düz altıgen gerektirmediğini öğreten Nobel ödüllü bir kafes.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTEKNOLOJİ",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "Eğri yüzeylerde delokalize π sistemleri"
       ],
       "uses": [
-        "Malzeme bilimi prototipleri (ince filmler, kompozitler)",
-        "Organik elektronik araştırmada elektron kabulcü motifleri",
-        "Nanoskala karbon allotropu öğretim aracı"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
         "12 beşgen ve 20 altıgen — Euler'in grafitin vahşi kuzeniyle tokalaşması.",
-        "Jeodezik kubbeleri popülerleştiren mimar Buckminster Fuller'dan adını alır."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "Hemoproteinlerde O₂ taşınması ve depolanması",
-        "Enzim aktif bölgeleri (ör. katalaz, sitokromlar)",
-        "Ligand alanı ve kooperatif bağlanma için biyokimya öğretimi"
+        "Enzim aktif bölgeleri (ör. katalaz, sitokromlar)"
       ],
       "funFacts": [
-        "Hemoglobindeki dört heme ünitesi kooperatif bağlanmayı sağlar — sigmoidal eğriler kimya trivia değil, fizyolojidir.",
-        "Aksiyel histidin çekişmesi oksijen afinitesini CO rekabetine karşı ince ayarlar."
+        "Hemoglobindeki dört heme ünitesi kooperatif bağlanmayı sağlar — sigmoidal eğriler kimya trivia değil, fizyolojidir."
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. Tüm hakları saklıdır.",
     "footer_about": "Hakkında",
     "footer_github": "GitHub Deposu",
-    "footer_canvas_guide": "Etkileşimli Canvas Kılavuzu",    "panel_tab_overview": "Genel Bakış",
+    "footer_canvas_guide": "Etkileşimli Canvas Kılavuzu",
+    "panel_tab_overview": "Genel Bakış",
     "panel_tab_structure": "Yapı",
     "panel_tab_uses": "Kullanımlar",
     "panel_tab_fun_facts": "İlginç Bilgiler",

@@ -79,9 +79,8 @@ export const METHANE: MoleculeData = {
       "Feedstock for chemical synthesis",
     ],
     funFacts: [
-      "Methane is 80× more potent than CO₂ as a greenhouse gas over a 20-year period.",
-      "Its perfect tetrahedral shape gives all four C–H bonds equal length (1.09 Å).",
-      "Methanogenic archaea produce methane deep in ocean sediments and cow digestive systems.",
+      "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+      "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA).",
     ],
     color: "#f97316",
   },
@@ -107,7 +106,6 @@ export const GLUCOSE: MoleculeData = {
       "Fermentation to produce ethanol and CO₂",
     ],
     funFacts: [
-      "Your brain consumes about 120g of glucose per day — roughly 60% of your total glucose usage.",
       "Glucose exists in two forms: α-glucose and β-glucose, which differ only in the orientation of one hydroxyl group.",
       "A single gram of glucose releases approximately 4 Calories when metabolized.",
     ],
@@ -158,7 +156,6 @@ export const DNA_FRAGMENT: MoleculeData = {
     uses: [
       "Genetic information storage in all living organisms",
       "Template for mRNA transcription",
-      "CRISPR-Cas9 gene editing target sites",
       "DNA fingerprinting in forensic science",
     ],
     funFacts: [
@@ -183,7 +180,6 @@ export const PROTEIN_FRAGMENT: MoleculeData = {
     bondTypes: ["Peptide Bond (C–N)", "Amide Resonance", "α-Carbon Bonds"],
     uses: [
       "Fundamental unit of all protein structures",
-      "Template for synthetic peptide drug design",
       "Cell signaling via peptide hormones",
       "Food flavoring agents (e.g., aspartame is a dipeptide)",
     ],

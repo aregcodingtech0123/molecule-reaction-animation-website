@@ -16,9 +16,7 @@
         "Chemical reaction medium"
       ],
       "funFacts": [
-        "Water is the only natural substance that exists in all three physical states at temperatures normally found on Earth.",
-        "A water molecule stays in the atmosphere for only about 9 days before falling as precipitation.",
-        "Hot water can freeze faster than cold water — this is known as the Mpemba effect."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "Feedstock for chemical synthesis"
       ],
       "funFacts": [
-        "Methane is 80× more potent than CO₂ as a greenhouse gas over a 20-year period.",
-        "Its perfect tetrahedral shape gives all four C–H bonds equal length (1.09 Å).",
-        "Methanogenic archaea produce methane deep in ocean sediments and cow digestive systems."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "Fermentation to produce ethanol and CO₂"
       ],
       "funFacts": [
-        "Your brain consumes about 120g of glucose per day — roughly 60% of your total glucose usage.",
         "Glucose exists in two forms: α-glucose and β-glucose, which differ only in the orientation of one hydroxyl group.",
         "A single gram of glucose releases approximately 4 Calories when metabolized."
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "Caffeine blocks adenosine receptors in the brain, preventing the feeling of tiredness.",
-        "The average cup of espresso contains about 63mg of caffeine — a lethal dose would require ~80 cups consumed very rapidly.",
         "Caffeine is the world's most widely consumed psychoactive substance."
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromatic",
-        "Hydrogen Bond (×2 A–T)",
-        "Glycosidic Bond"
+        "Hydrogen Bond (×2 A–T)"
       ],
       "uses": [
         "Genetic information storage in all living organisms",
         "Template for mRNA transcription",
-        "CRISPR-Cas9 gene editing target sites",
         "DNA fingerprinting in forensic science"
       ],
       "funFacts": [
         "Adenine always pairs with Thymine via 2 hydrogen bonds — this is Watson-Crick base pairing.",
-        "If the DNA from all your cells were uncoiled and laid end-to-end, it would reach from Earth to the Sun and back ~600 times.",
         "The human genome contains approximately 3 billion base pairs."
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "Fundamental unit of all protein structures",
-        "Template for synthetic peptide drug design",
         "Cell signaling via peptide hormones",
         "Food flavoring agents (e.g., aspartame is a dipeptide)"
       ],
       "funFacts": [
         "The peptide bond has partial double-bond character due to resonance — it's planar and doesn't freely rotate.",
-        "There are 20 standard amino acids, and life uses combinations of them to build over 100,000 distinct human proteins.",
-        "The ribosome synthesizes a new peptide bond roughly every 0.05 seconds."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "Alcoholic beverages (dilute solutions)",
         "Solvent in labs and tinctures",
-        "Antiseptic and fuel bio-additives"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "Your liver turns ethanol into acetaldehyde before it becomes acetate—pace matters.",
-        "Ethanol disrupts membrane fluidity and protein structure, which is part of why it's such a broad biological solvent."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "Low-dose antiplatelet therapy (under medical guidance)"
       ],
       "funFacts": [
-        "Willow bark salicin is the plant-world ancestor of this synthetic superstar.",
-        "Its acetyl group helps it survive stomach acid better than salicylic acid alone."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Capsaicin",
-      "description": "The fiery vanilloid that makes chili peppers bite—an evolutionary deterrent for mammals and a neuroscientist's favorite TRPV1 conversation starter.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANIC",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "Pest-deterrent formulations"
       ],
       "funFacts": [
-        "Birds often lack the receptor sensitivity mammals have—chili seeds spread farther that way.",
-        "Spice \"heat\" is not a taste on the tongue map; it's nociceptor theater."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonin",
-      "description": "5-HT: a monoamine signal with a résumé spanning mood, sleep, and gut motility—proof that one scaffold can wear many biological hats.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "Neurotransmission and neuromodulation",
-        "Pharmacology targets (e.g. SSRIs act upstream in pathways)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Peripheral roles in the enteric nervous system"
       ],
       "funFacts": [
-        "Most of your body's serotonin isn't \"in your mood\"—a large share is entangled with the gut and platelets.",
-        "Its name nods to blood serum, where it was first noticed to constrict vessels."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "Neurotransmitter in reward and motor pathways",
-        "Clinical shock support (as hydrochloride salt, IV, under care)",
-        "Teaching ligand for GPCR and transporter biology"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
-        "Parkinson's pathology is tightly linked to dopamine neuron loss in the substantia nigra.",
-        "It's polar enough that free dopamine doesn't casually joyride across the blood–brain barrier."
+        "Parkinson’s pathology is tightly linked to dopamine neuron loss in the substantia nigra.",
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "Anaphylaxis rescue autoinjectors (with clinical training/indication)",
-        "Local anesthesia adjuncts (with vasoconstrictive rationale)",
-        "Physiology demos of fight-or-flight signaling"
+        "Local anesthesia adjuncts (with vasoconstrictive rationale)"
       ],
       "funFacts": [
-        "\"Adrenaline\" vs \"epinephrine\" is largely UK/US naming—they're the same impatient little hormone.",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "It hits α- and β-adrenergic receptors, explaining both vasoconstriction stories and bronchodilator uses."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullerene",
-      "description": "Soccer-ball symmetry in pure carbon—a Nobel-celebrated cage that taught us aromaticity doesn't require flat hexagons.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECH",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "Delocalized π systems on curved surfaces"
       ],
       "uses": [
-        "Materials science prototypes (thin films, composites)",
-        "Electron acceptor motifs in organic electronics research",
-        "Nanoscale carbon allotrope teaching tool"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 pentagons and 20 hexagons—Euler's handshake with graphite's wild cousin.",
-        "Named after architect Buckminster Fuller, who popularized geodesic domes."
+        "12 pentagons and 20 hexagons—Euler’s handshake with graphite’s wild cousin.",
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "O₂ transport and storage inside hemoproteins",
-        "Enzyme active sites (e.g. catalase, cytochromes)",
-        "Biochemistry teaching for ligand-field and cooperative binding"
+        "Enzyme active sites (e.g. catalase, cytochromes)"
       ],
       "funFacts": [
-        "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren't chemistry trivia, they're physiology.",
-        "The axial histidine tug-of-war fine-tunes oxygen affinity versus CO competition."
+        "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren’t chemistry trivia, they’re physiology."
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. All rights reserved.",
     "footer_about": "About",
     "footer_github": "GitHub Repository",
-    "footer_canvas_guide": "Interactive Canvas Guide",    "panel_tab_overview": "Overview",
+    "footer_canvas_guide": "Interactive Canvas Guide",
+    "panel_tab_overview": "Overview",
     "panel_tab_structure": "Structure",
     "panel_tab_uses": "Uses",
     "panel_tab_fun_facts": "Fun Facts",

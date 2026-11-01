@@ -16,9 +16,7 @@
         "Mezzo per reazioni chimiche"
       ],
       "funFacts": [
-        "L'acqua è l'unica sostanza naturale che esiste in tutti e tre gli stati fisici a temperature normalmente presenti sulla Terra.",
-        "Una molecola d'acqua resta nell'atmosfera solo circa 9 giorni prima di cadere come precipitazione.",
-        "L'acqua calda può congelarsi più rapidamente dell'acqua fredda: questo è noto come effetto Mpemba."
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "Materia prima per la sintesi chimica"
       ],
       "funFacts": [
-        "Il metano è 80 volte più potente del CO₂ come gas serra in un periodo di 20 anni.",
-        "La sua forma tetraedrica perfetta conferisce ai quattro legami C–H la stessa lunghezza (1,09 Å).",
-        "Le archee metanogene producono metano nei sedimenti oceanici profondi e nell'apparato digerente del bestiame."
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "Fermentazione per produrre etanolo e CO₂"
       ],
       "funFacts": [
-        "Il cervello consuma circa 120 g di glucosio al giorno — circa il 60 % dell'utilizzo totale di glucosio.",
         "Il glucosio esiste in due forme: α-glucosio e β-glucosio, che differiscono solo nell'orientamento di un gruppo idrossilo.",
         "Un grammo di glucosio rilascia circa 4 calorie quando viene metabolizzato."
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "La caffeina blocca i recettori dell'adenosina nel cervello, impedendo la sensazione di stanchezza.",
-        "Una tazza media di espresso contiene circa 63 mg di caffeina — una dose letale richiederebbe circa 80 tazze consumate molto rapidamente.",
         "La caffeina è la sostanza psicoattiva più consumata al mondo."
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "Aromatico",
-        "Legame a idrogeno (×2 A–T)",
-        "Legame glicosidico"
+        "Legame a idrogeno (×2 A–T)"
       ],
       "uses": [
         "Archiviazione delle informazioni genetiche in tutti gli organismi viventi",
         "Modello per la trascrizione dell'mRNA",
-        "Siti bersaglio dell'editing genico CRISPR-Cas9",
         "Impronta genetica nelle scienze forensi"
       ],
       "funFacts": [
         "L'adenina si accoppia sempre con la timina tramite 2 legami a idrogeno: questo è l'accoppiamento di basi di Watson-Crick.",
-        "Se il DNA di tutte le tue cellule fosse srotolato e disposto capo a capo, raggiungerebbe dalla Terra al Sole e ritorno circa 600 volte.",
         "Il genoma umano contiene circa 3 miliardi di coppie di basi."
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "Unità fondamentale di tutte le strutture proteiche",
-        "Modello per la progettazione di farmaci peptidici sintetici",
         "Segnalazione cellulare tramite ormoni peptidici",
         "Agenti aromatizzanti alimentari (es. l'aspartame è un dipeptide)"
       ],
       "funFacts": [
         "Il legame peptidico ha carattere di doppio legame parziale per risonanza: è planare e non ruota liberamente.",
-        "Esistono 20 amminoacidi standard, e la vita li combina per costruire oltre 100 000 proteine umane distinte.",
-        "Il ribosoma sintetizza un nuovo legame peptidico circa ogni 0,05 secondi."
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "Bevande alcoliche (soluzioni diluite)",
         "Solvente in laboratori e tinture",
-        "Antisettico e additivi per biocarburanti"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "Il fegato converte l'etanolo in acetaldeide prima di trasformarlo in acetato: il ritmo conta.",
-        "L'etanolo altera la fluidità delle membrane e la struttura delle proteine, il che spiega in parte il suo ampio ruolo come solvente biologico."
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "Terapia antipiastrinica a basso dosaggio (sotto guida medica)"
       ],
       "funFacts": [
-        "La salicina nella corteccia di salice è l'antenato vegetale di questa superstar sintetica.",
-        "Il suo gruppo acetile gli permette di resistere meglio all'acido gastrico rispetto al solo acido salicilico."
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "Capsaicina",
-      "description": "Il vanilloide piccante che dà il morso ai peperoncini: deterrente evolutivo per i mammiferi e punto di partenza preferito dei neuroscienziati che studiano il TRPV1.",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "ORGANICO",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "Formulazioni repellenti per parassiti"
       ],
       "funFacts": [
-        "Gli uccelli spesso non hanno la sensibilità recettoriale dei mammiferi: così i semi di peperoncino si diffondono più lontano.",
-        "Il «piccante» non è un gusto sulla mappa della lingua; è teatro dei nocicettori."
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "Serotonina",
-      "description": "5-HT: un segnale monoaminergico con un curriculum che spazia dall'umore al sonno e alla motilità intestinale — prova che uno stesso scheletro può indossare molti cappelli biologici.",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENZE",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "Neurotrasmissione e neuromodulazione",
-        "Bersagli farmacologici (es. gli SSRI agiscono a monte nelle vie)",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "Ruoli periferici nel sistema nervoso enterico"
       ],
       "funFacts": [
-        "La maggior parte della serotonina del corpo non è «nel tuo umore»: gran parte è legata all'intestino e alle piastrine.",
-        "Il nome richiama il siero sanguigno, dove fu osservata per la prima volta contraire i vasi."
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "Neurotrasmettitore nelle vie della ricompensa e motorie",
-        "Supporto clinico nello shock (come cloridrato, EV, sotto assistenza)",
-        "Ligando didattico per GPCR e biologia dei trasportatori"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "La patologia del Parkinson è strettamente legata alla perdita di neuroni dopaminergici nella sostanza nera.",
-        "È abbastanza polare da impedire alla dopamina libera di attraversare casualmente la barriera ematoencefalica."
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "Autoiniettori di soccorso nell'anafilassi (con formazione e indicazione clinica)",
-        "Coadiuvanti nell'anestesia locale (con razionale vasocostrittivo)",
-        "Dimostrazioni fisiologiche del segnale di lotta o fuga"
+        "Coadiuvanti nell'anestesia locale (con razionale vasocostrittivo)"
       ],
       "funFacts": [
-        "«Adrenalina» contro «epinefrina» è in gran parte nomenclatura britannica contro statunitense: è lo stesso ormone impaziente.",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "Agisce sui recettori α e β adrenergici, spiegando sia le storie di vasocostrizione sia gli usi broncodilatatori."
       ]
     },
     "buckminsterfullerene": {
       "name": "Buckminsterfullerene",
-      "description": "Simmetria da pallone da calcio nel carbonio puro: una gabbia celebrata dal Nobel che ha dimostrato che l'aromaticità non richiede esagoni piatti.",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "NANOTECNOLOGIA",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "Sistemi π delocalizzati su superfici curve"
       ],
       "uses": [
-        "Prototipi in scienza dei materiali (film sottili, compositi)",
-        "Motivi accettori di elettroni nella ricerca sull'elettronica organica",
-        "Strumento didattico sugli allotropi del carbonio a nanoscala"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
         "12 pentagoni e 20 esagoni: la stretta di mano di Eulero con il cugino selvaggio della grafite.",
-        "Prende il nome dall'architetto Buckminster Fuller, che ha reso popolari le cupole geodetiche."
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "Trasporto e stoccaggio di O₂ nelle emoproteine",
-        "Siti attivi enzimatici (es. catalasi, citocromi)",
-        "Insegnamento biochimico dei campi ligando e del legame cooperativo"
+        "Siti attivi enzimatici (es. catalasi, citocromi)"
       ],
       "funFacts": [
-        "Quattro unità eme nell'emoglobina consentono il legame cooperativo: le curve sigmoidali non sono curiosità chimica, sono fisiologia.",
-        "Il tiraggio della istidina assiale regola l'affinità per l'ossigeno rispetto alla competizione con il CO."
+        "Quattro unità eme nell'emoglobina consentono il legame cooperativo: le curve sigmoidali non sono curiosità chimica, sono fisiologia."
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. Tutti i diritti riservati.",
     "footer_about": "Informazioni",
     "footer_github": "Repository GitHub",
-    "footer_canvas_guide": "Guida al canvas interattivo",    "panel_tab_overview": "Panoramica",
+    "footer_canvas_guide": "Guida al canvas interattivo",
+    "panel_tab_overview": "Panoramica",
     "panel_tab_structure": "Struttura",
     "panel_tab_uses": "Usi",
     "panel_tab_fun_facts": "Curiosità",

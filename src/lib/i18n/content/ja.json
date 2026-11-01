@@ -16,9 +16,7 @@
         "化学反応の媒体"
       ],
       "funFacts": [
-        "水は地球上で通常見られる温度で、固体・液体・気体の三態すべてに存在する唯一の天然物質である。",
-        "大気中の水分子は降水として落下するまで、わずか約9日しか留まらない。",
-        "熱い水の方が冷たい水より早く凍ることがある——これはメペンバ効果として知られる。"
+        "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
       ]
     },
     "methane": {
@@ -37,9 +35,8 @@
         "化学合成の原料"
       ],
       "funFacts": [
-        "メタンは20年間のスパンで、CO₂の約80倍の温室効果を持つ。",
-        "完全な四面体形状により、4本のC–H結合はすべて同じ長さ（1.09 Å）になる。",
-        "メタン生成古細菌は、海底堆積物やウシの消化管内でメタンを産生する。"
+        "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
+        "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)."
       ]
     },
     "glucose": {
@@ -59,7 +56,6 @@
         "エタノールとCO₂を産生する発酵"
       ],
       "funFacts": [
-        "脳は1日あたり約120 gのグルコースを消費する——総消費量のおよそ60%を占める。",
         "グルコースにはα-グルコースとβ-グルコースの2形があり、1つの水酸基の向きだけが異なる。",
         "1 gのグルコースを代謝すると、およそ4 kcalのエネルギーが放出される。"
       ]
@@ -82,7 +78,6 @@
       ],
       "funFacts": [
         "カフェインは脳内のアデノシン受容体を遮断し、眠気を感じにくくする。",
-        "エスプレッソ1杯には平均約63 mgのカフェインが含まれる——致死量に達するには、極めて短時間で約80杯を飲む必要がある。",
         "カフェインは世界で最も広く消費されている精神活性物質である。"
       ]
     },
@@ -93,18 +88,15 @@
       "disciplineTag": null,
       "bondTypes": [
         "芳香族",
-        "水素結合（A–T間×2）",
-        "グリコシド結合"
+        "水素結合（A–T間×2）"
       ],
       "uses": [
         "すべての生物における遺伝情報の保存",
         "mRNA転写のテンプレート",
-        "CRISPR-Cas9遺伝子編集の標的部位",
         "法科学におけるDNA型鑑定"
       ],
       "funFacts": [
         "アデニンは常にチミンと2本の水素結合で対合する——これがワトソン・クリック塩基対である。",
-        "体内のすべての細胞のDNAを伸ばしてつなげると、地球から太陽まで往復約600回分の長さになる。",
         "ヒトゲノムには約30億の塩基対が含まれる。"
       ]
     },
@@ -120,14 +112,12 @@
       ],
       "uses": [
         "すべてのタンパク質構造の基本単位",
-        "合成ペプチド医薬設計のテンプレート",
         "ペプチドホルモンによる細胞シグナル伝達",
         "食品風味料（例：アスパルテームはジペプチド）"
       ],
       "funFacts": [
         "ペプチド結合は共鳴により部分的な二重結合性を持ち、平面で自由に回転しない。",
-        "20種類の標準アミノ酸があり、生命はそれらの組み合わせで10万以上のヒトタンパク質を構築する。",
-        "リボソームはおよそ0.05秒ごとに新しいペプチド結合を合成する。"
+        "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
     "ethanol": {
@@ -143,11 +133,11 @@
       "uses": [
         "アルコール飲料（希釈溶液）",
         "実験室・チンキ剤の溶媒",
-        "消毒剤・バイオ燃料添加物"
+        "Antiseptic and disinfectant (topical)"
       ],
       "funFacts": [
         "肝臓はエタノールをアセトアルデヒドに変換してからアセテートにする——ペースが重要である。",
-        "エタノールは膜流動性やタンパク質構造を乱すため、広範な生物学的溶媒として機能する一因となる。"
+        "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)."
       ]
     },
     "aspirin": {
@@ -166,13 +156,12 @@
         "低用量抗血小板療法（医師の指導の下）"
       ],
       "funFacts": [
-        "ヤナギの皮のサリシンは、この合成のスターの植物界の祖先である。",
-        "アセチル基により、サリチル酸単独より胃酸に耐えやすい。"
+        "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)."
       ]
     },
     "capsaicin": {
       "name": "カプサイシン",
-      "description": "唐辛子の辛さを生む灼熱のバニルイド——哺乳類への進化的な忌避剤であり、神経科学者にとってのTRPV1談義の定番である。",
+      "description": "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief.",
       "category": "organic",
       "disciplineTag": "有機化学",
       "bondTypes": [
@@ -186,13 +175,12 @@
         "害虫忌避剤"
       ],
       "funFacts": [
-        "鳥類は哺乳類ほど受容体に敏感でないことが多く——唐辛子の種はより遠くへ広がる。",
-        "辛味の「熱」は味覚マップ上の味ではなく、侵害受容体のシアターである。"
+        "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)."
       ]
     },
     "serotonin": {
       "name": "セロトニン",
-      "description": "5-HT：気分、睡眠、腸管運動にまたがるモノアミンシグナル——一つの骨格が多様な生物学的役割を担う証左である。",
+      "description": "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis.",
       "category": "biological",
       "disciplineTag": "神経科学",
       "bondTypes": [
@@ -202,12 +190,11 @@
       ],
       "uses": [
         "神経伝達・神経調節",
-        "薬理学標的（例：SSRIは経路の上流で作用）",
+        "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)",
         "腸管神経系における末梢的役割"
       ],
       "funFacts": [
-        "体内のセロトニンの大部分は「気分の中」にあるわけではない——かなりの割合が腸と血小板に関わる。",
-        "その名は、血管収縮が最初に認められた血液血清に由来する。"
+        "Most of the body’s serotonin is produced in the gut, not in the brain."
       ]
     },
     "dopamine": {
@@ -222,12 +209,11 @@
       ],
       "uses": [
         "報酬・運動経路の神経伝達物質",
-        "ショック時の臨床支持（塩酸塩、静脈内、医療下）",
-        "GPCR・トランスポーター生物学の教材リガンド"
+        "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)"
       ],
       "funFacts": [
         "パーキンソン病の病理は黒質のドーパミン神経細胞の喪失と密接に結びついている。",
-        "極性が高いため、遊離ドーパミンは血液脳関門を容易には通過しない。"
+        "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent."
       ]
     },
     "adrenaline": {
@@ -242,17 +228,16 @@
       ],
       "uses": [
         "アナフィラキシー救助用オートインジェクター（臨床訓練・適応の下）",
-        "局所麻酔の補助（血管収縮の根拠あり）",
-        "闘争・逃走反応の生理学デモ"
+        "局所麻酔の補助（血管収縮の根拠あり）"
       ],
       "funFacts": [
-        "「アドレナリン」と「エピネフリン」は主に英米の呼び方の違い——同じ急ぎのホルモンである。",
+        "Adrenaline and epinephrine are two names for the same hormone.",
         "α-およびβ-アドレナリン受容体に作用し、血管収縮と気管支拡張の両方の用途を説明する。"
       ]
     },
     "buckminsterfullerene": {
       "name": "バックミンスターフラーレン",
-      "description": "純炭素のサッカーボール対称——ノーベル賞を受けたケージが、芳香族性に平面の六角形は不要だと教えてくれた。",
+      "description": "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
       "category": "macro",
       "disciplineTag": "ナノテク",
       "bondTypes": [
@@ -260,13 +245,11 @@
         "曲面における非局在化π系"
       ],
       "uses": [
-        "材料科学の試作品（薄膜、複合材）",
-        "有機エレクトロニクス研究の電子受容体モチーフ",
-        "ナノスケール炭素同素体の教材"
+        "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
         "12個の五角形と20個の六角形——オイラーの握手と黒鉛の野生のいとこ。",
-        "ジオデシックドームを広めた建築家バックミンスター・フラーにちなんで名付けられた。"
+        "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
@@ -281,12 +264,10 @@
       ],
       "uses": [
         "ヘモタンパク内でのO₂輸送・貯蔵",
-        "酵素活性部位（例：カタラーゼ、シトクロム）",
-        "配位場・協同性結合の生化学教育"
+        "酵素活性部位（例：カタラーゼ、シトクロム）"
       ],
       "funFacts": [
-        "ヘモグロビンの4つのヘム単位が協同性結合を可能にする——S字曲線は化学の豆知識ではなく生理学である。",
-        "軸方向のヒスチジンの引っ張り合いが、酸素親和性とCO競合のバランスを微調整する。"
+        "ヘモグロビンの4つのヘム単位が協同性結合を可能にする——S字曲線は化学の豆知識ではなく生理学である。"
       ]
     }
   },
@@ -645,7 +626,8 @@
     "footer_copyright": "© {year} Molecule Studio. All rights reserved.",
     "footer_about": "概要",
     "footer_github": "GitHubリポジトリ",
-    "footer_canvas_guide": "インタラクティブキャンバスガイド",    "panel_tab_overview": "概要",
+    "footer_canvas_guide": "インタラクティブキャンバスガイド",
+    "panel_tab_overview": "概要",
     "panel_tab_structure": "構造",
     "panel_tab_uses": "用途",
     "panel_tab_fun_facts": "豆知識",

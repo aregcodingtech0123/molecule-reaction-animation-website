@@ -196,12 +196,7 @@ on 2026-11-01; where a source could not be read the claim was **removed**, not k
 Also removed with item 6 because its source failed: water's "A water molecule stays in the atmosphere for only about 9
 days" (the USGS residence-time page returned 404); I had not listed it before.
 
-**Honest limit — what this review did *not* do.** Formulas, molar masses and melting/boiling points were checked against
-PubChem by script (§6.1). The remaining "uses" lists and fun facts (about 40 statements) were **read and judged**, not
-sourced: the facts I listed in the Part 2 review as "checked and kept" (methane "80× over 20 years", "~3 billion base pairs",
-the brain's "~120 g glucose per day", "12 pentagons and 20 hexagons", the name "Buckminsterfullerene", serotonin in the
-gut) are well known but I did not fetch a source for them in this review. If "no unverified statement on any public page" is
-meant strictly for every sentence, each of those needs a source or removal: tell me and I will do that as its own change.
+**Update.** The "read and judged, not sourced" statements this paragraph described are dealt with one by one in §6.4 (owner decision after the second review).
 
 ### 6.3 The 3D models — 9 regenerated from PubChem (7 mismatched + aspirin and serotonin); heme left as is (owner decision)
 
@@ -244,6 +239,101 @@ that does not match". The heme page says the model is a hand-built illustration.
 tests in `model-geometry.test.ts` now run for nine models). The old models had the right atoms but impossible bond lengths
 (see the table). Of the 14 models, 9 are PubChem conformers and 5 are hand-built illustrations (water, methane, ethanol,
 buckminsterfullerene, heme); About, the home FAQ and each page say so.
+
+### 6.4 The ~40 unsourced "uses" and fun facts — each sourced, reworded, removed or listed as textbook (owner decision)
+
+**Defect found first (my miss in the previous round).** The Explore panel, the quick-facts panel and the home page do not read
+`src/lib/molecules/data.ts` for a molecule's description, bond types, uses and fun facts: `localizeMolecule` replaces them with the
+text of the locale bundle (`src/lib/i18n/content/<locale>.json`), **English included**. I had corrected the 14 doubtful items in the
+data and in the molecule pages, but the 12 bundles still carried the old wording, so Mpemba, "9 days", the C₆₀ "Nobel-celebrated"
+description and the rest were **still visible in the Explore UI** (only the `/molecules/*` pages were clean). Fixed in this change:
+the English bundle is now identical to the data (tested), and in the other 11 locales each statement keeps its translation only
+where the English statement is unchanged; where a statement was added or reworded (18 per locale) the slot holds the **English
+text**, not a stale translation. Those 18 slots in 11 languages need translating by a native reviewer (I did not machine-translate
+source-bound claims). `tests/unit/i18n/molecule-content-sync.test.ts` keeps bundles and data in step and lists the removed claims
+as forbidden text.
+
+**Method.** PubChem's data API (PUG View, `/rest/pug_view/data/compound/<CID>/JSON`; the PubChem *web* pages sit behind a captcha)
+returns the annotation text with the depositor named — those are the "source" below — plus the EPA, NHGRI, NIAAA, MedlinePlus and
+OpenStax pages and Europe PMC abstracts (retrieved 2026-11-01). NCBI Bookshelf, NINDS, NIA, Nobel, IPCC PDFs and PNAS were
+unreadable (captcha/403), so nothing rests on them. A statement is "sourced" only if I read a sentence that says it.
+
+**A. Kept — a source says it** (wording unchanged)
+
+| Molecule | Statement | Source (read) |
+| --- | --- | --- |
+| Methane | "The simplest hydrocarbon and a potent greenhouse gas" | MeSH via PubChem CID 297: "The simplest saturated hydrocarbon"; EPA *Methane emissions*: "Pound for pound, the comparative impact of CH4 is 28 times greater than CO2 over a 100-year period" |
+| Glucose | α- and β-glucose differ in the hydroxyl at carbon 1 | OpenStax *Biology 2e* §3.2 |
+| Glucose | "about 4 Calories per gram" | OpenStax §3.2: "a gram of carbohydrate provides 4.3 Kcal". **Rounded, and a carbohydrate figure, not glucose-specific — your call** |
+| Caffeine | stimulant in coffee, tea, energy drinks | PubChem CID 2519, StatPearls: coffee beans, tea and cacao beans, "an additive to soda and energy drinks" |
+| Caffeine | combined with aspirin for pain | MedlinePlus (aspirin entry lists "Anacin Advanced Headache Formula … Acetaminophen, Aspirin, Caffeine") |
+| Caffeine | apnea in premature infants | HSDB via PubChem: "Caffeine citrate is used iv or orally … for apnea of prematurity" (FDA orphan drug) |
+| Caffeine | performance in endurance sports | DrugBank via PubChem: "enhances athletic performance"; NIH ODS fact sheet "Caffeine for performance" is listed there |
+| Caffeine | blocks adenosine receptors, warding off tiredness | NCIt: "binds to adenosine receptors in the central nervous system, which inhibits adenosine binding"; T3DB: "temporarily warding off drowsiness" |
+| Caffeine | "most widely consumed psychoactive substance" | StatPearls: "most utilized psychoactive stimulant worldwide"; HSDB: "the most widely consumed … psychoactive drug in the world" |
+| DNA pair | template for mRNA transcription | NHGRI glossary: "mRNA is made from a DNA template during the process of transcription" |
+| DNA pair | DNA fingerprinting in forensics | NHGRI glossary: "…criminal investigations, other forensic purposes and paternity testing" |
+| DNA pair | ~3 billion base pairs | NHGRI glossary *Genome*: "the human genome contains about 3 billion nucleotides" |
+| Peptide | aspartame is a dipeptide | ChEBI via PubChem CID 134601: "Aspartame is a dipeptide…" |
+| Ethanol | alcoholic beverages; solvent | DrugBank via CID 702: "widely used as a solvent … primary ingredient in alcoholic beverages"; ChEBI: "polar solvent" |
+| Ethanol | liver turns it into acetaldehyde, then acetate | NIAAA *Alcohol metabolism* (June 2025) |
+| Aspirin | analgesic, antipyretic, anti-inflammatory (NSAID), antiplatelet | DrugBank, MeSH, FDA Pharm Classes via CID 2244 |
+| Aspirin | "irreversibly" changes platelet chemistry | DrugBank mechanism: acetyl group binds a serine of COX-1, "leading to irreversible inhibition" |
+| Capsaicin | culinary heat | T3DB: "primary pungent principle in Capsicum fruits … among the most heavily consumed spices" |
+| Capsaicin | topical analgesic creams (TRPV1) | ChEBI: "TRPV1 agonist, a non-narcotic analgesic"; DrugBank: "most often used as a topical analgesic" |
+| Capsaicin | pest-deterrent formulations | Haz-Map (citing FDA): "Used as a repellent for birds, voles, deer, rabbits, squirrels, insects…" |
+| Serotonin | neurotransmission and neuromodulation | MeSH: "Serotonin mediates … neurotransmission, gastrointestinal motility, hemostasis" |
+| Serotonin | roles in the enteric nervous system | Gershon, *Serotonin, a Molecular Megillah* (Europe PMC PMC10322229) |
+| Dopamine | neurotransmitter in reward and motor pathways | MeSH: "catecholamine neurotransmitters … regulating movement"; StatPearls: "mesocorticolimbic pathway … reward processing" |
+| Dopamine | Parkinson's and substantia-nigra dopamine neuron loss | Europe PMC PMC13526957: "degeneration of substantia nigra dopaminergic neurons" |
+| Adrenaline | anaphylaxis auto-injectors | MedlinePlus epinephrine injection; DrugBank "type I allergic reactions, including anaphylaxis" |
+| Adrenaline | local-anaesthetic adjunct | MeSH: "to delay absorption of local anesthetics" |
+| Adrenaline | acts on α- and β-adrenergic receptors (vasoconstriction, bronchodilation) | FDA Pharm Classes; NCIt; MedlinePlus |
+| C₆₀ | 12 pentagons and 20 hexagons | the definition of a truncated icosahedron (geometry; also §6.2 item 13) |
+
+**B. Reworded to what the source says** (old → new)
+
+| Molecule | Old | New | Why |
+| --- | --- | --- | --- |
+| Methane | "80× more potent … over a 20-year period" | "about 81–83 times … (EPA, citing IPCC AR6)" | EPA *Understanding GWPs*: "the 20-year GWP of 81–83". The IPCC chapter PDF returned 403, so the fossil/non-fossil split is not checked |
+| Methane | "Methanogenic archaea produce methane deep in ocean sediments and cow digestive systems" | "Cattle and other livestock produce methane as part of their normal digestion; microbes also make it where organic matter decays without oxygen, as in wetlands (EPA)." | EPA names livestock digestion and oxygen-free decay; no page I could read names archaea or deep sediments |
+| Ethanol | "Antiseptic and fuel bio-additives" | "Antiseptic and disinfectant (topical)" | ChEBI/DrugBank say antiseptic and disinfectant; no readable source for fuel use |
+| Capsaicin | description "…an evolutionary deterrent for mammals and a neuroscientist's favorite TRPV1 conversation starter" | "The pungent compound of chili peppers: a TRPV1 agonist that is also used in topical pain relief." | "mammals" is not in any readable source |
+| Capsaicin | "Birds often lack the receptor sensitivity mammals have—chili seeds spread farther that way." | "Capsaicin selectively discourages vertebrate predators of chili fruit without deterring the more effective seed dispersers (Tewksbury & Nabhan, Nature 2001)." | the abstract (Europe PMC 11473305) says exactly that and does not mention birds; the paper itself was behind a 403 |
+| Serotonin | description "…mood, sleep, and gut motility" | "5-HT: a monoamine messenger found in the brain, the gut and blood platelets, with roles in neurotransmission, gut motility and hemostasis." | MeSH wording; no readable source for mood or sleep |
+| Serotonin | "SSRIs act upstream in pathways" | "Target of SSRI antidepressants (selective serotonin reuptake inhibitors)" | MedlinePlus lists SSRIs as an antidepressant class |
+| Serotonin | "…a large share is entangled with the gut and platelets" | "Most of the body's serotonin is produced in the gut, not in the brain." | Gershon: "the gut produces most of the body's 5-HT"; no readable share figure |
+| Dopamine | "Clinical shock support (as hydrochloride salt, IV, under care)" | "Clinical use in shock syndromes (as dopamine hydrochloride, under medical care)" | DrugBank indication: shock syndrome; "IV" is not stated there |
+| Dopamine | "It's polar enough that free dopamine doesn't casually joyride across the blood–brain barrier" | "Dopamine in the bloodstream does not cross the blood–brain barrier to a substantial extent." | HSDB: "does not cross the blood-brain barrier to a substantial extent"; the "polar enough" cause is not in the source |
+| Adrenaline | "'Adrenaline' vs 'epinephrine' is largely UK/US naming…" | "Adrenaline and epinephrine are two names for the same hormone." | DrugBank: "Epinephrine, also known as adrenaline"; the UK/US claim has no source |
+| C₆₀ | "Electron acceptor motifs in organic electronics research" | "Electron acceptors (fullerene derivatives) in organic solar-cell research" | Europe PMC PMC13007892 (review "from fullerene dominance to non-fullerene innovation" in organic photovoltaics) |
+| C₆₀ | "Named after architect Buckminster Fuller, who popularized geodesic domes." | "Named after Buckminster Fuller because its structure resembles his geodesic domes." | MeSH: "named after Buckminster Fuller because of structural resemblance to geodesic domes" |
+
+**C. Removed — no readable source**
+
+| Molecule | Removed |
+| --- | --- |
+| Methane | "all four C–H bonds equal length (1.09 Å)" (NIST CCCBDB returned 502) |
+| Glucose | "Your brain consumes about 120g of glucose per day — roughly 60%…" |
+| DNA pair | use: "CRISPR-Cas9 gene editing target sites" (NHGRI only says CRISPR modifies DNA) |
+| Peptide | use: "Template for synthetic peptide drug design" |
+| Aspirin | "Willow bark salicin is the plant-world ancestor…" (only "salicylate-containing willow" was readable, not salicin) |
+| Capsaicin | "Spice 'heat' is not a taste on the tongue map; it's nociceptor theater" |
+| Serotonin | "Its name nods to blood serum…" (etymology: no readable source) |
+| Dopamine | use: "Teaching ligand for GPCR and transporter biology" |
+| Adrenaline | use: "Physiology demos of fight-or-flight signaling" |
+| C₆₀ | uses: "Materials science prototypes (thin films, composites)", "Nanoscale carbon allotrope teaching tool" |
+| Heme | use: "Biochemistry teaching for ligand-field and cooperative binding" |
+
+**D. Plain textbook chemistry, no source added — for you to confirm or cut**
+
+* Water: description ("…essential for all known forms of life"; USGS says "essential for life") and its four uses.
+* The bond-type labels of every molecule ("Polar Covalent", "Aromatic Ring", "Peptide Bond (C–N)", "Hydrogen Bond (×2 A–T)" …).
+* Methane: its four uses (fuel, power generation, hydrogen production, feedstock). Glucose: its four uses (glycolysis, IV drips, sports drinks, fermentation).
+* DNA pair: "Genetic information storage in all living organisms"; "Adenine always pairs with Thymine via 2 hydrogen bonds — Watson-Crick".
+* Peptide: "Fundamental unit of all protein structures"; "Cell signaling via peptide hormones"; "partial double-bond character… planar" (NCBI Bookshelf was behind a captcha).
+* Heme: "O₂ transport and storage in hemoproteins", "Enzyme active sites (e.g. catalase, cytochromes)", the four-heme cooperative binding fact.
+* Descriptions that are structural or flavour text with no further claim: glucose, caffeine, DNA pair, dipeptide, ethanol, aspirin, dopamine, adrenaline, heme.
 
 ## 7. Element categories (Part 2) — against IUPAC
 
