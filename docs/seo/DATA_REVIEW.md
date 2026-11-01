@@ -151,3 +151,90 @@ resemble OsO₄; the sentence is still true as written).
 | **Wikipedia** (element photos and summaries, loaded at runtime) | Separate per-image Commons licences, not shown in the UI (SEO-19) | Open; Part 2 |
 
 Everything in section 5 is documentation read from the sources' own pages; it is not legal advice.
+
+## 6. Molecules (Part 2) — checked against PubChem; differences for your decision
+
+Method: PubChem PUG REST (computed formula and molecular weight) and PUG View (the "Melting Point" / "Boiling Point"
+sections, i.e. the values PubChem shows from its depositors), retrieved by script on 2026-11-01 into
+`tests/fixtures/molecule-reference.json` (not shipped). `tests/unit/molecules/molecule-data.test.ts` compares all 14
+molecules. **No value in `src/lib/molecules` was changed.** Items listed "withheld" stay in the data and in Explore exactly as
+before, but the new indexable `/molecules/<id>` pages leave them out until you decide (`src/lib/molecules/page-facts.ts`).
+
+**Count:** the data has **14** molecules (`ALL_MOLECULES`), not 15 as the Part 0 audit said (the home page links them in
+two places). There are 14 molecule pages.
+
+### 6.1 What agrees (shown on the pages)
+
+| Check | Result |
+| --- | --- |
+| Formula (atoms per element) | 12 of 12 real formulas match PubChem exactly (ethanol's `C₂H₅OH` = C2H6O). The base pair ("Adenine–Thymine") and the dipeptide ("Gly-Ala") show names, not formulas |
+| Molar mass | 13 of 13 agree with PubChem's computed value to the precision both print (serotonin 176.22 vs PubChem 176.21 and C₆₀ 720.66 vs 720.6 are rounding) |
+| Melting / boiling points shown | all 11 within 3 °C of a PubChem value: water 0 / 100 °C · methane −182.5 / −161.5 °C · glucose mp 146 °C · caffeine 235–238 °C / 178 °C (sublimes) · ethanol −114.1 / 78.37 °C · aspirin mp 135 °C · capsaicin mp 65–67 °C (PubChem: 65 °C) |
+
+### 6.2 Differences and unverified claims — **your decision** (withheld from the pages, unchanged in the data)
+
+| Molecule | Item | In the data | Finding | Options |
+| --- | --- | --- | --- | --- |
+| Glucose | boiling point | "Decomposes at 146°C" | PubChem gives no boiling point; 146 °C is its *melting* point (α-D-glucose). The statement conflates the two | remove, or "decomposes on strong heating (no boiling point)" |
+| DNA base pair | molar mass | "~600 g/mol (pair)" | Adenine + thymine (the bases the model shows) = 135.13 + 126.11 = **261.24 g/mol**. ~600 g/mol fits a nucleotide pair with the sugar–phosphate backbone, which the model does not show | 261.24 g/mol "for the two free bases", or keep ~600 and say "as nucleotides" |
+| DNA base pair | bond type | "Glycosidic Bond" | the pair shown has no sugar, so no glycosidic bond | remove |
+| DNA base pair | fun fact | "…from Earth to the Sun and back ~600 times" | published estimates vary widely; I could not confirm "~600 round trips" (my own estimate ≈ 250) | remove, or cite a source |
+| Water | fun fact | "the only natural substance that exists in all three physical states at temperatures normally found on Earth" | popular claim, not a sourced fact | remove or soften ("one of the few…") |
+| Water | fun fact | "Hot water can freeze faster than cold water — the Mpemba effect" | the effect is disputed in the literature | remove or "is reported to… (disputed)" |
+| Caffeine | fun fact | "about 63 mg per espresso — a lethal dose would require ~80 cups" | 80 × 63 mg ≈ 5 g; commonly cited lethal estimates are around 10 g or more. Internally inconsistent | remove |
+| Peptide (Gly-Ala) | fun fact | "over 100,000 distinct human proteins" | ~20 000 protein-coding genes; higher counts depend on how isoforms are counted | remove or reword |
+| Peptide (Gly-Ala) | fun fact | "a new peptide bond roughly every 0.05 seconds" | right order of magnitude for bacteria (~15–20 amino acids/s); eukaryotic ribosomes are slower (~5/s) | add "in bacteria" or remove |
+| Ethanol | fun fact | "Ethanol disrupts membrane fluidity … part of why it's such a broad biological solvent" | mixes two unrelated properties | remove or reword |
+| Aspirin | fun fact | "Its acetyl group helps it survive stomach acid better than salicylic acid alone" | not supported; acetylation was meant to reduce the irritation salicylic acid causes | remove or reword |
+| C₆₀ | description | "…a Nobel-celebrated cage that taught us aromaticity doesn't require flat hexagons" | the Nobel (1996) is right; C₆₀'s aromaticity is weak and debated | the page shows its answer-first summary instead of this description until you decide |
+
+Checked and kept: methane "80× more potent than CO₂ over 20 years" (IPCC AR6 gives ≈ 80 for fossil methane), the two
+hydrogen bonds of A–T, ~3 billion base pairs, the brain's ~120 g glucose/day, 12 pentagons + 20 hexagons, serotonin in
+gut/platelets, epinephrine/adrenaline naming, avian TRPV1, all "uses" lists. Playful wording ("nociceptor theater",
+"mesolimbic myths") is tone, not a fact, and is unchanged.
+
+### 6.3 The 3D models — **8 of 14 do not contain the formula's atoms** (unchanged; nothing about them is stated on the pages)
+
+The atom positions are schematic. Element counts compared with PubChem's formula:
+
+| Molecule | Model has | Formula needs | Note |
+| --- | --- | --- | --- |
+| Glucose | C6 H7 O6 | C6 H12 O6 | the five hydroxyl H are missing |
+| Caffeine | C8 H1 N4 O2 | C8 H10 N4 O2 | the three methyl groups are drawn as bare C |
+| DNA base pair | C10 N7 O2 (no H) | C10 H11 N7 O2 (A + T) | no hydrogens |
+| Gly-Ala | C5 H6 N2 O3 | C5 H10 N2 O3 | |
+| Capsaicin | H28 | H27 | one H too many |
+| Dopamine | H9 | H11 | |
+| Adrenaline | **C10** H12 | C9 H13 | one extra carbon |
+| Heme b | H31 | H32 | |
+
+Several models also have bond lengths far outside chemical ranges (e.g. aspirin C3–C7 4.35 Å, capsaicin C4–O9 0.36 Å, heme
+Fe–N 1.41 Å where ~2.0 Å is typical). Water (H–O–H 104.5°) and methane (109.3–109.9°) are correct. Explore's "atoms" /
+"bonds" totals come from these models. **Options:** (a) regenerate the eight from PubChem 3D conformers (the same source the
+AI Lab already loads at runtime), (b) label them "schematic" in Explore, (c) leave as is.
+
+## 7. Element categories (Part 2) — against IUPAC
+
+Source: IUPAC, *Nomenclature of Inorganic Chemistry — IUPAC Recommendations 2005* (Red Book), section IR-3.5 "Elements in
+the periodic table" (read from the PDF on iupac.org; the Gold Book website refused automated access, so Gold Book
+definitions were **not** checked). IR-3.5 approves these collective names: alkali metals (Li, Na, K, Rb, Cs, Fr), alkaline
+earth metals (Be, Mg, Ca, Sr, Ba, Ra), pnictogens, chalcogens (O, S, Se, Te, Po), halogens (F, Cl, Br, I, At), noble gases
+(He, Ne, Ar, Kr, Xe, Rn), lanthanoids (La–Lu), rare earth metals and actinoids (Ac–Lr). On transition elements: "the
+elements of groups 3–12 are the d-block elements. These elements are also commonly referred to as the transition elements,
+though the elements of group 12 are not always included." It prefers "lanthanoid/actinoid" to "lanthanide/actinide". It
+defines no "metalloid", "nonmetal" or "post-transition metal".
+
+| Site label | Elements | Against IR-3.5 |
+| --- | --- | --- |
+| alkali metal, alkaline earth metal | Li–Fr, Be–Ra | **agree** |
+| lanthanide (15), actinide (15) | La–Lu, Ac–Lr | **agree** on membership (La and Ac included, as IUPAC notes); IUPAC prefers the spelling "lanthanoid"/"actinoid" |
+| transition metal (38) | Sc–Zn, Y–Cd, Hf–Hg, Rf–Cn | consistent with "groups 3–12" (group 12 optional); Rf–Cn's chemistry is largely unmeasured |
+| halogen | F, Cl, Br, I, At, **Ts** | Ts is **not** in IR-3.5's list (named in 2016, after the 2005 book); its group-17 placement is positional, its properties unknown |
+| noble gas | He–Rn, **Og** | Og is **not** in IR-3.5's list (named in 2016); predicted not to behave like a noble gas |
+| metalloid | B, Si, Ge, As, Sb, Te, **Po** | **no IUPAC definition**; IR-3.5 lists Po as a chalcogen and does not call it a metalloid; Po is commonly classed as a metal |
+| nonmetal | H, C, N, O, P, S, Se | **no IUPAC collective name** |
+| post-transition metal | Al, Ga, In, Sn, Tl, Pb, Bi, Nh, Fl, Mc, Lv | **no IUPAC collective name**; Nh–Lv are predicted |
+
+**Your decision (nothing changed):** (a) keep the textbook categories and add a one-line note on the periodic-table page that
+metalloid / nonmetal / post-transition are conventional, not IUPAC, groupings; (b) move Po to "post-transition metal" and
+mark Ts, Og and Nh–Lv as "predicted"; (c) both. "lanthanide/actinide" is common usage; "lanthanoid/actinoid" is optional.

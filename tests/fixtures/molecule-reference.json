@@ -1,0 +1,273 @@
+{
+ "_about": "Reference values retrieved mechanically (by script) from PubChem PUG REST / PUG View on 2026-11-01 for tests/unit/molecules/molecule-data.test.ts. Compared against src/lib/molecules; not shipped. PubChem: https://pubchem.ncbi.nlm.nih.gov (NCBI). Experimental values are the strings PubChem shows, each from its depositor.",
+ "molecules": {
+  "water": [
+   {
+    "query": "water",
+    "cid": 962,
+    "title": "Water",
+    "formula": "H2O",
+    "molecularWeight": "18.015",
+    "iupacName": "oxidane",
+    "meltingPoint": [
+     "32 °F",
+     "0 ",
+     "0 °C"
+    ],
+    "boilingPoint": [
+     "212 °F at 760 mmHg",
+     "100 ",
+     "99.974 °C"
+    ]
+   }
+  ],
+  "methane": [
+   {
+    "query": "methane",
+    "cid": 297,
+    "title": "Methane",
+    "formula": "CH4",
+    "molecularWeight": "16.043",
+    "iupacName": "methane",
+    "meltingPoint": [
+     "-296 °F (USCG, 1999)",
+     "-296.5 °F (NTP, 1992)",
+     "-182.566 °C",
+     "-182.4 °C",
+     "-183 °C",
+     "-182.47 °C"
+    ],
+    "boilingPoint": [
+     "-258 °F at 760 mmHg (USCG, 1999)",
+     "-258.7 °F at 760 mmHg (NTP, 1992)",
+     "-161.50 °C",
+     "-161 °C",
+     "-161.48 °C @760 [mm Hg]"
+    ]
+   }
+  ],
+  "glucose": [
+   {
+    "query": "D-glucose",
+    "cid": 5793,
+    "title": "D-Glucose",
+    "formula": "C6H12O6",
+    "molecularWeight": "180.16",
+    "iupacName": "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "meltingPoint": [
+     "less than 32 °F (USCG, 1999)",
+     "146 ",
+     "146 °C",
+     "Crystals from water, MP: 83 °C; specific optical rotation = +102.0 deg to 47.9 deg (water) at 25 °C/D. 0.74 times as sweet as sucrose; 1 g dissolves in ca 1 mL water, ca 60 mL alcohol /alpha-Glucose, monohydrate/"
+    ],
+    "boilingPoint": [
+     "greater than 212 °F at 760 mmHg (USCG, 1999)"
+    ]
+   }
+  ],
+  "caffeine": [
+   {
+    "query": "caffeine",
+    "cid": 2519,
+    "title": "Caffeine",
+    "formula": "C8H10N4O2",
+    "molecularWeight": "194.19",
+    "iupacName": "1,3,7-trimethylpurine-2,6-dione",
+    "meltingPoint": [
+     "460 °F (NTP, 1992)",
+     "235-237",
+     "236.2 °C",
+     "238 °C",
+     "235 °C"
+    ],
+    "boilingPoint": [
+     "352 °F at 760 mmHg (sublimes) (NTP, 1992)",
+     "178 ",
+     "178 °C (sublimes)"
+    ]
+   }
+  ],
+  "dna-fragment": [
+   {
+    "query": "adenine",
+    "cid": 190,
+    "title": "Adenine",
+    "formula": "C5H5N5",
+    "molecularWeight": "135.13",
+    "iupacName": "7H-purin-6-amine",
+    "meltingPoint": [
+     "360 dec °C",
+     "360 °C"
+    ],
+    "boilingPoint": []
+   },
+   {
+    "query": "thymine",
+    "cid": 1135,
+    "title": "Thymine",
+    "formula": "C5H6N2O2",
+    "molecularWeight": "126.11",
+    "iupacName": "5-methyl-1H-pyrimidine-2,4-dione",
+    "meltingPoint": [
+     "316 °C",
+     "320 °C"
+    ],
+    "boilingPoint": []
+   }
+  ],
+  "protein-fragment": [
+   {
+    "query": "glycylalanine",
+    "cid": 98153,
+    "title": "N-Glycylalanine",
+    "formula": "C5H10N2O3",
+    "molecularWeight": "146.14",
+    "iupacName": "2-[(2-aminoacetyl)amino]propanoic acid",
+    "meltingPoint": [],
+    "boilingPoint": []
+   }
+  ],
+  "ethanol": [
+   {
+    "query": "ethanol",
+    "cid": 702,
+    "title": "Ethanol",
+    "formula": "C2H6O",
+    "molecularWeight": "46.07",
+    "iupacName": "ethanol",
+    "meltingPoint": [
+     "-173.4 °F (NTP, 1992)",
+     "-114.1 °C",
+     "-114.14 °C",
+     "-114  °C",
+     "-173 °F"
+    ],
+    "boilingPoint": [
+     "173.3 °F at 760 mmHg (NTP, 1992)",
+     "78.2 °C",
+     "78.24 °C",
+     "78 °C",
+     "173 °F",
+     "78.29 °C @760 [mm Hg]"
+    ]
+   }
+  ],
+  "aspirin": [
+   {
+    "query": "aspirin",
+    "cid": 2244,
+    "title": "Aspirin",
+    "formula": "C9H8O4",
+    "molecularWeight": "180.16",
+    "iupacName": "2-acetyloxybenzoic acid",
+    "meltingPoint": [
+     "275 °F (NTP, 1992)",
+     "138-140",
+     "135 °C (rapid heating)",
+     "135 °C",
+     "275 °F"
+    ],
+    "boilingPoint": [
+     "284 °F at 760 mmHg (decomposes) (NTP, 1992)",
+     "140 °C",
+     "284 °F (decomposes)",
+     "284 °F (Decomposes)"
+    ]
+   }
+  ],
+  "capsaicin": [
+   {
+    "query": "capsaicin",
+    "cid": 1548943,
+    "title": "Capsaicin",
+    "formula": "C18H27NO3",
+    "molecularWeight": "305.4",
+    "iupacName": "(E)-N-[(4-hydroxy-3-methoxyphenyl)methyl]-8-methylnon-6-enamide",
+    "meltingPoint": [
+     "65 ",
+     "65 °C",
+     "149 °F"
+    ],
+    "boilingPoint": [
+     "210-220",
+     "BP: 210-220 °C at 0.01 mm Hg",
+     "210.00 to 220.00 °C. @ 0.01 mm Hg",
+     "410-428 °F"
+    ]
+   }
+  ],
+  "serotonin": [
+   {
+    "query": "serotonin",
+    "cid": 5202,
+    "title": "Serotonin",
+    "formula": "C10H12N2O",
+    "molecularWeight": "176.21",
+    "iupacName": "3-(2-aminoethyl)-1H-indol-5-ol",
+    "meltingPoint": [],
+    "boilingPoint": []
+   }
+  ],
+  "dopamine": [
+   {
+    "query": "dopamine",
+    "cid": 681,
+    "title": "Dopamine",
+    "formula": "C8H11NO2",
+    "molecularWeight": "153.18",
+    "iupacName": "4-(2-aminoethyl)benzene-1,2-diol",
+    "meltingPoint": [
+     "128 °C"
+    ],
+    "boilingPoint": [
+     "227 °C at 2.30E+01 mm Hg"
+    ]
+   }
+  ],
+  "adrenaline": [
+   {
+    "query": "epinephrine",
+    "cid": 5816,
+    "title": "Epinephrine",
+    "formula": "C9H13NO3",
+    "molecularWeight": "183.20",
+    "iupacName": "4-[(1R)-1-hydroxy-2-(methylamino)ethyl]benzene-1,2-diol",
+    "meltingPoint": [
+     "412 to 414 °F (NTP, 1992)",
+     "211.5 ",
+     "211.5 °C",
+     "MP: 211-212 °C, approximately 215 °C with decomposition when heated rapidly"
+    ],
+    "boilingPoint": [
+     "215 "
+    ]
+   }
+  ],
+  "buckminsterfullerene": [
+   {
+    "query": "buckminsterfullerene",
+    "cid": 123591,
+    "title": "Fullerenes",
+    "formula": "C60",
+    "molecularWeight": "720.6",
+    "iupacName": "(C60-Ih)[5,6]fullerene",
+    "meltingPoint": [
+     "At 260 K, a first-order phase transition from face-centered cubic crystal structure to a simple cubic structure is observed, accompanied by a lattice contraction. ... At 90 K the molecules rearrange to attain the best global minimum. ... At this temperature, the rotational degrees of freedom are frozen, and the solid structure is designated as a pseudo-face-centered cubic crystal structure. C70 Fullerene is rotationally disordered at room temperature and undergoes a transition to a low-temperature phase."
+    ],
+    "boilingPoint": []
+   }
+  ],
+  "heme-group": [
+   {
+    "query": "heme b",
+    "cid": 4973,
+    "title": "Heme b",
+    "formula": "C34H32FeN4O4",
+    "molecularWeight": "616.5",
+    "iupacName": "3-[18-(2-carboxyethyl)-8,13-bis(ethenyl)-3,7,12,17-tetramethylporphyrin-21,23-diid-2-yl]propanoic acid;iron(2+)",
+    "meltingPoint": [],
+    "boilingPoint": []
+   }
+  ]
+ }
+}
