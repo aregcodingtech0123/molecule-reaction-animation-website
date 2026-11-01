@@ -56,6 +56,8 @@ describe("claims that were corrected or removed are gone from every bundle", () 
     "Nobel-celebrated", "tug-of-war", "120g", "1.09 Å", "80× more potent", "CRISPR", "Willow bark", "fuel bio-additives",
     "membrane fluidity", "survive stomach acid", "nociceptor theater", "serum, where", "Teaching ligand", "Birds often lack",
     "joyride", "UK/US naming", "popularized geodesic", "Physiology demos", "peptide drug design",
+    "4 Calories", "Hydroelectric", "IV glucose", "Amide Resonance", "partial double-bond", "Universal biological solvent", "sigmoidal",
+    "universal solvent", "heating and cooking", "Sports and energy",
   ];
   it("the English bundle contains none of them", () => {
     const text = JSON.stringify(EN.molecules);

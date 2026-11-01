@@ -232,6 +232,29 @@ npm run check:launch-content
 - [ ] Delete both files afterwards (`rm .env.launch-*.local`).
 - [ ] The same values are now entered in the two hosts' secret stores (not the files).
 
+### 1.7 Native translation (pre-launch item)
+
+Two sets of text exist in English only or as machine translation. Neither blocks the English-only indexing decision (D1), but
+both must be reviewed before non-English visitors are invited:
+
+- [ ] **28 molecule statements per language are English placeholders** in the 11 non-English bundles
+      (`src/lib/i18n/content/<locale>.json`, `molecules.<id>`): the translation of a statement that was added or reworded after
+      sourcing (DATA_REVIEW §6.4) was removed rather than left stale, so the slot holds the English text. Keys
+      (`<molecule>.<field>[index]`): water.description, water.uses[0], water.uses[1], water.funFacts[0], methane.uses[0],
+      methane.funFacts[0], methane.funFacts[1], glucose.uses[1], protein-fragment.uses[0], protein-fragment.uses[1],
+      protein-fragment.funFacts[0], ethanol.uses[2], ethanol.funFacts[1], aspirin.funFacts[0], capsaicin.description,
+      capsaicin.funFacts[0], serotonin.description, serotonin.uses[1], serotonin.funFacts[0], dopamine.uses[1],
+      dopamine.funFacts[1], adrenaline.funFacts[0], buckminsterfullerene.description, buckminsterfullerene.uses[0],
+      buckminsterfullerene.funFacts[1], heme-group.uses[0], heme-group.uses[1], heme-group.funFacts[0]. Translate each from the
+      **English text in `en.json`** (it carries the source-bound wording) and keep numbers and qualifiers exactly
+      (e.g. "about 81–83 times"). A locale slot equal to the English text is the signal that it is still untranslated;
+      `tests/unit/i18n/molecule-content-sync.test.ts` keeps the lists aligned with the data.
+- [ ] **924 machine-translated strings** (84 UI keys × 11 locales) await native review (`docs/testing/I18N_REVIEW.md`);
+      the **22 keys with legal, pricing or billing meaning go first**.
+- [ ] New English-only labels added by the SEO work (trust pages, "Common classification, not an IUPAC designation", "State
+      unknown / not produced in bulk", the profile page's "Download my data" section) have no translation yet; decide which
+      locales get them.
+
 ---
 
 ## 2. Database (Neon, PostgreSQL 18)
@@ -729,6 +752,7 @@ Launch only when all of these are true:
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
 - [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then fill `SITE_OWNER.signupIpPurgeJob` so the privacy policy may say the address is cleared after 90 days.
 - [ ] §6 you have the rotation steps, the incident page and the rollback bookmarks at hand.
+- [ ] §1.7 the native-translation items are done, or you have decided to launch English-only for now (then say so in §7).
 - [ ] §7 you have read the limitations and accept them.
 
 ---

@@ -260,11 +260,11 @@ export const HEME_GROUP: MoleculeData = {
       "Propionate/carboxylate-like substituents (context-dependent protonation)",
     ],
     uses: [
-      "O₂ transport and storage inside hemoproteins",
-      "Enzyme active sites (e.g. catalase, cytochromes)",
+      "Binds O₂ in hemoglobin",
+      "Prosthetic group of the cytochromes in the electron transport chain",
     ],
     funFacts: [
-      "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren’t chemistry trivia, they’re physiology.",
+      "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily.",
     ],
     color: "#dc2626",
   },

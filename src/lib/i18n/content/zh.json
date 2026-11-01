@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "水",
-      "description": "万物皆溶的通用溶剂，一切已知生命形式所必需。",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "氢键"
       ],
       "uses": [
-        "生物体内通用溶剂",
-        "工业冷却系统",
-        "水力发电",
-        "化学反应介质"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "四面体结构"
       ],
       "uses": [
-        "天然气：取暖与烹饪燃料",
-        "发电厂发电",
-        "制氢原料",
-        "化学合成原料"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "经糖酵解为细胞提供主要能量",
-        "医疗静脉葡萄糖输液",
-        "运动与能量饮料",
-        "发酵制乙醇与 CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "葡萄糖有 α 型和 β 型两种，仅一个羟基取向不同。",
-        "每克葡萄糖代谢约释放 4 千卡热量。"
+        "葡萄糖有 α 型和 β 型两种，仅一个羟基取向不同。"
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "肽键（C–N）",
-        "酰胺共振",
         "α-碳键"
       ],
       "uses": [
-        "一切蛋白质结构的基本单元",
-        "肽类激素的细胞信号传导",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "食品调味剂（如阿斯巴甜为二肽）"
       ],
       "funFacts": [
-        "肽键因共振具有部分双键特征——呈平面且不能自由旋转。",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "丙酸/羧酸类取代基（质子化状态依环境而定）"
       ],
       "uses": [
-        "血红素蛋白内的 O₂ 运输与储存",
-        "酶活性中心（如过氧化氢酶、细胞色素）"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "血红蛋白中四个血红素单元实现协同结合——S 形曲线不是化学趣闻，而是生理学。"
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

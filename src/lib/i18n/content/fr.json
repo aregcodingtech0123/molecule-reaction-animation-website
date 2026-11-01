@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Eau",
-      "description": "Le solvant universel indispensable à toutes les formes de vie connues.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "Liaison hydrogène"
       ],
       "uses": [
-        "Solvant biologique universel",
-        "Systèmes de refroidissement industriels",
-        "Production d'énergie hydroélectrique",
-        "Milieu de réaction chimique"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "Tétraédrique"
       ],
       "uses": [
-        "Gaz naturel pour le chauffage et la cuisine",
-        "Production d'électricité dans les centrales",
-        "Production d'hydrogène gazeux",
-        "Matière première pour la synthèse chimique"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "Source d'énergie cellulaire via la glycolyse",
-        "Perfusions de glucose en soins médicaux",
-        "Boissons sportives et énergisantes",
-        "Fermentation pour produire de l'éthanol et du CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Le glucose existe sous deux formes : α-glucose et β-glucose, qui ne diffèrent que par l'orientation d'un groupe hydroxyle.",
-        "Un gramme de glucose libère environ 4 kilocalories lors de son métabolisme."
+        "Le glucose existe sous deux formes : α-glucose et β-glucose, qui ne diffèrent que par l'orientation d'un groupe hydroxyle."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "Liaison peptidique (C–N)",
-        "Résonance amide",
         "Liaisons du carbone α"
       ],
       "uses": [
-        "Unité fondamentale de toutes les structures protéiques",
-        "Signalisation cellulaire via les hormones peptidiques",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Agents aromatisants alimentaires (l'aspartame est un dipeptide)"
       ],
       "funFacts": [
-        "La liaison peptidique a un caractère de double liaison partiel par résonance — elle est plane et ne tourne pas librement.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "Substituants de type propionate/carboxylate (protonation selon le contexte)"
       ],
       "uses": [
-        "Transport et stockage de l'O₂ dans les hémoprotéines",
-        "Sites actifs enzymatiques (catalase, cytochromes, etc.)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Quatre hèmes dans l'hémoglobine permettent la liaison coopérative — les courbes sigmoïdes ne sont pas de la trivia chimique, c'est de la physiologie."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Вода",
-      "description": "Универсальный растворитель, необходимый для всех известных форм жизни.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "Водородная связь"
       ],
       "uses": [
-        "Универсальный биологический растворитель",
-        "Промышленные системы охлаждения",
-        "Гидроэлектроэнергетика",
-        "Среда для химических реакций"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "Тетраэдрическая"
       ],
       "uses": [
-        "Природный газ для отопления и приготовления пищи",
-        "Выработка электроэнергии на ТЭС",
-        "Производство водорода",
-        "Сырьё для химического синтеза"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "Основной клеточный источник энергии через гликолиз",
-        "Внутривенные глюкозные капельницы в медицине",
-        "Спортивные и энергетические напитки",
-        "Брожение для получения этанола и CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Глюкоза существует в двух формах: α- и β-глюкоза, различающихся лишь ориентацией одной гидроксильной группы.",
-        "Один грамм глюкозы при метаболизме выделяет примерно 4 калории."
+        "Глюкоза существует в двух формах: α- и β-глюкоза, различающихся лишь ориентацией одной гидроксильной группы."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "Пептидная связь (C–N)",
-        "Амидный резонанс",
         "Связи α-углерода"
       ],
       "uses": [
-        "Фундаментальная единица всех белковых структур",
-        "Клеточная сигнализация через пептидные гормоны",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Ароматизаторы в пище (например, аспартам — дипептид)"
       ],
       "funFacts": [
-        "Пептидная связь из-за резонанса частично имеет характер двойной связи — она плоская и не вращается свободно.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "Пропионат-/карбоксилат-подобные заместители (зависит от протонирования)"
       ],
       "uses": [
-        "Транспорт и запас O₂ в гемопротеинах",
-        "Активные центры ферментов (каталаза, цитохромы)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Четыре гема в гемоглобине обеспечивают кооперативное связывание — сигмоидальные кривые это физиология, а не любопытство."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

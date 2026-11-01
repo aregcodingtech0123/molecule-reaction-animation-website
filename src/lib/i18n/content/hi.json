@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "जल",
-      "description": "सभी ज्ञात जीवन रूपों के लिए आवश्यक सार्वभौमिक विलायक।",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "हाइड्रोजन बंध"
       ],
       "uses": [
-        "सार्वभौमिक जैविक विलायक",
-        "औद्योगिक शीतलन प्रणालियाँ",
-        "जलविद्युत ऊर्जा उत्पादन",
-        "रासायनिक अभिक्रिया माध्यम"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "चतुष्फलकीय"
       ],
       "uses": [
-        "तापन और खाना पकाने के लिए प्राकृतिक गैस ईंधन",
-        "बिजली घरों में बिजली उत्पादन",
-        "हाइड्रोजन गैस उत्पादन",
-        "रासायनिक संश्लेषण के लिए कच्चा माल"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "ग्लाइकोलाइसिस के माध्यम से प्राथमिक कोशिकीय ऊर्जा स्रोत",
-        "चिकित्सा में IV ग्लूकोज ड्रिप",
-        "खेल और ऊर्जा पेय",
-        "इथेनॉल और CO₂ उत्पादन के लिए किण्वन"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "ग्लूकोज दो रूपों में मौजूद है: α-ग्लूकोज और β-ग्लूकोज, जो केवल एक हाइड्रॉक्सिल समूह की दिशा में भिन्न हैं।",
-        "एक ग्राम ग्लूकोज चयापचय होने पर लगभग 4 कैलोरी ऊर्जा देता है।"
+        "ग्लूकोज दो रूपों में मौजूद है: α-ग्लूकोज और β-ग्लूकोज, जो केवल एक हाइड्रॉक्सिल समूह की दिशा में भिन्न हैं।"
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "पेप्टाइड बंध (C–N)",
-        "एमाइड अनुनाद",
         "α-कार्बन बंध"
       ],
       "uses": [
-        "सभी प्रोटीन संरचनाओं की मौलिक इकाई",
-        "पेप्टाइड हार्मोन के माध्यम से कोशिका संकेतन",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "खाद्य स्वाद एजेंट (जैसे एस्पार्टेम एक डाइपेप्टाइड है)"
       ],
       "funFacts": [
-        "पेप्टाइड बंध में अनुनाद के कारण आंशिक दोहरे-बंध चरित्र होता है — यह समतल है और स्वतंत्र रूप से नहीं घूमता।",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "प्रोपियोनेट/कार्बोक्सिलेट जैसे प्रतिस्थापक (संदर्भ-निर्भर प्रोटोनेशन)"
       ],
       "uses": [
-        "हीम प्रोटीन में O₂ परिवहन और भंडारण",
-        "एंजाइम सक्रिय स्थल (जैसे कैटालेज, साइटोक्रोम)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "हीमोग्लोबिन में चार हीम इकाइयाँ सहकारी बंधन सक्षम करती हैं — सिग्मॉइडल वक्र रसायन जिज्ञासा नहीं, शरीरक्रिया हैं।"
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

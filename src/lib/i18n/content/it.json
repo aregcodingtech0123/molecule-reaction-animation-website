@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Acqua",
-      "description": "Il solvente universale essenziale per tutte le forme di vita conosciute.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "Legame a idrogeno"
       ],
       "uses": [
-        "Solvente biologico universale",
-        "Sistemi industriali di raffreddamento",
-        "Generazione di energia idroelettrica",
-        "Mezzo per reazioni chimiche"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "Tetraedrico"
       ],
       "uses": [
-        "Combustibile a gas naturale per riscaldamento e cucina",
-        "Generazione di elettricità nelle centrali",
-        "Produzione di gas idrogeno",
-        "Materia prima per la sintesi chimica"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "Principale fonte di energia cellulare tramite glicolisi",
-        "Perfusioni endovenose di glucosio in ambito medico",
-        "Bevande sportive ed energetiche",
-        "Fermentazione per produrre etanolo e CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Il glucosio esiste in due forme: α-glucosio e β-glucosio, che differiscono solo nell'orientamento di un gruppo idrossilo.",
-        "Un grammo di glucosio rilascia circa 4 calorie quando viene metabolizzato."
+        "Il glucosio esiste in due forme: α-glucosio e β-glucosio, che differiscono solo nell'orientamento di un gruppo idrossilo."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "Legame peptidico (C–N)",
-        "Risonanza ammidica",
         "Legami del carbonio α"
       ],
       "uses": [
-        "Unità fondamentale di tutte le strutture proteiche",
-        "Segnalazione cellulare tramite ormoni peptidici",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Agenti aromatizzanti alimentari (es. l'aspartame è un dipeptide)"
       ],
       "funFacts": [
-        "Il legame peptidico ha carattere di doppio legame parziale per risonanza: è planare e non ruota liberamente.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "Sostituenti tipo propionato/carbossilato (protonazione dipendente dal contesto)"
       ],
       "uses": [
-        "Trasporto e stoccaggio di O₂ nelle emoproteine",
-        "Siti attivi enzimatici (es. catalasi, citocromi)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Quattro unità eme nell'emoglobina consentono il legame cooperativo: le curve sigmoidali non sono curiosità chimica, sono fisiologia."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

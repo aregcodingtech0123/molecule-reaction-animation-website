@@ -17,7 +17,8 @@ export const WATER: MoleculeData = {
   id: "water",
   name: "Water",
   formula: "H₂O",
-  description: "The universal solvent essential for all known forms of life.",
+  description:
+    "A solvent for polar molecules and ionic compounds, essential for life.",
   category: "simple",
   atoms: [
     { id: "O1", element: "O", position: [0, 0, 0] },
@@ -35,10 +36,8 @@ export const WATER: MoleculeData = {
     state: "liquid",
     bondTypes: ["Polar Covalent", "Hydrogen Bond"],
     uses: [
-      "Universal biological solvent",
-      "Industrial cooling systems",
-      "Hydroelectric power generation",
-      "Chemical reaction medium",
+      "Solvent in living cells",
+      "Temperature moderation: water has the highest specific heat capacity of any common liquid",
     ],
     funFacts: [
       "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C.",
@@ -73,10 +72,7 @@ export const METHANE: MoleculeData = {
     state: "gas",
     bondTypes: ["Non-polar Covalent", "Tetrahedral"],
     uses: [
-      "Natural gas fuel for heating and cooking",
-      "Electricity generation in power plants",
-      "Production of hydrogen gas",
-      "Feedstock for chemical synthesis",
+      "Fuel: methane is the principal component of natural gas",
     ],
     funFacts: [
       "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -101,13 +97,10 @@ export const GLUCOSE: MoleculeData = {
     bondTypes: ["Covalent", "Polar C–O bonds", "Ring Structure"],
     uses: [
       "Primary cellular energy source via glycolysis",
-      "IV glucose drips in medical care",
-      "Sports and energy drinks",
-      "Fermentation to produce ethanol and CO₂",
+      "Fermentation by yeast to ethanol and CO₂ (via pyruvate)",
     ],
     funFacts: [
       "Glucose exists in two forms: α-glucose and β-glucose, which differ only in the orientation of one hydroxyl group.",
-      "A single gram of glucose releases approximately 4 Calories when metabolized.",
     ],
     color: "#22c55e",
   },
@@ -177,14 +170,13 @@ export const PROTEIN_FRAGMENT: MoleculeData = {
   education: {
     molecularWeight: "146.14 g/mol",
     state: "solid",
-    bondTypes: ["Peptide Bond (C–N)", "Amide Resonance", "α-Carbon Bonds"],
+    bondTypes: ["Peptide Bond (C–N)", "α-Carbon Bonds"],
     uses: [
-      "Fundamental unit of all protein structures",
-      "Cell signaling via peptide hormones",
+      "Joins amino acids into polypeptides and proteins",
+      "Hormone signaling (e.g. insulin is a protein hormone)",
       "Food flavoring agents (e.g., aspartame is a dipeptide)",
     ],
     funFacts: [
-      "The peptide bond has partial double-bond character due to resonance — it's planar and doesn't freely rotate.",
       "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026).",
     ],
     color: "#f59e0b",

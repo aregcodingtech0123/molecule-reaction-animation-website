@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "물",
-      "description": "알려진 모든 생명 형태에 필수적인 범용 용매.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "수소 결합"
       ],
       "uses": [
-        "생물학적 범용 용매",
-        "산업용 냉각 시스템",
-        "수력 발전",
-        "화학 반응 매질"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "사면체"
       ],
       "uses": [
-        "난방·요리용 천연가스 연료",
-        "발전소 전력 생산",
-        "수소 가스 생산",
-        "화학 합성 원료"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "해당 과정을 통한 세포 주 에너지원",
-        "의료용 포도당 수액",
-        "스포츠·에너지 음료",
-        "에탄올·CO₂ 발효"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "포도당은 α-포도당과 β-포도당 두 형태가 있으며, 하나의 히드록실기 방향만 다릅니다.",
-        "포도당 1g을 대사하면 약 4칼로리가 방출됩니다."
+        "포도당은 α-포도당과 β-포도당 두 형태가 있으며, 하나의 히드록실기 방향만 다릅니다."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "펩타이드 결합(C–N)",
-        "아미드 공명",
         "α-탄소 결합"
       ],
       "uses": [
-        "모든 단백질 구조의 기본 단위",
-        "펩타이드 호르몬을 통한 세포 신호",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "식품 향료(예: 아스파탐은 디펩타이드)"
       ],
       "funFacts": [
-        "펩타이드 결합은 공명으로 이중 결합 성질이 있어 평면이며 자유롭게 회전하지 않습니다.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "프로피온산/카르복실산 유사 치환기(맥락에 따른 양이온)"
       ],
       "uses": [
-        "헤모단백질 내 O₂ 운반·저장",
-        "효소 활성 부위(예: 카탈라제, 사이토크롬)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "헤모글로빈의 네 헴 단위가 협동 결합을 가능하게 합니다 — S자 곡선은 생리학입니다."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Agua",
-      "description": "El disolvente universal esencial para todas las formas de vida conocidas.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "Enlace de hidrógeno"
       ],
       "uses": [
-        "Disolvente biológico universal",
-        "Sistemas industriales de refrigeración",
-        "Generación de energía hidroeléctrica",
-        "Medio para reacciones químicas"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "Tetraédrico"
       ],
       "uses": [
-        "Combustible de gas natural para calefacción y cocina",
-        "Generación de electricidad en centrales",
-        "Producción de gas hidrógeno",
-        "Materia prima para síntesis química"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "Fuente principal de energía celular mediante la glucólisis",
-        "Sueros intravenosos de glucosa en atención médica",
-        "Bebidas deportivas y energéticas",
-        "Fermentación para producir etanol y CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "La glucosa existe en dos formas: α-glucosa y β-glucosa, que solo difieren en la orientación de un grupo hidroxilo.",
-        "Un gramo de glucosa libera aproximadamente 4 calorías al metabolizarse."
+        "La glucosa existe en dos formas: α-glucosa y β-glucosa, que solo difieren en la orientación de un grupo hidroxilo."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "Enlace peptídico (C–N)",
-        "Resonancia amida",
         "Enlaces del carbono α"
       ],
       "uses": [
-        "Unidad fundamental de todas las estructuras proteicas",
-        "Señalización celular mediante hormonas peptídicas",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Agentes aromatizantes alimentarios (p. ej., el aspartamo es un dipéptido)"
       ],
       "funFacts": [
-        "El enlace peptídico tiene carácter de doble enlace parcial por resonancia: es plano y no rota libremente.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "Sustituyentes tipo propionato/carboxilato (protonación según contexto)"
       ],
       "uses": [
-        "Transporte y almacenamiento de O₂ en hemoproteínas",
-        "Sitios activos enzimáticos (p. ej., catalasa, citocromos)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Cuatro unidades hemo en la hemoglobina permiten la unión cooperativa; las curvas sigmoidales no son curiosidad química, son fisiología."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

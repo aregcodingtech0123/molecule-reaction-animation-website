@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "水",
-      "description": "あらゆる既知の生命に不可欠な、万能の溶媒。",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "水素結合"
       ],
       "uses": [
-        "生物学的万能溶媒",
-        "産業用冷却システム",
-        "水力発電",
-        "化学反応の媒体"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "四面体"
       ],
       "uses": [
-        "暖房・調理用の天然ガス燃料",
-        "発電所での電力生成",
-        "水素ガスの製造",
-        "化学合成の原料"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "解糖系による主要な細胞エネルギー源",
-        "医療用ブドウ糖点滴",
-        "スポーツ・エネルギー飲料",
-        "エタノールとCO₂を産生する発酵"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "グルコースにはα-グルコースとβ-グルコースの2形があり、1つの水酸基の向きだけが異なる。",
-        "1 gのグルコースを代謝すると、およそ4 kcalのエネルギーが放出される。"
+        "グルコースにはα-グルコースとβ-グルコースの2形があり、1つの水酸基の向きだけが異なる。"
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "ペプチド結合（C–N）",
-        "アミド共鳴",
         "α-炭素結合"
       ],
       "uses": [
-        "すべてのタンパク質構造の基本単位",
-        "ペプチドホルモンによる細胞シグナル伝達",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "食品風味料（例：アスパルテームはジペプチド）"
       ],
       "funFacts": [
-        "ペプチド結合は共鳴により部分的な二重結合性を持ち、平面で自由に回転しない。",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "プロピオン酸様置換基（文脈依存のプロトン化）"
       ],
       "uses": [
-        "ヘモタンパク内でのO₂輸送・貯蔵",
-        "酵素活性部位（例：カタラーゼ、シトクロム）"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "ヘモグロビンの4つのヘム単位が協同性結合を可能にする——S字曲線は化学の豆知識ではなく生理学である。"
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

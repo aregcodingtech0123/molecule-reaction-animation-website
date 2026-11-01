@@ -2,7 +2,7 @@
   "molecules": {
     "water": {
       "name": "Wasser",
-      "description": "Das universelle Lösungsmittel, das für alle bekannten Lebensformen unverzichtbar ist.",
+      "description": "A solvent for polar molecules and ionic compounds, essential for life.",
       "category": "simple",
       "disciplineTag": null,
       "bondTypes": [
@@ -10,10 +10,8 @@
         "Wasserstoffbrücke"
       ],
       "uses": [
-        "Universelles biologisches Lösungsmittel",
-        "Industrielle Kühlsysteme",
-        "Wasserkraft-Erzeugung",
-        "Reaktionsmedium in der Chemie"
+        "Solvent in living cells",
+        "Temperature moderation: water has the highest specific heat capacity of any common liquid"
       ],
       "funFacts": [
         "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C."
@@ -29,10 +27,7 @@
         "Tetraedrisch"
       ],
       "uses": [
-        "Erdgas als Brennstoff für Heizung und Kochen",
-        "Stromerzeugung in Kraftwerken",
-        "Produktion von Wasserstoffgas",
-        "Ausgangsstoff für chemische Synthesen"
+        "Fuel: methane is the principal component of natural gas"
       ],
       "funFacts": [
         "Methane is about 81–83 times more potent than CO₂ as a greenhouse gas over a 20-year period (EPA, citing IPCC AR6).",
@@ -51,13 +46,10 @@
       ],
       "uses": [
         "Primäre zelluläre Energiequelle über Glykolyse",
-        "Glucose-Infusionen in der Medizin",
-        "Sport- und Energy-Drinks",
-        "Gärung zu Ethanol und CO₂"
+        "Fermentation by yeast to ethanol and CO₂ (via pyruvate)"
       ],
       "funFacts": [
-        "Glucose existiert als α-Glucose und β-Glucose; sie unterscheiden sich nur in der Ausrichtung einer Hydroxylgruppe.",
-        "Ein Gramm Glucose liefert beim Stoffwechsel etwa 4 Kilokalorien."
+        "Glucose existiert als α-Glucose und β-Glucose; sie unterscheiden sich nur in der Ausrichtung einer Hydroxylgruppe."
       ]
     },
     "caffeine": {
@@ -107,16 +99,14 @@
       "disciplineTag": null,
       "bondTypes": [
         "Peptidbindung (C–N)",
-        "Amid-Resonanz",
         "α-Kohlenstoff-Bindungen"
       ],
       "uses": [
-        "Grundbaustein aller Proteinstrukturen",
-        "Zellsignalübertragung über Peptidhormone",
+        "Joins amino acids into polypeptides and proteins",
+        "Hormone signaling (e.g. insulin is a protein hormone)",
         "Aromastoffe in Lebensmitteln (z. B. Aspartam ist ein Dipeptid)"
       ],
       "funFacts": [
-        "Die Peptidbindung hat durch Resonanz teilweise Doppelbindungscharakter — sie ist planar und rotiert nicht frei.",
         "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)."
       ]
     },
@@ -263,11 +253,11 @@
         "Propionat-/Carboxylat-ähnliche Substituenten (kontextabhängige Protonierung)"
       ],
       "uses": [
-        "O₂-Transport und -Speicher in Hämoproteinen",
-        "Enzymaktive Zentren (z. B. Katalase, Cytochrome)"
+        "Binds O₂ in hemoglobin",
+        "Prosthetic group of the cytochromes in the electron transport chain"
       ],
       "funFacts": [
-        "Vier Häme in Hämoglobin ermöglichen kooperatives Binden — sigmoide Kurven sind Physiologie, kein Trivia."
+        "Each of hemoglobin’s four heme groups binds O₂, and every bound O₂ makes the next bind more easily."
       ]
     }
   },

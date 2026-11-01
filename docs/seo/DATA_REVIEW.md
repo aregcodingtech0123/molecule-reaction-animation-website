@@ -248,8 +248,8 @@ text of the locale bundle (`src/lib/i18n/content/<locale>.json`), **English incl
 data and in the molecule pages, but the 12 bundles still carried the old wording, so Mpemba, "9 days", the C₆₀ "Nobel-celebrated"
 description and the rest were **still visible in the Explore UI** (only the `/molecules/*` pages were clean). Fixed in this change:
 the English bundle is now identical to the data (tested), and in the other 11 locales each statement keeps its translation only
-where the English statement is unchanged; where a statement was added or reworded (18 per locale) the slot holds the **English
-text**, not a stale translation. Those 18 slots in 11 languages need translating by a native reviewer (I did not machine-translate
+where the English statement is unchanged; where a statement was added or reworded (28 per locale after the textbook pruning of §6.4 D) the slot holds the **English
+text**, not a stale translation. Those slots in 11 languages need translating by a native reviewer (I did not machine-translate
 source-bound claims). `tests/unit/i18n/molecule-content-sync.test.ts` keeps bundles and data in step and lists the removed claims
 as forbidden text.
 
@@ -264,7 +264,6 @@ unreadable (captcha/403), so nothing rests on them. A statement is "sourced" onl
 | --- | --- | --- |
 | Methane | "The simplest hydrocarbon and a potent greenhouse gas" | MeSH via PubChem CID 297: "The simplest saturated hydrocarbon"; EPA *Methane emissions*: "Pound for pound, the comparative impact of CH4 is 28 times greater than CO2 over a 100-year period" |
 | Glucose | α- and β-glucose differ in the hydroxyl at carbon 1 | OpenStax *Biology 2e* §3.2 |
-| Glucose | "about 4 Calories per gram" | OpenStax §3.2: "a gram of carbohydrate provides 4.3 Kcal". **Rounded, and a carbohydrate figure, not glucose-specific — your call** |
 | Caffeine | stimulant in coffee, tea, energy drinks | PubChem CID 2519, StatPearls: coffee beans, tea and cacao beans, "an additive to soda and energy drinks" |
 | Caffeine | combined with aspirin for pain | MedlinePlus (aspirin entry lists "Anacin Advanced Headache Formula … Acetaminophen, Aspirin, Caffeine") |
 | Caffeine | apnea in premature infants | HSDB via PubChem: "Caffeine citrate is used iv or orally … for apnea of prematurity" (FDA orphan drug) |
@@ -325,15 +324,29 @@ unreadable (captcha/403), so nothing rests on them. A statement is "sourced" onl
 | C₆₀ | uses: "Materials science prototypes (thin films, composites)", "Nanoscale carbon allotrope teaching tool" |
 | Heme | use: "Biochemistry teaching for ligand-field and cooperative binding" |
 
-**D. Plain textbook chemistry, no source added — for you to confirm or cut**
+**D. The "plain textbook" items — pruned (owner decision after the third review: keep only what I can justify, remove the rest).**
+Justification = an OpenStax open-textbook sentence I fetched on 2026-11-01 (Biology 2e, Chemistry 2e, Anatomy & Physiology 2e).
 
-* Water: description ("…essential for all known forms of life"; USGS says "essential for life") and its four uses.
-* The bond-type labels of every molecule ("Polar Covalent", "Aromatic Ring", "Peptide Bond (C–N)", "Hydrogen Bond (×2 A–T)" …).
-* Methane: its four uses (fuel, power generation, hydrogen production, feedstock). Glucose: its four uses (glycolysis, IV drips, sports drinks, fermentation).
-* DNA pair: "Genetic information storage in all living organisms"; "Adenine always pairs with Thymine via 2 hydrogen bonds — Watson-Crick".
-* Peptide: "Fundamental unit of all protein structures"; "Cell signaling via peptide hormones"; "partial double-bond character… planar" (NCBI Bookshelf was behind a captcha).
-* Heme: "O₂ transport and storage in hemoproteins", "Enzyme active sites (e.g. catalase, cytochromes)", the four-heme cooperative binding fact.
-* Descriptions that are structural or flavour text with no further claim: glucose, caffeine, DNA pair, dipeptide, ethanol, aspirin, dopamine, adrenaline, heme.
+| Molecule | Statement now shown | OpenStax sentence | What changed |
+| --- | --- | --- | --- |
+| Water | description "A solvent for polar molecules and ionic compounds, essential for life." | Biology 2e §2.2: "…a solvent, a substance capable of dissolving other polar molecules and ionic compounds"; USGS: "essential for life" | reworded: the page never says "universal solvent" |
+| Water | "Solvent in living cells" | §2.2: "most of an organism's cellular chemistry and metabolism occur inside the watery contents of the cell's cytoplasm" | reworded |
+| Water | "Temperature moderation: water has the highest specific heat capacity of any common liquid" | §2.2: "Water has the highest specific heat capacity of any common liquid." | reworded; **removed:** "Industrial cooling systems" (coolant appears only as an analogy), "Hydroelectric power generation" (engineering, not chemistry), "Chemical reaction medium" (Chemistry 2e chapter 4 not reachable) |
+| Methane | "Fuel: methane is the principal component of natural gas" | Chemistry 2e §20.1: "methane, CH4, is the principal component of natural gas" | reworded; **removed:** "Electricity generation", "Production of hydrogen gas" (section URL 404), "Feedstock for chemical synthesis" |
+| Glucose | "Primary cellular energy source via glycolysis" | Biology 2e §7.2: "nearly all of the energy used by living cells comes to them in the bonds of the sugar glucose" | unchanged |
+| Glucose | "Fermentation by yeast to ethanol and CO₂ (via pyruvate)" | §7.5: "The fermentation of pyruvic acid by yeast produces the ethanol…"; "…releasing carbon dioxide as a gas" | reworded (the substrate is pyruvate); **removed:** "IV glucose drips in medical care", "Sports and energy drinks" (not chemistry, no source), **and the "4 Calories per gram" fun fact (owner instruction)** |
+| DNA pair | "Genetic information storage in all living organisms" | Biology 2e §3.5: "DNA is the genetic material in all living organisms" | unchanged |
+| DNA pair | "Adenine always pairs with Thymine via 2 hydrogen bonds" | §3.5: "Adenine forms hydrogen bonds (or base pairs) with thymine"; figure text: "Thymine forms two hydrogen bonds with adenine" | unchanged (the count is in the figure's alt text) |
+| Peptide | "Joins amino acids into polypeptides and proteins" | Biology 2e §3.4: "As more amino acids join to this growing chain, the resulting chain is a polypeptide" | reworded from "Fundamental unit of all protein structures" |
+| Peptide | "Hormone signaling (e.g. insulin is a protein hormone)" | §3.4: "Hormones are chemical-signaling molecules, usually small proteins or steroids"; "insulin is a protein hormone" | reworded from "peptide hormones" |
+| Peptide | — | — | **removed:** "partial double-bond character… planar and doesn't freely rotate" (no OpenStax page reached says it) and the bond label "Amide Resonance" |
+| Heme | "Binds O₂ in hemoglobin" | Anatomy & Physiology 2e §22.5: "Heme is the portion of hemoglobin that contains iron, and it is heme that binds oxygen." | reworded from "O₂ transport and storage inside hemoproteins" ("storage" not found) |
+| Heme | "Prosthetic group of the cytochromes in the electron transport chain" | Biology 2e §7.4: "Cytochrome proteins have a prosthetic group of heme." | reworded; **removed:** catalase (no page names it) |
+| Heme | "Each of hemoglobin's four heme groups binds O₂, and every bound O₂ makes the next bind more easily." | A&P 2e §22.5: "As each molecule of oxygen is bound, it further facilitates the binding of the next molecule" | reworded; "sigmoidal curves" dropped |
+
+Kept without a quotation, by their nature: the **bond-type labels** (e.g. "Polar Covalent", "Aromatic Ring", "Peptide Bond (C–N)") describe the structure drawn in the formula, not a fact about the world; and **descriptions that are flavour text** with no checkable claim (glucose, caffeine, DNA pair, dipeptide, ethanol, aspirin, dopamine, adrenaline, heme — whatever claims they carry are among the sourced items above). Say if you want the labels or the flavour text cut too.
+
+After this pass **28 statements per language are English placeholders** in the 11 non-English bundles (water description, water uses 1–2, …; the exact list is in `LAUNCH_CHECKLIST.md` §1.7).
 
 ## 7. Element categories (Part 2) — against IUPAC
 
