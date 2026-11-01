@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "에탄올",
-      "description": "맥주·와인·소독 겔 뒤에 있는 두 탄소 알코올 — 작고 극성이며, 실험실과 일상 모두에서 영향력 있는 분자.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "DAILY LIFE",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "아스피린",
-      "description": "아세틸살리실산: 혈소판 화학을 비가역적으로 바꾸는 고전적 진통제 — 의학·역사·유기 합성이 한 알에 담깁니다.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "MEDICINE",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "도파민",
-      "description": "카테콜 고리에 에틸아민 꼬리가 달린 카테콜아민 — 동기·운동·중뇌변연계 신화가 이 구조를 둘러쌉니다.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "아드레날린",
-      "description": "에피네프린: 덤불에서 무언가 튀어나올 때 맥박이 치솟는 분자 — 교감신경 화학이 세 개의 산소에 응급을 담은 것.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENCE",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "α·β 아드레너르기 수용체에 작용해 수축·기관지 확장 용도가 모두 설명됩니다."
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12개 오각형과 20개 육각형 — 오일러와 흑연의 거친 사촌의 악수.",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "헤모글로빈 헴 군",
-      "description": "헤모글로빈을 산소 운반체로 바꾸는 철 킬레이트 포르핀 보조기: 단백질 알로스테리 조절 뒤에서 가역적 O₂ 결합.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BIOLOGICAL",
       "bondTypes": [

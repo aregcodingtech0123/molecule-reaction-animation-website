@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "乙醇",
-      "description": "啤酒、葡萄酒与消毒凝胶背后的双碳醇——分子虽小、极性显著，在化学实验室与社交场合都影响深远。",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "日常生活",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "阿司匹林",
-      "description": "乙酰水杨酸：经典止痛药，可不可逆地改变血小板化学——一片小药丸浓缩了医学、历史与有机合成。",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "医学",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "多巴胺",
-      "description": "儿茶酚环上连着勇敢的小乙胺尾链的儿茶酚胺——动机、运动与中脑边缘系统的种种传说都围绕这一结构。",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "神经科学",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "肾上腺素",
-      "description": "肾上腺素（epinephrine）：灌木丛中突然窜出时心跳加速背后的分子——交感神经系统化学浓缩为三颗氧原子的紧迫感。",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "神经科学",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "它作用于 α 与 β 肾上腺素能受体，因而既有血管收缩故事也有支气管扩张用途。"
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 个五边形与 20 个六边形——欧拉定理与石墨狂野表亲的握手。",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "血红蛋白血红素基团",
-      "description": "螯合铁离子的卟啉辅基，使血红蛋白成为氧运输载体：可逆 O₂ 结合，蛋白质变构在幕后调控。",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "生物学",
       "bondTypes": [

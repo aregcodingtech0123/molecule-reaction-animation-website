@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "Etanolo",
-      "description": "Il familiare alcol a due atomi di carbonio dietro birra, vino e gel antisettici: piccolo, polare e sorprendentemente influente sia nei laboratori di chimica sia nella vita quotidiana.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "VITA QUOTIDIANA",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "Aspirina",
-      "description": "Acido acetilsalicilico: un classico antidolorifico che modifica in modo irreversibile la chimica piastrinica — medicina, storia e sintesi organica in una piccola compressa.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "MEDICINA",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "Dopamina",
-      "description": "Una catecolamina con una piccola coda di etilammina su un anello catecol: motivazione, movimento e miti mesolimbici orbitano intorno a questa struttura.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENZE",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "Adrenalina",
-      "description": "Epinefrina: la molecola dietro il picco di polso quando qualcosa salta dai cespugli — chimica simpatica distillata in tre atomi di ossigeno di urgenza.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NEUROSCIENZE",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "Agisce sui recettori α e β adrenergici, spiegando sia le storie di vasocostrizione sia gli usi broncodilatatori."
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 pentagoni e 20 esagoni: la stretta di mano di Eulero con il cugino selvaggio della grafite.",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Gruppo eme dell'emoglobina",
-      "description": "Il gruppo prostetico porfirinico che chelata il ferro e trasforma l'emoglobina in un trasportatore di ossigeno: legame reversibile di O₂ con allosteria proteica dietro le quinte.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BIOLOGICO",
       "bondTypes": [

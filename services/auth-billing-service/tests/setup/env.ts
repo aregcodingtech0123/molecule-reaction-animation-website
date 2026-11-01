@@ -15,6 +15,8 @@ export const TEST_ENV = {
   PORT: "0",
   JWT_SECRET: "test-only-jwt-secret-7f3c9a1e5b2d4c6e8a0b",
   INTERNAL_SERVICE_SECRET: "test-only-internal-key-3d8f1b6a9c2e4f7a0b5d",
+  // Its own secret (never JWT_SECRET / INTERNAL_SERVICE_SECRET): keys the e-mail hash of the re-registration guard.
+  EMAIL_TOMBSTONE_SECRET: "test-only-tombstone-key-91c4e7a2b8d05f63e1a9",
   AI_HOLD_TTL_SECONDS: "600",
   // Emulates one trusted proxy hop so suites can vary the client IP via X-Forwarded-For.
   // The default (0 = ignore X-Forwarded-For) is asserted separately in client-ip.test.ts.

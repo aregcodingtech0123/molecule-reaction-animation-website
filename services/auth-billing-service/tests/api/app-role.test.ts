@@ -132,6 +132,19 @@ describe("app role is refused every write around the ledger (SEC-12)", () => {
     await expectPgError(asApp.query(`SELECT post_credit_transaction($1, -100, 'CREDIT_CONSUMPTION', $2)`, [id, randomUUID()]), "P0001");
   });
 
+  it("account deletion (017): the app role can read the e-mail tombstones but not write them, and cannot run the owner-only functions", async () => {
+    await owner.query(`DELETE FROM deleted_email_tombstones WHERE email_hmac = $1`, [Buffer.alloc(32, 5)]);
+    await owner.query(`INSERT INTO deleted_email_tombstones (email_hmac) VALUES ($1)`, [Buffer.alloc(32, 5)]);
+    expect((await asApp.query(`SELECT count(*)::int AS n FROM deleted_email_tombstones WHERE email_hmac = $1`, [Buffer.alloc(32, 5)])).rows[0].n).toBe(1);
+    await expectPgError(asApp.query(`INSERT INTO deleted_email_tombstones (email_hmac) VALUES ($1)`, [Buffer.alloc(32, 6)]), "42501");
+    await expectPgError(asApp.query(`UPDATE deleted_email_tombstones SET created_at = NOW() WHERE email_hmac = $1`, [Buffer.alloc(32, 5)]), "42501");
+    await expectPgError(asApp.query(`DELETE FROM deleted_email_tombstones WHERE email_hmac = $1`, [Buffer.alloc(32, 5)]), "42501");
+    const id = await ownerUser(5);
+    await expectPgError(asApp.query(`SELECT anonymise_user($1::uuid, $2)`, [id, "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"]), "42501");
+    await expectPgError(asApp.query(`SELECT purge_email_tombstones()`), "42501");
+    expect(await balance(id)).toBe(5);
+  });
+
   it("a role that was not granted EXECUTE cannot mint credits", async () => {
     const other = `ms_noexec_${randomBytes(4).toString("hex")}_test`;
     const id = await ownerUser(0);
@@ -192,6 +205,21 @@ describe("the service runs its real flows connected as the app role", () => {
     expect(logout.status).toBe(200);
     const after = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${relogin.body.data.token}`);
     expect(after.status).toBe(401);
+  });
+
+  it("account deletion: request (re-authenticated) → sessions revoked → sign in → cancel", async () => {
+    const email = uniqueEmail("approle-del");
+    expect((await post("/api/auth/register").send({ email, password: PASSWORD, firstName: "Del", lastName: "Eter", dateOfBirth: "1990-12-10" })).status).toBe(200);
+    expect((await post("/api/auth/verify-email").send({ token: await tokenFromLoggedEmail("verify-email", email) })).status).toBe(200);
+    const login = await post("/api/auth/login").send({ email, password: PASSWORD });
+    const token = login.body.data.token as string;
+    const asked = await post("/api/users/deletion").set("Authorization", `Bearer ${token}`).send({ password: PASSWORD });
+    expect(asked.status).toBe(200);
+    expect((await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`)).status).toBe(401);
+    const again = await post("/api/auth/login").send({ email, password: PASSWORD });
+    expect(again.body.data.user.deletionScheduledFor).toBe(asked.body.data.scheduledFor);
+    const cancelled = await request(app).delete("/api/users/deletion").set("Authorization", `Bearer ${again.body.data.token}`);
+    expect(cancelled.body.data).toEqual({ cancelled: true });
   });
 
   it("Google sign-in creates and links an account", async () => {

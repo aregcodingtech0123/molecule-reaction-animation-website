@@ -34,11 +34,13 @@ describe("function hardening (SEC-12)", () => {
   it("every project function that touches a relation pins search_path to public, pg_temp", async () => {
     const fns = await projectFunctions(db);
     expect(fns.map((f) => f.fn)).toEqual([
+      "anonymise_user(uuid,text,bytea,interval)",
       "expire_stale_checkout_orders(interval)",
       "guard_user_balance_write()",
       "ledger_reconciliation()",
       "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
       "prevent_ledger_mutation()",
+      "purge_email_tombstones(interval)",
       "purge_signup_ips(interval)",
       "refunded_orders_to_review()",
       "release_expired_ai_holds()",
@@ -128,10 +130,12 @@ describe("a fresh 001→012 apply leaves the ledger functions hardened (TC-41 co
       const fns = await projectFunctions(scratch.pool);
       const pinned = (f: { config: string[] }) => f.config.includes("search_path=public, pg_temp");
       expect(fns.filter(pinned).map((f) => f.fn)).toEqual([
+        "anonymise_user(uuid,text,bytea,interval)",
         "expire_stale_checkout_orders(interval)",
         "guard_user_balance_write()",
         "ledger_reconciliation()",
         "post_credit_transaction(uuid,integer,credit_transaction_type,character varying,character varying)",
+        "purge_email_tombstones(interval)",
         "purge_signup_ips(interval)",
         "refunded_orders_to_review()",
         "release_expired_ai_holds()",

@@ -2,6 +2,9 @@ import { ValidationError } from "./validation.js";
 
 const NAME_RE = /^[\p{L}\p{M}' -]+$/u;
 
+/** Days between a deletion request and the anonymisation (the SQL default of anonymise_user() is the same). */
+export const DELETION_GRACE_DAYS = 14;
+
 export interface UserProfileInput {
   firstName: string;
   lastName: string;
@@ -17,6 +20,8 @@ export interface PublicUserProfile {
   isAdmin: boolean;
   isVerified: boolean;
   createdAt: string;
+  /** When the account will be anonymised (request + 14 days) if the user asked for deletion, otherwise null. */
+  deletionScheduledFor: string | null;
 }
 
 export function validateFirstName(value: unknown): string {
@@ -128,6 +133,8 @@ export interface UserRow {
   is_admin: boolean;
   is_verified: boolean;
   created_at: Date;
+  /** Set when the user asked for deletion (see deletionScheduledFor). */
+  deletion_requested_at?: Date | null;
   /** Session generation (not part of the public profile). */
   token_version?: number;
 }
@@ -150,5 +157,8 @@ export function toPublicUserProfile(row: UserRow): PublicUserProfile {
     isAdmin: Boolean(row.is_admin),
     isVerified: Boolean(row.is_verified),
     createdAt: row.created_at.toISOString(),
+    deletionScheduledFor: row.deletion_requested_at
+      ? new Date(row.deletion_requested_at.getTime() + DELETION_GRACE_DAYS * 86_400_000).toISOString()
+      : null,
   };
 }

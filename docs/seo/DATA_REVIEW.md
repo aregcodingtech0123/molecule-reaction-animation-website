@@ -346,7 +346,9 @@ Justification = an OpenStax open-textbook sentence I fetched on 2026-11-01 (Biol
 
 Kept without a quotation, by their nature: the **bond-type labels** (e.g. "Polar Covalent", "Aromatic Ring", "Peptide Bond (C–N)") describe the structure drawn in the formula, not a fact about the world; and **descriptions that are flavour text** with no checkable claim (glucose, caffeine, DNA pair, dipeptide, ethanol, aspirin, dopamine, adrenaline, heme — whatever claims they carry are among the sourced items above). Say if you want the labels or the flavour text cut too.
 
-After this pass **28 statements per language are English placeholders** in the 11 non-English bundles (water description, water uses 1–2, …; the exact list is in `LAUNCH_CHECKLIST.md` §1.7).
+**Flavour text (owner decision: keep the bond-type labels; remove any flavour sentence that makes a factual claim I cannot source).** Rewritten to the sourced wording: ethanol ("…alcoholic beverages, widely used as an antiseptic and as a solvent" — DrugBank/ChEBI), aspirin ("…irreversibly inhibits an enzyme in platelets" — DrugBank), dopamine ("…made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement" — MeSH), adrenaline ("the hormone of the 'fight-or-flight' response, secreted by the adrenal glands" — ChEBI), heme ("it is the heme that binds oxygen" — OpenStax A&P §22.5), and adrenaline's receptor sentence. **Removed:** "surprisingly influential in chemistry labs and parties", "medicine, history, and organic synthesis in one tiny tablet", "motivation, movement, and mesolimbic myths", "the pulse spike when something jumps in the bushes", "allostery backstage", and C₆₀'s "Euler's handshake with graphite's wild cousin" (the 12-pentagon/20-hexagon fact stays in its description). The bond-type labels are kept.
+
+After this pass **34 statements per language are English placeholders** in the 11 non-English bundles (the exact list is in `LAUNCH_CHECKLIST.md` §1.7).
 
 ## 7. Element categories (Part 2) — against IUPAC
 

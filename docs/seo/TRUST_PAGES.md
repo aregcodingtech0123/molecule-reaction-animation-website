@@ -3,7 +3,7 @@
 **Status: drafts that need legal review.** `/about`, `/contact`, `/privacy`, `/terms` exist, are linked from the footer
 of every page and from a links row on the home page, carry a visible "Draft — needs legal review" notice, and are
 `noindex` (out of the sitemap) while any owner detail is a placeholder. `npm run check:launch-content` fails until every
-placeholder in `src/lib/legal/site-owner.ts` is replaced (12 today, including `signupIpPurgeJob`). No Organization JSON-LD is emitted until then.
+placeholder in `src/lib/legal/site-owner.ts` is replaced (14 today, including `signupIpPurgeJob`, `accountDeletionJob` and `emailTombstoneGuard`). No Organization JSON-LD is emitted until then.
 
 Nothing below is legal advice. The privacy text states only what the code does; every statement is listed here with the
 code it comes from, so a reviewer can check it and so a code change that makes it untrue can be found.
@@ -40,7 +40,7 @@ not yet describe the script's own data use — **add to legal review**.
 (`LAUNCH_CHECKLIST.md` recommends Vercel + Render + Neon, not decided), `logRetention` (decided by the hosting plans:
 Vercel 1 h–30 days, Render 7–30 days per the checklist), `geminiDataUse` (Google's terms differ between paid and unpaid
 Gemini API use — depends on the plan you choose), `accountDeletion` (the code has **no** self-service deletion, and the
-database refuses to delete a user who has purchase records), `signupIpPurgeJob` (where the daily purge runs and which heartbeat alert watches it — declaring it is what lets the policy state the 90 days), `effectiveDate`.
+database refuses to delete a user who has purchase records), `signupIpPurgeJob` (where the daily purge runs and which heartbeat alert watches it — declaring it is what lets the policy state the 90 days), `accountDeletionJob` (same for the daily deletion job — declaring it is what lets the policy describe self-service deletion as active), `emailTombstoneGuard` ("enabled …"/"disabled …" after legal review of the 12-month e-mail hash; the policy mentions the hash only when enabled), `effectiveDate`.
 
 ## 3. Points for your decision (found while writing)
 

@@ -14,6 +14,9 @@ export default function PrivacyPage() {
   const o = SITE_OWNER;
   // "cleared after 90 days" is true only while the daily purge job runs: the owner declares that in SITE_OWNER.
   const purgeScheduled = !isPlaceholder(o.signupIpPurgeJob) && o.signupIpPurgeJob.trim() !== "";
+  // Self-service deletion only "works" while the daily job runs; the e-mail hash paragraph appears only if the owner enabled the guard.
+  const deletionLive = !isPlaceholder(o.accountDeletionJob) && o.accountDeletionJob.trim() !== "";
+  const tombstoneEnabled = !isPlaceholder(o.emailTombstoneGuard) && /^enabled/i.test(o.emailTombstoneGuard.trim());
   return (
     <LegalPage title="Privacy policy">
       <p>
@@ -102,7 +105,28 @@ export default function PrivacyPage() {
           reservations, after you confirm with your password (or with Google again). It never contains your password or
           any token.
         </li>
-        <li>Deleting your account: <Owner value={o.accountDeletion} />.</li>
+        {deletionLive ? (
+          <li>
+            Deleting your account: on your profile page, &ldquo;Delete my account&rdquo; (you confirm with your password, or with
+            Google again). Deletion takes effect after a 14-day grace period, during which you can sign in and cancel. When it takes
+            effect, your email address, name, date of birth, sign-in methods and signup address are removed and the account can no
+            longer be used; your remaining credits are permanently lost and cannot be restored. The records of credit purchases, use and
+            refunds are kept as the accounting record, without your name or email address. You can also write to <Owner value={o.contactEmail} />:{" "}
+            <Owner value={o.accountDeletion} />.
+          </li>
+        ) : (
+          <li>
+            Deleting your account: self-service deletion is being introduced and is not active yet. Until then: <Owner value={o.accountDeletion} />.
+          </li>
+        )}
+        {tombstoneEnabled && (
+          <li>
+            <em>[Draft &mdash; needs legal review before launch]</em> So that the one-time signup bonus cannot be collected again by
+            deleting an account and registering the same address, we keep a one-way, keyed hash of the email address of a deleted
+            account for 12 months, then delete it. The hash cannot be turned back into the address without our secret key, but it is still
+            personal data; whether this is permitted next to your right to erasure, and its legal basis, are for legal review.
+          </li>
+        )}
       </ul>
 
       <h2>Your rights</h2>

@@ -6,6 +6,7 @@ import { AppError } from "../types/index.js";
 import { verifyGoogleIdToken } from "../utils/google.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { signToken } from "../utils/jwt.js";
+import { isEmailTombstoned } from "../utils/emailTombstone.js";
 import { normalizeEmail, validateGoogleIdToken, validatePassword } from "../utils/validation.js";
 import {
   toPublicUserProfile,
@@ -59,7 +60,7 @@ function sendInBackground(kind: string, send: () => Promise<void>): void {
 }
 
 const USER_PUBLIC_COLUMNS =
-  "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, token_version";
+  "id, email, first_name, last_name, date_of_birth, is_admin, is_verified, created_at, token_version, deletion_requested_at";
 
 function authResponse(user: UserRow, message: string) {
   const token = signToken({ sub: user.id, email: user.email, tv: user.token_version ?? 0 });
@@ -117,14 +118,28 @@ async function insertUser(
   return row;
 }
 
-async function grantSignupBonus(client: PoolClient, userId: string): Promise<void> {
+/**
+ * Posts the one-time signup bonus. Returns false when it is NOT granted because the e-mail belongs to an account that was
+ * deleted less than 12 months ago (the re-registration guard; EMAIL_TOMBSTONE_GUARD=false turns it off). Nothing is written
+ * to the ledger in that case. All four ways a bonus is granted (verify e-mail, verified upgrade, Google takeover link,
+ * new Google user) go through here, so the guard cannot be bypassed by choosing another sign-up route.
+ */
+async function grantSignupBonus(client: PoolClient, userId: string): Promise<boolean> {
   const existing = await client.query<{ id: string }>(
     `SELECT id::text FROM credit_ledger_transactions
      WHERE user_id = $1 AND transaction_type = 'SIGNUP_BONUS'
      LIMIT 1`,
     [userId],
   );
-  if ((existing.rowCount ?? 0) > 0) return;
+  if ((existing.rowCount ?? 0) > 0) return true;
+
+  if (env.emailTombstoneGuardEnabled) {
+    const who = await client.query<{ email: string }>(`SELECT email FROM users WHERE id = $1`, [userId]);
+    if (who.rows[0] && (await isEmailTombstoned(client, who.rows[0].email))) {
+      console.warn("[auth] Signup bonus skipped: this e-mail belonged to an account deleted within the last 12 months", { userId });
+      return false;
+    }
+  }
 
   await client.query(`SELECT post_credit_transaction($1, $2, $3, $4)`, [
     userId,
@@ -132,6 +147,7 @@ async function grantSignupBonus(client: PoolClient, userId: string): Promise<voi
     "SIGNUP_BONUS",
     "signup",
   ]);
+  return true;
 }
 
 async function replaceVerificationToken(
@@ -219,6 +235,7 @@ export async function verifyEmailWithToken(rawTokenInput: unknown) {
 
   const tokenHash = hashToken(rawTokenInput.trim());
 
+  let bonusGranted = true;
   const outcome = await withTransaction(async (client) => {
     const tokenRow = await client.query<{
       id: string;
@@ -260,13 +277,16 @@ export async function verifyEmailWithToken(rawTokenInput: unknown) {
       user.is_verified = true;
     }
 
-    await grantSignupBonus(client, user.id);
+    bonusGranted = await grantSignupBonus(client, user.id);
     await client.query(`DELETE FROM verification_tokens WHERE user_id = $1`, [user.id]);
 
     return user;
   });
 
-  return authResponse(outcome, "Email verified. Starter credits have been added to your balance.");
+  return authResponse(
+    outcome,
+    bonusGranted ? "Email verified. Starter credits have been added to your balance." : "Email verified.",
+  );
 }
 
 export async function resendVerificationEmail(emailInput: unknown): Promise<{ message: string }> {

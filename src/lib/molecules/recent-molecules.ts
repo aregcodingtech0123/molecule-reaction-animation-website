@@ -33,7 +33,7 @@ export const ETHANOL: MoleculeData = {
   name: "Ethanol",
   formula: "C₂H₅OH",
   description:
-    "The familiar two-carbon alcohol behind beer, wine, and antiseptic gels—small, polar, and surprisingly influential in chemistry labs and parties alike.",
+    "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
   category: "organic",
   disciplineTag: "DAILY LIFE",
   modelPath: null,
@@ -82,7 +82,7 @@ export const ASPIRIN: MoleculeData = {
   name: "Aspirin",
   formula: "C₉H₈O₄",
   description:
-    "Acetylsalicylic acid: a classic pain reliever that irreversibly tweaks platelet chemistry—medicine, history, and organic synthesis in one tiny tablet.",
+    "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
   category: "organic",
   disciplineTag: "MEDICINE",
   modelPath: null,
@@ -165,7 +165,7 @@ export const DOPAMINE: MoleculeData = {
   name: "Dopamine",
   formula: "C₈H₁₁NO₂",
   description:
-    "A catecholamine built from a brave little ethylamine tail on a catechol ring—motivation, movement, and mesolimbic myths all orbit this structure.",
+    "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
   category: "biological",
   disciplineTag: "NEUROSCIENCE",
   modelPath: null,
@@ -192,7 +192,7 @@ export const ADRENALINE: MoleculeData = {
   name: "Adrenaline",
   formula: "C₉H₁₃NO₃",
   description:
-    "Epinephrine: the molecule behind the pulse spike when something jumps in the bushes—sympathetic chemistry distilled into three oxygens of urgency.",
+    "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
   category: "biological",
   disciplineTag: "NEUROSCIENCE",
   modelPath: null,
@@ -208,7 +208,7 @@ export const ADRENALINE: MoleculeData = {
     ],
     funFacts: [
       "Adrenaline and epinephrine are two names for the same hormone.",
-      "It hits α- and β-adrenergic receptors, explaining both vasoconstriction stories and bronchodilator uses.",
+      "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation.",
     ],
     color: "#a855f7",
   },
@@ -233,7 +233,6 @@ export const BUCKMINSTERFULLERENE: MoleculeData = {
       "Electron acceptors (fullerene derivatives) in organic solar-cell research",
     ],
     funFacts: [
-      "12 pentagons and 20 hexagons—Euler’s handshake with graphite’s wild cousin.",
       "Named after Buckminster Fuller because its structure resembles his geodesic domes.",
     ],
     color: "#64748b",
@@ -245,7 +244,7 @@ export const HEME_GROUP: MoleculeData = {
   name: "Hemoglobin Heme Group",
   formula: "C₃₄H₃₂FeN₄O₄",
   description:
-    "The iron-chelating porphyrin prosthetic group that turns hemoglobin into an oxygen shuttle: reversible O₂ binding with protein allostery backstage.",
+    "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
   category: "biological",
   disciplineTag: "BIOLOGICAL",
   modelPath: null,

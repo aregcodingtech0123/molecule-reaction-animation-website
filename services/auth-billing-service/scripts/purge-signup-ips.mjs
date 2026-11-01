@@ -14,6 +14,7 @@
  */
 import pg from "pg";
 import { loadServiceEnv, resolveMigrationUrl } from "./lib/cli-env.mjs";
+import { sendHeartbeat } from "./lib/heartbeat.mjs";
 
 const args = process.argv.slice(2);
 let days = 90;
@@ -28,34 +29,12 @@ if (args.length) {
 
 loadServiceEnv();
 
-/** One GET to the heartbeat monitor; resolves to true when it answered 2xx. Never prints the URL, only its host. */
-async function ping(raw) {
-  let url;
-  try {
-    url = new URL(raw);
-    if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("protocol");
-  } catch {
-    console.error("[purge-signup-ips] PURGE_HEARTBEAT_URL is not an http(s) URL; the heartbeat was not sent.");
-    return false;
-  }
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) console.error(`[purge-signup-ips] heartbeat to ${url.host} answered HTTP ${res.status}.`);
-    else console.log(`[purge-signup-ips] heartbeat sent to ${url.host}.`);
-    return res.ok;
-  } catch {
-    console.error(`[purge-signup-ips] heartbeat to ${url.host} failed.`);
-    return false;
-  }
-}
-
 const client = new pg.Client({ connectionString: resolveMigrationUrl() });
 await client.connect();
 try {
   const { rows } = await client.query("SELECT purge_signup_ips(make_interval(days => $1::int)) AS cleared", [days]);
   console.log(`[purge-signup-ips] cleared ${rows[0].cleared} signup address(es) older than ${days} days.`);
-  const heartbeat = process.env.PURGE_HEARTBEAT_URL?.trim();
-  if (heartbeat && !(await ping(heartbeat))) process.exitCode = 2;
+  if (!(await sendHeartbeat("purge-signup-ips", process.env.PURGE_HEARTBEAT_URL))) process.exitCode = 2;
 } catch (err) {
   if (err?.code === "42883") {
     console.error("[purge-signup-ips] purge_signup_ips() does not exist: apply migration 016 first (npm run db:migrate).");

@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "Etanol",
-      "description": "Bira, şarap ve antiseptik jellerin arkasındaki tanıdık iki karbonlu alkol — küçük, polar ve kimya laboratuvarları ile sosyal ortamlarda şaşırtıcı derecede etkili.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "GÜNLÜK YAŞAM",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "Aspirin",
-      "description": "Asetilsalisilik asit: trombosit kimyasını geri dönüşümsüz değiştiren klasik bir ağrı kesici — tıp, tarih ve organik sentez tek küçük tablette.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "TIBB",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "Dopamin",
-      "description": "Katekol halkasına bağlı cesur bir etilamin kuyruğuyla inşa edilmiş bir katekolamin — motivasyon, hareket ve mezolimbik mitler bu yapının etrafında döner.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "NÖROBİLİM",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "Adrenalin",
-      "description": "Epinefrin: çalılıkta bir şey sıçradığında nabzın yükselmesinin arkasındaki molekül — sempatik kimyanın üç oksijenli aciliyete damıtılmış hâli.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "NÖROBİLİM",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "α ve β-adrenerjik reseptörlere etki eder; hem vazokonstriksiyon hem bronkodilatör kullanımlarını açıklar."
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 beşgen ve 20 altıgen — Euler'in grafitin vahşi kuzeniyle tokalaşması.",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Hemoglobin Heme Grubu",
-      "description": "Hemoglobini oksijen taşıyıcısına dönüştüren demir şelatlayan porfirin prostetik grubu: protein allosterisi sahne arkasında geri dönüşümlü O₂ bağlanması.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "BİYOLOJİK",
       "bondTypes": [

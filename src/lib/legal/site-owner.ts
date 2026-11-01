@@ -39,6 +39,17 @@ export interface SiteOwner {
    * the job runs. Filling it in is the owner's statement that the job is scheduled and monitored (LAUNCH_CHECKLIST §5.1).
    */
   signupIpPurgeJob: string;
+  /**
+   * Where the daily `db:process-deletions` job runs and what alerts you when it does not. The privacy policy describes self-service
+   * deletion as working ONLY once this is filled in (without the job nobody is ever anonymised). LAUNCH_CHECKLIST §5.1.
+   */
+  accountDeletionJob: string;
+  /**
+   * The owner's decision on the re-registration guard (a 12-month keyed hash of a deleted account's e-mail, to stop the signup bonus being
+   * collected twice). Start the value with "enabled" or "disabled" (it must match EMAIL_TOMBSTONE_GUARD on the service). The privacy text
+   * mentions the guard only when it starts with "enabled". Needs legal review either way.
+   */
+  emailTombstoneGuard: string;
   /** Effective date of the privacy policy and terms (YYYY-MM-DD). */
   effectiveDate: string;
 }
@@ -55,6 +66,8 @@ export const SITE_OWNER: SiteOwner = {
   geminiDataUse: `${PLACEHOLDER_PREFIX} what Google may do with prompts under the Gemini API plan used`,
   accountDeletion: `${PLACEHOLDER_PREFIX} how to request account deletion and what is kept (e.g. purchase records)`,
   signupIpPurgeJob: `${PLACEHOLDER_PREFIX} where the daily signup-address purge job runs and which heartbeat monitor alerts if it does not`,
+  accountDeletionJob: `${PLACEHOLDER_PREFIX} where the daily account-deletion job runs and which heartbeat monitor alerts if it does not`,
+  emailTombstoneGuard: `${PLACEHOLDER_PREFIX} "enabled" or "disabled" (same as EMAIL_TOMBSTONE_GUARD) after legal review of the 12-month e-mail hash`,
   effectiveDate: `${PLACEHOLDER_PREFIX} effective date`,
 };
 

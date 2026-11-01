@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "Этанол",
-      "description": "Знакомый двухуглеродный спирт из пива, вина и антисептиков — маленькая, полярная молекула с большим влиянием и в лаборатории, и в быту.",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "ПОВСЕДНЕВНАЯ ЖИЗНЬ",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "Аспирин",
-      "description": "Ацетилсалициловая кислота: классическое обезболивающее, необратимо меняющее химию тромбоцитов — медицина, история и органический синтез в одной таблетке.",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "МЕДИЦИНА",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "Дофамин",
-      "description": "Катехоламин с этиламиновым хвостом на катехольном кольце — мотивация, движение и мезолимбические мифы вращаются вокруг этой структуры.",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "НЕЙРОНАУКА",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "Адреналин",
-      "description": "Эпинефрин: молекула скачка пульса, когда в кустах что-то шелохнулось — симпатическая химия, сжатая в трёх срочных атомах кислорода.",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "НЕЙРОНАУКА",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "Он действует на α- и β-адренергические рецепторы — отсюда и сосудосужение, и бронхорасширение."
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 пятиугольников и 20 шестиугольников — рукопожатие Эйлера с диким кузеном графита.",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "Гемовая группа гемоглобина",
-      "description": "Протетическая порфириновая группа с хелатированием железа, превращающая гемоглобин в кислородный шаттл: обратимое связывание O₂ с аллостерией белка за кулисами.",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "БИОЛОГИЯ",
       "bondTypes": [

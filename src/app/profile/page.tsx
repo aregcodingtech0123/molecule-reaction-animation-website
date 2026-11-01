@@ -22,6 +22,7 @@ import { fetchProfileRequest, resendVerificationRequest, updateProfileRequest } 
 import type { AuthUser } from "@/lib/auth/types";
 import { formatDateOfBirthForDisplay } from "@/lib/auth/profile-validation";
 import { buildProfileUpdate } from "@/lib/auth/profile-update";
+import { DeleteAccountSection } from "@/components/profile/DeleteAccountSection";
 import { ExportDataSection } from "@/components/profile/ExportDataSection";
 import { safeNavigate } from "@/lib/navigation/safe-navigate";
 import { isCheckoutReturnPending } from "@/lib/billing/pre-checkout-view";
@@ -557,6 +558,12 @@ export default function ProfilePage() {
         </motion.section>
 
         {!loading && !error && profile && <ExportDataSection />}
+        {!loading && !error && profile && (
+          <DeleteAccountSection
+            scheduledFor={profile.deletionScheduledFor}
+            onCancelled={() => setProfile((p) => (p ? { ...p, deletionScheduledFor: null } : p))}
+          />
+        )}
       </div>
     </main>
   );

@@ -83,3 +83,14 @@ export const exportRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/** Requesting or cancelling account deletion: 5 per hour per account (wrong passwords count). Mounted after requireAuth. */
+export const deletionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `deletion:${req.user?.sub ?? ip(req)}`,
+  message: { success: false, error: "TOO_MANY_ATTEMPTS", retryAfter: 3600 },
+  validate,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+

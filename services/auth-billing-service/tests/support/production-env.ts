@@ -10,4 +10,5 @@ export const VALID_PRODUCTION_ENV: Record<string, string> = {
   RESEND_API_KEY: "re_test_not_a_real_key_0123456789",
   SENDER_EMAIL: "MoleculeStudio <no-reply@studio.example>",
   BCRYPT_ROUNDS: "12",
+  EMAIL_TOMBSTONE_SECRET: "tomb-Zx8Kq3Wm7Ld2Pv9Rt4Nc6Hb1Gy5Fs0Ja",
 };

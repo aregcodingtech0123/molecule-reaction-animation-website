@@ -58,6 +58,7 @@ describe("claims that were corrected or removed are gone from every bundle", () 
     "joyride", "UK/US naming", "popularized geodesic", "Physiology demos", "peptide drug design",
     "4 Calories", "Hydroelectric", "IV glucose", "Amide Resonance", "partial double-bond", "Universal biological solvent", "sigmoidal",
     "universal solvent", "heating and cooking", "Sports and energy",
+    "surprisingly influential", "one tiny tablet", "mesolimbic myths", "jumps in the bushes", "Euler", "allostery backstage", "vasoconstriction stories",
   ];
   it("the English bundle contains none of them", () => {
     const text = JSON.stringify(EN.molecules);

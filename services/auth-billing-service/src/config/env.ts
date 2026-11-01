@@ -1,6 +1,6 @@
 import "../config/loadEnv.js";
 import { assertDatabaseEnv, resolveDatabaseEnv } from "./database.js";
-import { aiDailyTurnLimits, aiHoldTtlSeconds, isProductionNodeEnv } from "./productionConfig.js";
+import { aiDailyTurnLimits, aiHoldTtlSeconds, emailTombstoneGuardSetting, isProductionNodeEnv } from "./productionConfig.js";
 
 const BCRYPT_ROUNDS = 10;
 
@@ -83,6 +83,16 @@ export const env = {
   get trustProxyHops() {
     const v = Number(readEnv("TRUST_PROXY_HOPS"));
     return Number.isInteger(v) && v >= 0 ? v : 0;
+  },
+
+  // ── Account deletion: re-registration guard ───────────────────────────────
+  /** False when EMAIL_TOMBSTONE_GUARD is off: no lookup, no bonus skip, no tombstone is written. */
+  get emailTombstoneGuardEnabled() {
+    return emailTombstoneGuardSetting(process.env).enabled;
+  },
+  /** Key of the e-mail hash (HMAC-SHA256). Its own secret; never reused for anything else. */
+  get emailTombstoneSecret() {
+    return readEnv("EMAIL_TOMBSTONE_SECRET");
   },
 
   // ── AI credit reservations ────────────────────────────────────────────────

@@ -155,6 +155,34 @@ export async function exportDataRequest(secret: ReauthSecret): Promise<PersonalD
   return data.data;
 }
 
+/** Asks for the account to be deleted after the 14-day grace period. Every session is revoked on success. */
+export async function requestDeletionRequest(secret: ReauthSecret): Promise<{ scheduledFor: string }> {
+  const res = await authFetch("/api/users/deletion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    credentials: "include",
+    body: JSON.stringify(secret),
+  });
+  const data = await parseJson<{ success: boolean; data?: { scheduledFor: string }; error?: string }>(res);
+  if (res.status === 429) throw new Error("Too many attempts. Please try again in an hour.");
+  if (!res.ok || !data.success || !data.data) {
+    throw new Error(extractError(data, "Your deletion request could not be sent."));
+  }
+  return data.data;
+}
+
+/** Cancels a pending deletion request (during the grace period). */
+export async function cancelDeletionRequest(): Promise<void> {
+  const res = await authFetch("/api/users/deletion", {
+    method: "DELETE",
+    cache: "no-store",
+    credentials: "include",
+  });
+  const data = await parseJson<{ success: boolean; error?: string }>(res);
+  if (!res.ok || !data.success) throw new Error(extractError(data, "The deletion request could not be cancelled."));
+}
+
 export async function verifyEmailRequest(token: string): Promise<AuthSuccessData> {
   const res = await fetch("/api/auth/verify-email", {
     method: "POST",

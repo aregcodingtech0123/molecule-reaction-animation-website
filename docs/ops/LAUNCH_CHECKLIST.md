@@ -116,13 +116,14 @@ If both show the same address (or a platform address), `CLIENT_IP_HEADER` is wro
 
 ### 1.3 Generate the secrets
 
-Three random secrets, **different from each other**, generated on your machine, stored in a password manager. Commands
+Four random secrets, **different from each other**, generated on your machine, stored in a password manager. Commands
 (both verified to pass the services' strength checks):
 
 | Secret | Command | Length | Notes |
 | --- | --- | --- | --- |
 | `INTERNAL_SERVICE_SECRET` | `openssl rand -base64 48` | 64 | **identical** on both services |
 | `JWT_SECRET` | `openssl rand -base64 48` | 64 | **identical** on both services; ≥ 32 characters, not a placeholder, not low-variety |
+| `EMAIL_TOMBSTONE_SECRET` | `openssl rand -base64 48` | 64 | **Express and the daily `db:process-deletions` job only** (never on the Next.js side). Its **own** value: the service refuses to start if it equals `JWT_SECRET` or `INTERNAL_SERVICE_SECRET`, and `check:config` flags it. Not needed if you set `EMAIL_TOMBSTONE_GUARD=false` (§1.6) |
 | `LEMONSQUEEZY_WEBHOOK_SECRET` | `openssl rand -hex 20` | 40 | **Lemon allows 6–40 characters, our service requires ≥ 32** — so *not* the 64-character command above. Same value in Lemon's webhook form and on Express |
 
 No `openssl`? Node does the same: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` (use
@@ -142,6 +143,7 @@ For a first deployment you need at least:
 | `PORT` | the platform sets it |
 | `DATABASE_URL` | the Neon **direct** URL of the app role (owner role until you switch — §2.4), `?sslmode=require` |
 | `JWT_SECRET`, `INTERNAL_SERVICE_SECRET` | §1.3 |
+| `EMAIL_TOMBSTONE_SECRET`, `EMAIL_TOMBSTONE_GUARD` | §1.3 and §1.6. The guard is `true` unless you set `false`; with `true` the secret is mandatory (the service will not start without it) |
 | `FRONTEND_URL` | `https://<site>` — exact origin, no path |
 | `GOOGLE_CLIENT_ID` | the Web client id (§4.2) |
 | `LEMONSQUEEZY_API_KEY` | the **live-mode** key (§3.3) |
@@ -223,8 +225,15 @@ npm run check:launch-content
 
 - [ ] Exit code `0`: no `TODO(owner):` placeholder left in `src/lib/legal/site-owner.ts` (legal name, country, postal address,
       contact email, governing law, refund policy, hosting providers, log retention, Gemini data use, account deletion,
-      **signup-address purge job (§5.1 — mandatory)**, effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
+      **signup-address purge job (§5.1 — mandatory)**, **account-deletion job (§5.1 — mandatory)**, **e-mail-hash decision (below)**, effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
       a "Draft" notice, are `noindex` and out of the sitemap, and no Organization JSON-LD is emitted.
+- [ ] **Legal review of the re-registration guard** (docs/seo/ACCOUNT_DELETION_DESIGN.md §3.3): when an account is deleted, a keyed
+      hash (HMAC-SHA256 under `EMAIL_TOMBSTONE_SECRET`) of its e-mail is kept for **12 months** so the same address cannot collect the
+      10-credit signup bonus again; a purge job removes older ones. That hash is still personal data. Ask counsel: is it allowed next to
+      the right to erasure (GDPR Art. 17; KVKK Art. 7), what is the legal basis (legitimate interest in preventing abuse?), is 12 months
+      proportionate, and what must `/privacy` say (a marked draft paragraph is already there). Then **either** set
+      `EMAIL_TOMBSTONE_GUARD=true` and write `enabled …` in `SITE_OWNER.emailTombstoneGuard`, **or** set `EMAIL_TOMBSTONE_GUARD=false`
+      (no hash is computed, looked up or stored; the secret is no longer needed) and write `disabled …`. The two must agree.
 - [ ] A lawyer has reviewed `/privacy` and `/terms` (no script can check this). Sources of every privacy statement and the
       open points: `docs/seo/TRUST_PAGES.md`.
 - [ ] The check reads only the file or env you hand it. It cannot see what the **host's dashboard** really holds, so
@@ -237,18 +246,25 @@ npm run check:launch-content
 Two sets of text exist in English only or as machine translation. Neither blocks the English-only indexing decision (D1), but
 both must be reviewed before non-English visitors are invited:
 
-- [ ] **28 molecule statements per language are English placeholders** in the 11 non-English bundles
+- [ ] **34 molecule statements per language are English placeholders** in the 11 non-English bundles
       (`src/lib/i18n/content/<locale>.json`, `molecules.<id>`): the translation of a statement that was added or reworded after
       sourcing (DATA_REVIEW §6.4) was removed rather than left stale, so the slot holds the English text. Keys
       (`<molecule>.<field>[index]`): water.description, water.uses[0], water.uses[1], water.funFacts[0], methane.uses[0],
       methane.funFacts[0], methane.funFacts[1], glucose.uses[1], protein-fragment.uses[0], protein-fragment.uses[1],
-      protein-fragment.funFacts[0], ethanol.uses[2], ethanol.funFacts[1], aspirin.funFacts[0], capsaicin.description,
-      capsaicin.funFacts[0], serotonin.description, serotonin.uses[1], serotonin.funFacts[0], dopamine.uses[1],
-      dopamine.funFacts[1], adrenaline.funFacts[0], buckminsterfullerene.description, buckminsterfullerene.uses[0],
-      buckminsterfullerene.funFacts[1], heme-group.uses[0], heme-group.uses[1], heme-group.funFacts[0]. Translate each from the
-      **English text in `en.json`** (it carries the source-bound wording) and keep numbers and qualifiers exactly
-      (e.g. "about 81–83 times"). A locale slot equal to the English text is the signal that it is still untranslated;
+      protein-fragment.funFacts[0], ethanol.description, ethanol.uses[2], ethanol.funFacts[1], aspirin.description,
+      aspirin.funFacts[0], capsaicin.description, capsaicin.funFacts[0], serotonin.description, serotonin.uses[1],
+      serotonin.funFacts[0], dopamine.description, dopamine.uses[1], dopamine.funFacts[1], adrenaline.description,
+      adrenaline.funFacts[0], adrenaline.funFacts[1], buckminsterfullerene.description, buckminsterfullerene.uses[0],
+      buckminsterfullerene.funFacts[0], heme-group.description, heme-group.uses[0], heme-group.uses[1], heme-group.funFacts[0].
+      Translate each from the **English text in `en.json`** (it carries the source-bound wording) and keep numbers and qualifiers
+      exactly (e.g. "about 81–83 times"). A locale slot equal to the English text is the signal that it is still untranslated;
       `tests/unit/i18n/molecule-content-sync.test.ts` keeps the lists aligned with the data.
+- [ ] **The account-deletion warning, in every language** (`src/components/profile/DeleteAccountSection.tsx`, English only today).
+      The approved English sentence must be translated faithfully, with the number of credits in place of N:
+      *"If you delete your account, your remaining N credits are permanently lost and cannot be restored. Deletion takes effect after a
+      14-day grace period, during which you can cancel."* Also translate the rest of that section ("Delete my account", "Cancel deletion",
+      "Account deletion scheduled", the password and Google prompts, the e-mail the service sends when a deletion is requested —
+      `buildDeletionRequestedEmail`) and the "Download my data" section.
 - [ ] **924 machine-translated strings** (84 UI keys × 11 locales) await native review (`docs/testing/I18N_REVIEW.md`);
       the **22 keys with legal, pricing or billing meaning go first**.
 - [ ] New English-only labels added by the SEO work (trust pages, "Common classification, not an IUPAC designation", "State
@@ -284,9 +300,9 @@ same settings:
 cd services/auth-billing-service
 export MIGRATION_DATABASE_URL='postgresql://…<rehearsal branch, direct, no -pooler>…?sslmode=require'
 npm run db:migrate:status      # every file "pending", 15 files (001 … 015)
-npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=16
+npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=17
 npm run db:migrate             # again → mode=tracked baselined=0 applied=0   (the runner is idempotent)
-npm run db:migrate:status      # all 16 "applied"
+npm run db:migrate:status      # all 17 "applied"
 npm run db:reconcile           # exit 0: two "OK" lines
 ```
 
@@ -306,7 +322,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
   -- pending_checkout_orders, revoked_tokens, schema_migrations, user_balances, users, verification_tokens
 ```
 
-- [ ] All of the above match, including `mode=fresh … applied=16` and `SELECT version()` = PostgreSQL 18.
+- [ ] All of the above match, including `mode=fresh … applied=17` and `SELECT version()` = PostgreSQL 18.
 - [ ] You did **not** run `db:setup` (it is for local databases: it connects to the `postgres` maintenance database to
       `CREATE DATABASE`) and did **not** run `--baseline` (that is only for a database created before the runner
       existed; on an empty database the runner picks `mode=fresh` by itself).
@@ -321,7 +337,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
 
 - [ ] Create a Neon branch of production named `pre-launch-<date>` (instant, costs nothing — a restore point).
 - [ ] Same commands as §2.2 with the **production** direct URL in `MIGRATION_DATABASE_URL` (`--dry-run` is available
-      if you want the plan first). Expected: `mode=fresh baselined=0 applied=16`, then the SQL checks, then
+      if you want the plan first). Expected: `mode=fresh baselined=0 applied=17`, then the SQL checks, then
       `npm run db:reconcile` → exit 0.
 - [ ] `unset MIGRATION_DATABASE_URL` in that shell afterwards.
 
@@ -539,7 +555,7 @@ Runbook §7.0 in short: open the site exactly as users reach it, sign in.
 ### 4.6 Logout and the closing checks
 
 - [ ] Sign out; `/dashboard` redirects to `/login`.
-- [ ] `npm run db:migrate:status` (all 16 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
+- [ ] `npm run db:migrate:status` (all 17 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
       not reviewed yet).
 - [ ] The client-IP test from §A passed (two networks → two different `signup_ip` values).
 
@@ -574,6 +590,7 @@ Nothing in this repository pages you; wire these up before announcing the launch
 | Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
 | **MANDATORY** — Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90), with `PURGE_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit of the job (`1` = it failed or migration 016 is missing, `2` = it purged but the heartbeat ping failed, `64` = bad argument); (2) **no ping from the heartbeat monitor within 26 hours** (e.g. healthchecks.io-style "period 1 day, grace 2 h", email/SMS) — this is what catches a job that **never ran** (a scheduler that is disabled, deleted or out of credit sends no exit code at all). The job prints a count, never an address, and sends the ping only after a successful purge; the ping URL is a secret (only its host is ever printed). Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy states "cleared automatically once the account is 90 days old" only after you fill `SITE_OWNER.signupIpPurgeJob` (`src/lib/legal/site-owner.ts`); until then it says the clearing is planned. Fill it only when both alerts exist and a test run showed the ping arriving** |
+| **MANDATORY** — Account deletion (migration 017) | `npm run db:process-deletions` (service folder, owner URL; `-- --dry-run` lists what is due), with `EMAIL_TOMBSTONE_SECRET` set (or `EMAIL_TOMBSTONE_GUARD=false`) and `DELETION_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit (`1` = a failure, a missing migration 017, or a missing/short `EMAIL_TOMBSTONE_SECRET` — it refuses to run rather than store an unkeyed hash; `2` = it worked but the heartbeat ping failed; `64` = bad argument); (2) **no ping within 26 hours** (catches a job that never ran — without it nobody is ever deleted although the site promises it). It anonymises accounts whose request is ≥ 14 days old, postpones (and counts) accounts with an open AI reservation or pending checkout, removes e-mail tombstones older than 12 months, and prints counts only. Never touches the ledger or balances. **`/privacy` describes self-service deletion as active only after you fill `SITE_OWNER.accountDeletionJob` — fill it only when both alerts exist and a dry run showed the job working** |
 
 Where to run them: `db:reconcile` needs the service folder with `npm ci` done, Node, and the owner URL; the cron SQL needs
 `psql` and that URL. Keep the owner URL out of the Express host's runtime environment. Options: **(a)** a scheduled GitHub Actions workflow (`schedule:`)
@@ -591,7 +608,7 @@ tell me if you want one written.
 | Express | `[Webhook] FAILED background credit allocation` | a stored delivery still failed after the service's 10 automatic attempts (≈ 10 min) — its credits are missing. Fix the cause (`last_error` in `db:reconcile`), then run **`npm run webhooks:replay`** on the Express host (idempotent per order). **Page on it** |
 | Express | `[Webhook] NOT STORED — answered 503 so Lemon retries the delivery` | the database could not take the delivery within 3 s; Lemon retries after 5 s, 25 s, 125 s. Alert when it repeats for more than ~2 min: after Lemon's last retry the delivery shows as failed in Lemon's webhook log → **resend** it there |
 | Express | `[Webhook] Processing failed — the event is stored and will be retried` | transient (database slow or down); retried every minute. No action unless it ends in the `FAILED` line above |
-| Express | `Unable to resolve package`, `Amount mismatch`, `Unexpected currency`, `Missing user identity`, `Order from another store`, `Ignoring test-mode order` | a signed order was **not** credited by design — usually mis-set variant ids, prices, store id or a test-mode order; compare with the Lemon order, fix, then resend |
+| Express | `Unable to resolve package`, `Amount mismatch`, `Unexpected currency`, `Missing user identity` (also what a purchase for an already-deleted account produces — it is **not credited**; refund the buyer in Lemon), `Order from another store`, `Ignoring test-mode order` | a signed order was **not** credited by design — usually mis-set variant ids, prices, store id or a test-mode order; compare with the Lemon order, fix, then resend |
 | Express | `[Webhook] Recorded refund` | a refund arrived — expect `refunded_order_credited` in the next reconcile |
 | Express | `[credits] AI_CAPACITY_REACHED` | the **global** daily AI cap was hit (users get `503 AI_CAPACITY_REACHED`) — raise `AI_DAILY_TURNS_GLOBAL` or investigate |
 | Express | `[credits] CAPTURE_FAILED` | a debit could not be posted (not charged) |
@@ -644,6 +661,7 @@ SELECT count(*) FROM pending_checkout_orders WHERE status = 'pending' AND create
 | --- | --- | --- | --- |
 | `JWT_SECRET` | **every user is signed out** | generate (§1.3) → set on **both** → deploy **Express first**, then Next.js immediately | sign in on the public origin (§4.2) |
 | `INTERNAL_SERVICE_SECRET` | AI Lab fails (`INTERNAL_AUTH_REJECTED`, 503) between the two deploys; open holds expire uncharged | generate → set on both → deploy Express, then Next.js — do it in a quiet minute | one AI turn is captured (§4.5) |
+| `EMAIL_TOMBSTONE_SECRET` | **fail-open, no grace:** existing e-mail tombstones stop matching, so addresses deleted before the change can collect the signup bonus again; nothing else breaks | generate (§1.3) → set on Express **and** on the machine that runs `db:process-deletions` → deploy; **rotate only if the key may have leaked**, not routinely. Tombstones made with the old key simply expire after 12 months | register a throw-away address, delete the account, run the job, register it again: no bonus |
 | `LEMONSQUEEZY_WEBHOOK_SECRET` | deliveries between the two changes are rejected (`Rejected:`, 401) and retried by Lemon, then dropped | generate (`openssl rand -hex 20`) → change it in Lemon's webhook **and** on Express and redeploy, back to back → afterwards **resend** failed deliveries from Lemon's webhook log (idempotent per order) | a real or test order logs `Acknowledged 200 OK` |
 | `LEMONSQUEEZY_API_KEY` | none (only checkout creation uses it) | create a new **live-mode** key → set on Express → deploy → revoke the old key | start a checkout |
 | `RESEND_API_KEY` | none | new key → set on Express → deploy → delete the old key | send a verification mail |
@@ -665,6 +683,7 @@ Neon branch of production (instant) before changing data.
 | `LEMONSQUEEZY_WEBHOOK_SECRET` | **highest**: forged `order_created` events can credit any account (still bounded by pack price, store id, live mode — but unlimited order ids) | rotate **now** (§6.1); then list `CREDIT_PURCHASE` rows since the leak (`SELECT created_at, user_id, amount, reference_id FROM credit_ledger_transactions WHERE transaction_type = 'CREDIT_PURCHASE' ORDER BY id DESC LIMIT 200;`) and compare each `ls_order_<id>` with Lemon's orders; claw back forged ones with `ADMIN_ADJUSTMENT` rows (never delete ledger rows) |
 | `JWT_SECRET` | an attacker can mint sessions | rotate **now** (signs everyone out); review recent activity |
 | `INTERNAL_SERVICE_SECRET` | metering calls and a trusted client-IP header (still needs a valid user session) | rotate |
+| `EMAIL_TOMBSTONE_SECRET` | someone with the table and the key could test whether a given address belonged to a deleted account | rotate (§6.1); the table holds no addresses |
 | database URL / password | full data access; the owner role can bypass the ledger triggers | reset the role password (§6.1), review `db:reconcile` and `ADMIN_ADJUSTMENT` rows, restore from Neon if tampered (§2.5) |
 | `GEMINI_API_KEY` | cost | revoke at Google, issue a new key (§6.1), check usage |
 | `RESEND_API_KEY` | mail sent as your domain | rotate, check Resend's sent log |
@@ -745,13 +764,16 @@ None of these is a hidden defect; each is a decision with a trigger. Details liv
 Launch only when all of these are true:
 
 - [ ] §1.5 `check:config` passes (including `SITE_URL`); the hosts hold the same values.
-- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=16`, SQL checks match, reconcile exit 0.
+- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=17`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
 - [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
 - [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then fill `SITE_OWNER.signupIpPurgeJob` so the privacy policy may say the address is cleared after 90 days.
 - [ ] §6 you have the rotation steps, the incident page and the rollback bookmarks at hand.
+- [ ] §5.1 **the daily `db:process-deletions` job is scheduled, has run at least once on production (its log shows "anonymised N account(s)" and "heartbeat sent"), and BOTH alerts exist.** Only then fill `SITE_OWNER.accountDeletionJob`.
+- [ ] §1.6 the re-registration guard is decided with counsel (`enabled` or `disabled`) and `SITE_OWNER.emailTombstoneGuard` matches `EMAIL_TOMBSTONE_GUARD`.
+- [ ] The manual deletion process (runbook §11) is understood by whoever answers `SITE_OWNER.contactEmail`, until you have run the self-service path once end to end.
 - [ ] §1.7 the native-translation items are done, or you have decided to launch English-only for now (then say so in §7).
 - [ ] §7 you have read the limitations and accept them.
 

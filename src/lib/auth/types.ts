@@ -7,6 +7,8 @@ export interface AuthUser {
   isAdmin: boolean;
   isVerified: boolean;
   createdAt: string;
+  /** When the account will be deleted if the user asked for deletion (request + 14 days), otherwise null/absent. */
+  deletionScheduledFor?: string | null;
 }
 
 export interface RegisterProfileInput {

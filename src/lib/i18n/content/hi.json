@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "इथेनॉल",
-      "description": "बियर, वाइन और एंटीसेप्टिक जेल के पीछे परिचित दो-कार्बन शराब — छोटा, ध्रुवीय, और रसायन प्रयोगशालाओं तथा जीवन दोनों में आश्चर्यजनक रूप से प्रभावशाली।",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "दैनिक जीवन",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "एस्पिरिन",
-      "description": "एसिटाइलसैलिसिलिक अम्ल: एक क्लासिक दर्द निवारक जो अपरिवर्तनीय रूप से प्लेटलेट रसायन बदलता है — चिकित्सा, इतिहास और कार्बनिक संश्लेषण एक छोटी गोली में।",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "चिकित्सा",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "डोपामाइन",
-      "description": "कैटेकॉल पर एक छोटी एथिलअमीन पूँछ वाला कैटेकॉलामीन — प्रेरणा, गति और मेसोलिम्बिक मिथक इस संरचना के चारों ओर घूमते हैं।",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "तंत्रिका विज्ञान",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "एड्रेनालिन",
-      "description": "एपिनेफ्रिन: झाड़ियों से कुछ कूदने पर धड़कन बढ़ने वाला अणु — तीन ऑक्सीजन की तात्कालिकता में संक्षिप्त सहानुभूतिक रसायन।",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "तंत्रिका विज्ञान",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "यह α- और β-एड्रिनर्जिक रिसेप्टरों पर क्रियाशील है, वासोकंस्ट्रिक्शन और ब्रोंकोडिलेटर दोनों उपयोग समझाता है।"
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12 पेंटागन और 20 षट्कोण — यूलर का ग्रेफ़ाइट के जंगली चचेरे भाई से हाथ मिलाना।",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "हीमोग्लोबिन हीम समूह",
-      "description": "लौह-चेलेटिंग पोर्फिरिन प्रोस्थेटिक समूह जो हीमोग्लोबिन को ऑक्सीजन वाहक बनाता है: प्रोटीन एलोस्टेरी के साथ प्रतिवर्ती O₂ बंधन।",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "जैविक",
       "bondTypes": [

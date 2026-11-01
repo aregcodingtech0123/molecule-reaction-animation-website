@@ -50,6 +50,37 @@ export function lemonVariantConfigProblem(source: NodeJS.ProcessEnv = process.en
   return null;
 }
 
+/**
+ * The re-registration guard (account deletion, docs/seo/ACCOUNT_DELETION_IMPLEMENTATION.md §5).
+ * EMAIL_TOMBSTONE_GUARD: "true" (default when unset) or "false"/"0"/"off"/"no" to disable it, e.g. if legal review rejects it.
+ * Anything else is a misconfiguration - never silently read as "off" (that would quietly stop protecting the signup bonus).
+ */
+export function emailTombstoneGuardSetting(source: NodeJS.ProcessEnv = process.env): { enabled: boolean; invalid: boolean } {
+  const raw = source.EMAIL_TOMBSTONE_GUARD?.trim().toLowerCase() ?? "";
+  if (raw === "" || /^(true|1|yes|on)$/.test(raw)) return { enabled: true, invalid: false };
+  if (/^(false|0|no|off)$/.test(raw)) return { enabled: false, invalid: false };
+  return { enabled: true, invalid: true };
+}
+
+/** Problems with the guard's settings (empty = fine). The secret is required only while the guard is enabled. */
+export function emailTombstoneConfigProblems(source: NodeJS.ProcessEnv = process.env): string[] {
+  const setting = emailTombstoneGuardSetting(source);
+  if (setting.invalid) {
+    return [`EMAIL_TOMBSTONE_GUARD must be "true" or "false" (got ${JSON.stringify(source.EMAIL_TOMBSTONE_GUARD?.trim())}).`];
+  }
+  if (!setting.enabled) return [];
+  const secret = source.EMAIL_TOMBSTONE_SECRET?.trim() ?? "";
+  const problems: Array<string | null> = [weakSecretReason("EMAIL_TOMBSTONE_SECRET", source.EMAIL_TOMBSTONE_SECRET)];
+  // A secret of its own: sharing one with JWT_SECRET / INTERNAL_SERVICE_SECRET would tie the session or internal-call
+  // secrets to the key that makes deleted-account e-mail hashes, and rotating one would silently rotate the other.
+  for (const other of ["JWT_SECRET", "INTERNAL_SERVICE_SECRET"] as const) {
+    if (secret && secret === (source[other]?.trim() ?? "")) {
+      problems.push(`EMAIL_TOMBSTONE_SECRET must not be the same value as ${other}; generate a separate secret.`);
+    }
+  }
+  return problems.filter((p): p is string => p !== null);
+}
+
 /** AI reservation lifetime in seconds (default 600). Pure, so `npm run check:config` can use it. */
 export function aiHoldTtlSeconds(source: NodeJS.ProcessEnv = process.env): number {
   const v = Number(source.AI_HOLD_TTL_SECONDS?.trim());
@@ -119,6 +150,7 @@ export function productionConfigProblems(source: NodeJS.ProcessEnv = process.env
       : "LEMONSQUEEZY_STORE_ID must be a numeric Lemon Squeezy store id.",
     lemonVariantConfigProblem(source),
     requiredValue("RESEND_API_KEY", source.RESEND_API_KEY),
+    ...emailTombstoneConfigProblems(source),
   ];
 
   const sender = source.SENDER_EMAIL?.trim() || source.EMAIL_FROM?.trim();

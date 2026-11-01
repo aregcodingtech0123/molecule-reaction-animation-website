@@ -112,7 +112,7 @@
     },
     "ethanol": {
       "name": "エタノール",
-      "description": "ビール、ワイン、消毒ジェルの背後にあるおなじみの2炭素アルコール——小さく極性があり、化学実験室でもパーティーでも意外なほど影響力を持つ。",
+      "description": "The two-carbon alcohol in alcoholic beverages, widely used as an antiseptic and as a solvent.",
       "category": "organic",
       "disciplineTag": "日常生活",
       "bondTypes": [
@@ -132,7 +132,7 @@
     },
     "aspirin": {
       "name": "アスピリン",
-      "description": "アセチルサリチル酸：血小板の化学を不可逆的に変える古典的な鎮痛薬——医学、歴史、有機合成が一枚の錠剤に凝縮されている。",
+      "description": "Acetylsalicylic acid: a pain and fever reliever that irreversibly inhibits an enzyme in platelets.",
       "category": "organic",
       "disciplineTag": "医学",
       "bondTypes": [
@@ -189,7 +189,7 @@
     },
     "dopamine": {
       "name": "ドーパミン",
-      "description": "カテコール環にエチルアミン尾を付けたカテコールアミン——動機づけ、運動、中脳辺縁系の神話がこの構造を巡る。",
+      "description": "A catecholamine neurotransmitter made from tyrosine and the precursor of norepinephrine and epinephrine; it helps regulate movement.",
       "category": "biological",
       "disciplineTag": "神経科学",
       "bondTypes": [
@@ -208,7 +208,7 @@
     },
     "adrenaline": {
       "name": "アドレナリン",
-      "description": "エピネフリン：茂みから何かが飛び出したときの脈拍上昇の背後にある分子——交感神経化学が3つの酸素の緊急さに凝縮したもの。",
+      "description": "Epinephrine: the hormone of the “fight-or-flight” response, secreted by the adrenal glands.",
       "category": "biological",
       "disciplineTag": "神経科学",
       "bondTypes": [
@@ -222,7 +222,7 @@
       ],
       "funFacts": [
         "Adrenaline and epinephrine are two names for the same hormone.",
-        "α-およびβ-アドレナリン受容体に作用し、血管収縮と気管支拡張の両方の用途を説明する。"
+        "It acts on α- and β-adrenergic receptors, which explains both vasoconstriction and bronchodilation."
       ]
     },
     "buckminsterfullerene": {
@@ -238,13 +238,12 @@
         "Electron acceptors (fullerene derivatives) in organic solar-cell research"
       ],
       "funFacts": [
-        "12個の五角形と20個の六角形——オイラーの握手と黒鉛の野生のいとこ。",
         "Named after Buckminster Fuller because its structure resembles his geodesic domes."
       ]
     },
     "heme-group": {
       "name": "ヘモグロビン ヘム基",
-      "description": "ヘモグロビンを酸素シャトルに変える鉄キレートポルフィリン補因子：タンパク質の異常協同性が舞台裏で可逆的O₂結合を可能にする。",
+      "description": "The iron-containing porphyrin group of hemoglobin: it is the heme that binds oxygen.",
       "category": "biological",
       "disciplineTag": "生物学",
       "bondTypes": [

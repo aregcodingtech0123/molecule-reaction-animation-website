@@ -7,7 +7,7 @@ ledger rows stay immutable.** So this note splits the work into what is built no
 | --- | --- | --- | --- |
 | 1 | `signup_ip` retention (clear after 90 days) | writes one column of `users`; no auth logic, no ledger, no billing | **built** in this change (you asked for it) |
 | 2 | Stop generating a fake name / date of birth for Google sign-ups | **yes: the Google sign-up code path, the `users` insert and what the UI does with empty fields** | **implemented (owner GO):** [`GOOGLE_PROFILE_DESIGN.md`](GOOGLE_PROFILE_DESIGN.md) (supersedes §2 below: the response shape does **not** need to change); the privacy text says it honestly meanwhile |
-| 3 | Account deletion + data export (KVKK / GDPR) | **yes: auth (sessions), `users`, and it must leave the ledger untouched** | **Phase A (export) implemented; Phase B (deletion) approved in principle, not built, awaiting go:** [`ACCOUNT_DELETION_DESIGN.md`](ACCOUNT_DELETION_DESIGN.md) (supersedes §3 below; 14-day grace, export, third parties, side effects found) |
+| 3 | Account deletion + data export (KVKK / GDPR) | **yes: auth (sessions), `users`, and it must leave the ledger untouched** | **Phase A (export) and Phase B (deletion + re-registration guard) implemented (owner GO):** [`ACCOUNT_DELETION_DESIGN.md`](ACCOUNT_DELETION_DESIGN.md) (supersedes §3 below; 14-day grace, export, third parties, side effects found) |
 
 ## 1. `signup_ip` retention — built
 
