@@ -328,3 +328,20 @@ not produced in bulk" (TC-73); `signup_ip` cleared after 90 days — migration 0
 | `npm run test:seo` | **25 passed** | |
 | `npm run check:launch-content` | **exit 1** (11 placeholders) | expected |
 | ESLint on every changed file | no errors (3 pre-existing unused-variable warnings in `MoleculeInfoPanel.tsx`) | |
+
+## Part 2 follow-ups, round 2 — what changed and the verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6)
+
+Aspirin and serotonin regenerated from PubChem (TC-75); the ~40 unsourced molecule statements sourced, reworded or removed, and the locale bundles brought back in step with the data (TC-76, DATA_REVIEW §6.4); the signup-address purge made a mandatory, heartbeat-monitored launch gate with a conditional privacy sentence (TC-77); design notes for the Google sign-up profile and for account deletion/export (`GOOGLE_PROFILE_DESIGN.md`, `ACCOUNT_DELETION_DESIGN.md`, awaiting approval, nothing implemented).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 40 files, **709 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 54 files, **969 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/` 811.7, `/explore` 829.4, `/periodic-table` 363 KiB; molecule and trust routes 344.6 / 380 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:launch-content` | **exit 1** (12 placeholders, incl. `signupIpPurgeJob`) | expected |
+| ESLint on changed source and test folders | no output (clean) | |
+
