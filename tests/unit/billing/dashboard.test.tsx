@@ -1,6 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "@/context/LanguageContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { json, LinkMock, makeAuth, navigationMock, renderWithProviders, routeFetch, router, signedIn } from "../../support/mocks";
 
 const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
@@ -168,6 +171,53 @@ describe("dashboard ledger table", () => {
     } finally {
       window.history.replaceState({}, "", "/");
     }
+  });
+});
+
+describe("R10: the static header is in the server HTML and in the loading state; nothing personal is", () => {
+  it("renders to a string on the server (no session known yet) with the <h1>, the quick links and the feature cards", () => {
+    auth.current = makeAuth({ isHydrated: false });
+    const html = renderToString(
+      <LanguageProvider>
+        <ThemeProvider>
+          <DashboardPage />
+        </ThemeProvider>
+      </LanguageProvider>,
+    );
+    expect(html).toMatch(/<h1[^>]*>Your MoleculeStudio Account<\/h1>/);
+    for (const href of ["/profile", "/ai-lab", "/explore", "/pricing", "/periodic-table", "/showcase", "/learn"]) {
+      expect(html, href).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('role="status"');
+    // nothing that depends on the session: no balance, ledger, pricing cards or e-mail
+    expect(html).not.toMatch(/<table|Load more|ada@example\.test|Ada|Lovelace/);
+  });
+
+  it("while the session is unknown (not hydrated) the header shows with a loading indicator, and no ledger, balance or checkout", () => {
+    auth.current = makeAuth({ isHydrated: false });
+    renderWithProviders(<DashboardPage />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your MoleculeStudio Account");
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("a guest still gets the client-side redirect, and the personal sections never render", () => {
+    auth.current = makeAuth();
+    renderWithProviders(<DashboardPage />);
+    expect(router.replace).toHaveBeenCalledWith("/login");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("once signed in the loading indicator is replaced and the header is the same single <h1>", async () => {
+    auth.current = signedIn({ credits: 5 });
+    vi.stubGlobal("fetch", routeFetch({ "GET /api/billing/history": () => json({ success: true, data: { transactions: rows } }) }));
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.queryByRole("status", { name: "Loading" })).not.toBeInTheDocument();
   });
 });
 

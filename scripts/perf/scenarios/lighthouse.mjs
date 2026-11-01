@@ -57,6 +57,9 @@ export async function run(ctx) {
               si: a["speed-index"].numericValue,
               bytesKiB: Number((a["total-byte-weight"].numericValue / 1024).toFixed(1)),
               unusedJsKiB: Number(((a["unused-javascript"]?.details?.overallSavingsBytes ?? 0) / 1024).toFixed(1)),
+              // which element Lighthouse picked as LCP (R10 diagnosis): the first item of the element audit
+              lcpElement: JSON.stringify(a["largest-contentful-paint-element"]?.details?.items?.[0]?.items?.[0]?.node?.snippet ?? a["largest-contentful-paint-element"]?.details?.items?.[0] ?? null)?.slice(0, 240),
+              lcpAuditKeys: Object.keys(a).filter((k) => /lcp|largest/.test(k)),
               finalUrl: lhr.finalDisplayedUrl,
               runWarnings: lhr.runWarnings,
             };
