@@ -188,7 +188,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 
 ```bash
 node scripts/migrate.mjs --baseline --dry-run     # re-check right before applying
-node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–015)
+node scripts/migrate.mjs --baseline               # records existing files, applies the rest (006?, 007?, 008–016)
 node scripts/migrate.mjs --status                 # every file: applied or baselined
 ```
 
@@ -439,6 +439,10 @@ Where to run them, which log lines to alert on and how long logs survive on each
   On platforms with scheduled jobs (Render cron, GitHub Actions `schedule`, Neon + a worker) run the
   same command; the scheduler's "job failed" alert is the signal. Both behaviours are covered by
   `services/auth-billing-service/tests/db/cli.test.ts`.
+  **Signup address retention** (daily, privacy): `node scripts/purge-signup-ips.mjs` (`--days N`, default 90) clears
+  `users.signup_ip` for older accounts (migration 016) and prints how many; it never prints an address and touches no
+  ledger, balance or billing row. Non-zero exit = alert (`1` the job failed or 016 is not applied, `64` bad argument). Same
+  scheduler and owner URL as the reconciliation above; covered by `tests/db/purge-signup-ips.test.ts`.
   Issues: `balance_mismatch`, `missing_balance_row`, `capture_failed` (a debit reached the service but
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
@@ -479,10 +483,12 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–015 (only if they cause a problem)
+### 10.1 Migrations 008–016 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 016 (a function nothing in the application calls; also stop the daily `db:purge-signup-ips` job)
+DROP FUNCTION IF EXISTS purge_signup_ips(INTERVAL);
 -- 015 (first run `npm run webhooks:replay` and check `db:reconcile`: unprocessed stored deliveries would be
 -- lost — Lemon got a 200 for them; export lemon_webhook_events if you need the history)
 DROP FUNCTION IF EXISTS webhook_events_to_review(INTERVAL);
@@ -515,7 +521,8 @@ DROP FUNCTION IF EXISTS ledger_reconciliation();
 DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
-                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql');
+                   '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql',
+                   '016_signup_ip_retention.sql');
 COMMIT;
 ```
 

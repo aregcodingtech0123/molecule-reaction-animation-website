@@ -32,8 +32,9 @@ export default function PrivacyPage() {
       <ul>
         <li>
           With email and password we store your email address, your password as a one-way bcrypt hash (never the password
-          itself), your first name, last name and date of birth as you enter them, the IP address you signed up from,
-          whether your email address is verified, and when the account was created.
+          itself), your first name, last name and date of birth as you enter them, the IP address you signed up from
+          (cleared automatically once the account is 90 days old), whether your email address is verified, and when the
+          account was created.
         </li>
         <li>
           With Google sign-in we store your Google account identifier and the email address Google confirms. Google does
@@ -59,7 +60,8 @@ export default function PrivacyPage() {
         Payments are handled by Lemon Squeezy, the merchant of record: you pay on their checkout page and your card details
         never reach us. To start a checkout we send Lemon Squeezy your email address and your account id. When the payment
         completes, Lemon Squeezy sends us the order; we store that message as received (it contains the order details
-        Lemon Squeezy includes, such as the buyer&apos;s email address), the credits added, and a permanent record of every
+        Lemon Squeezy includes, such as the buyer&apos;s email address; that stored copy is cleared 30 days after the order was
+        processed), the credits added, and a permanent record of every
         purchase, use and refund of credits. Refund notices from Lemon Squeezy are stored the same way. We email you a
         receipt for each purchase. Refunds: <Owner value={o.refundPolicy} />.
       </p>

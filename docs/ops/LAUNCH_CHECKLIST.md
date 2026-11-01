@@ -516,7 +516,7 @@ Runbook §7.0 in short: open the site exactly as users reach it, sign in.
 ### 4.6 Logout and the closing checks
 
 - [ ] Sign out; `/dashboard` redirects to `/login`.
-- [ ] `npm run db:migrate:status` (all 14 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
+- [ ] `npm run db:migrate:status` (all 16 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
       not reviewed yet).
 - [ ] The client-IP test from §A passed (two networks → two different `signup_ip` values).
 
@@ -550,6 +550,7 @@ Nothing in this repository pages you; wire these up before announcing the launch
 | --- | --- | --- | --- |
 | Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
+| Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90) | daily | any non-zero exit (`1` = the job failed or migration 016 is missing, `64` = bad argument). It prints a count, never an address. Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy says "kept for 90 days": without this job that sentence is false** |
 
 Where to run them: `db:reconcile` needs the service folder with `npm ci` done, Node, and the owner URL; the cron SQL needs
 `psql` and that URL. Keep the owner URL out of the Express host's runtime environment. Options: **(a)** a scheduled GitHub Actions workflow (`schedule:`)

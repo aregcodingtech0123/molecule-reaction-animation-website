@@ -23,6 +23,7 @@
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "db:migrate:baseline": "node scripts/migrate.mjs --baseline",
     "db:reconcile": "node scripts/reconcile.mjs",
+    "db:purge-signup-ips": "node scripts/purge-signup-ips.mjs",
     "webhooks:replay": "node dist/scripts/replayWebhooks.js"
   },
   "dependencies": {

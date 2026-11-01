@@ -60,6 +60,7 @@ describe("migrations 001→007 on an empty database", () => {
       "013_lemon_order_refunds.sql",
       "014_ai_daily_caps.sql",
       "015_lemon_webhook_inbox.sql",
+      "016_signup_ip_retention.sql",
     ]);
   });
 

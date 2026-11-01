@@ -25,6 +25,8 @@ code it comes from, so a reviewer can check it and so a code change that makes i
 | AI Lab: conversation sent to Gemini; messages not stored; one charge record per answer; logs carry account id + reference, never text | `src/app/api/chat/route.ts` (`boundConversation(messages)` → Gemini; `console.*` calls log `userId`, `referenceId` only), `ai_credit_holds` |
 | Browser loads 3D structures from PubChem, sending the SMILES string and the IP | `src/lib/molecules/sdf-parser.ts` `fetchMoleculeFromSMILES` (browser `fetch` to `pubchem.ncbi.nlm.nih.gov`) |
 | Emails through Resend | `services/…/lib/email.ts` |
+| `signup_ip` cleared when the account is 90 days old | migration `016_signup_ip_retention.sql` `purge_signup_ips()` + daily `npm run db:purge-signup-ips` (true only while the job runs: launch checklist §5.1) |
+| The stored Lemon order message is cleared 30 days after processing | `services/…/services/webhookInbox.service.ts` `PAYLOAD_RETENTION = "30 days"` (`UPDATE lemon_webhook_events SET payload = NULL …`) |
 | Ledger records cannot be deleted | `credit_ledger_transactions` FKs `ON DELETE RESTRICT`, `tests/db/immutability-and-constraints.test.ts` |
 
 Not mentioned because the code no longer does it: Wikipedia/Wikimedia requests (removed in Part 2). Google Identity
@@ -45,7 +47,7 @@ database refuses to delete a user who has purchase records), `effectiveDate`.
   a random date of birth (age 18–69) from `generateRandomProfile()`. Storing invented personal data is unusual and the
   privacy policy has to say so (it does). Consider leaving these fields empty until the user fills them in.
 * **Date of birth at signup** is required by validation; the policy needs a purpose for it (legal review), or it can be dropped.
-* **`signup_ip`** is stored indefinitely with the account; the policy needs a purpose and a retention period.
+* **`signup_ip`**: now cleared after 90 days (migration 016 + a daily job, `PRIVACY_FOLLOWUPS.md` §1). The policy still needs a *purpose* for collecting it (the column comment says "abuse heuristics"; the code never reads it) — legal review.
 * **Account deletion** does not exist as a feature; a privacy request process is needed before launch in most
   jurisdictions.
 * **Content-policy blocks are charged** (`route.ts`: "Deliberately charged (captured)"); the terms and the pricing FAQ say so.
