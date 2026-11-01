@@ -316,6 +316,15 @@ test.describe("indexable production site (SITE_URL = https origin)", () => {
       expect(await tab.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations), path).toEqual([]);
     }
     expect(consoleCsp).toEqual([]);
+    // Control: the listener does see violations — an injected inline event handler (never allowed under
+    // 'strict-dynamic' without the nonce; a createElement("script") from trusted code would be allowed by design)
+    // is blocked and reported.
+    await tab.evaluate(() => {
+      document.body.insertAdjacentHTML("beforeend", '<img src="data:," onerror="window.__injected = 1">');
+    });
+    await tab.waitForTimeout(200);
+    expect(await tab.evaluate(() => (window as unknown as { __injected?: number }).__injected)).toBeUndefined();
+    expect(await tab.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations.length)).toBeGreaterThan(0);
     await context.close();
   });
 
