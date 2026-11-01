@@ -42,7 +42,7 @@ Two services, hosted separately:
 | Instances | **exactly one**: rate limiters are in-memory per process, the expired-hold sweeper runs in-process (§7) | any number — but the per-user `/api/chat` limiter is in-memory per instance unless Upstash is configured (§7) |
 | Health | `GET /health` → `200 {"status":"ok"}`, `503` while the database is unreachable | `GET /` |
 | Shutdown | handles `SIGTERM`/`SIGINT` (closes the DB pool) | platform default |
-| Outbound | HTTPS to Neon (TLS), Lemon, Resend, Google (certs) | Express, Gemini, PubChem/Wikipedia are called from the **browser**, not the server |
+| Outbound | HTTPS to Neon (TLS), Lemon, Resend, Google (certs) | Express, Gemini, PubChem are called from the **browser**, not the server (Wikipedia removed in SEO Part 2) |
 | Disk | none | none |
 | Env management | dashboard secrets; **never** a committed `.env` | same; `NEXT_PUBLIC_*` are baked in at **build** time |
 

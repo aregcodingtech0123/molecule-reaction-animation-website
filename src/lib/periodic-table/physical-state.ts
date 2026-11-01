@@ -3,7 +3,7 @@ const GASEOUS_AT_STP = new Set([
   1, 2, 7, 8, 9, 10, 17, 18, 36, 54, 86, 118,
 ]);
 
-/** Elements liquid at STP — Wikipedia images still preferred over gas cloud. */
+/** Elements liquid at STP. */
 const LIQUID_AT_STP = new Set([35, 80]);
 
 export type PhysicalState = "gas" | "liquid" | "solid";
