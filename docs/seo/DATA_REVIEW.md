@@ -40,25 +40,44 @@ https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl (the page prints no
 | --- | --- | --- | --- | --- |
 | **Ytterbium (Yb, 70)** | 173.045 | **173.054** | NIST: Standard Atomic Weight **173.054(5)** | Digits were transposed (typo) |
 | **Zirconium (Zr, 40)** | 91.224 | **91.224 (unchanged, decided)** | NIST: Standard Atomic Weight **91.224(2)**, note *g* (geologically exceptional samples) | CIAAW revised Zr to 91.222(3) in 2024, but CIAAW values are not displayed (rule above). NIST's page still carries 91.224(2); the site follows NIST. The page states the NIST source. **Revisit** when NIST's table adopts the 2024 value (the test `KNOWN_DIFFERENCES.Zr` then fails and forces this row to be updated). |
-| **Hassium (Hs, 108)** | 277 shown as "Atomic Mass 277 u" | **270, shown as "Mass number 270 — No stable isotope — longest-lived isotope"** | NIST lists a single hassium isotope, **²⁷⁰Hs, relative atomic mass 270.13429(27#)** (`#` = value from systematic trends, not measured) and **no** standard atomic weight. | 277 was a heavier, shorter-lived isotope, shown as if it were a standard mass. 270 is the isotope NIST publishes for Hs; it is also one of the two most-stable hassium isotopes in the Nubase 2020 evaluation (269 and 270 — checked in the test only, not displayed). I chose 270 over the 269 suggested in the first review because NIST, the only source shown, lists 270 and not 269. |
+| **Hassium (Hs, 108)** | 277 shown as "Atomic Mass 277 u" | **270, shown as "Mass number 270 — No stable isotope — mass number of a known isotope"** (wording revised by the owner decision below) | NIST lists a single hassium isotope, **²⁷⁰Hs, relative atomic mass 270.13429(27#)** (`#` = value from systematic trends, not measured) and **no** standard atomic weight. | 277 was a heavier, shorter-lived isotope, shown as if it were a standard mass. 270 is the isotope NIST publishes for Hs; it is also one of the two most-stable hassium isotopes in the Nubase 2020 evaluation (269 and 270 — checked in the test only, not displayed). I chose 270 over the 269 suggested in the first review because NIST, the only source shown, lists 270 and not 269. |
 
 ### Presentation change for every element with no standard atomic weight
 
 Elements with no stable isotope have no standard atomic weight (34 of 118: Tc, Pm, Po, At, Rn, Fr, Ra, Ac, Np–Og). The
 site used to show their mass number exactly like a standard weight ("Atomic Mass 98 u", "277.00" in the grid). Now:
 
-* Detail panel: label **"Mass number"**, value without a unit, and the note **"No stable isotope — longest-lived
-  isotope"** (Hs and the other 33). Standard weights keep "Atomic Mass … u".
+* Detail panel: label **"Mass number"**, value without a unit, and a note: **"No stable isotope — longest-lived
+  isotope"** for the 10 elements up to Pu (94), **"No stable isotope — mass number of a known isotope"** for the 24
+  elements Am–Og (95–118). Standard weights keep "Atomic Mass … u".
 * Periodic-table cell: bracketed mass number (`[270]`), the IUPAC/NIST convention, instead of `270.00`.
 * New field `atomicMassKind: "standard-weight" | "mass-number"` on every element (test: it is exactly the set CIAAW/NIST
   give no standard weight for, and every such number is an integer that appears among the evaluated most-stable isotopes).
 
-**Where the label rests on NIST and where it does not.** For Tc, Pm, Po–Ac, Np and Pu, NIST itself prints the mass
-number in brackets (e.g. Tc [98], Pu [244]); the test compares each of the 10 with the site. For Z 95–118 the NIST
-table lists isotope masses but does **not** flag which isotope is the longest-lived, so for those 24 elements
-"longest-lived" rests on the Nubase 2020 evaluation (test cross-check, not displayed) and the numbers are the ones the
-site already had. If you want a strictly NIST-only claim, the note for Z 95–118 should be weakened to "mass number of a
-known isotope"; tell me and it is a one-line change.
+**Where the label rests on NIST (owner decision applied, Part 2 start).** For Tc, Pm, Po–Ac, Np and Pu, NIST itself prints the
+mass number of the longest-lived isotope in brackets (e.g. Tc [98], Pu [244]); the test compares each of the 10 with the
+site, and those keep "longest-lived isotope". For Z 95–118 NIST lists isotopes but marks none as longest-lived, so **the
+note is "mass number of a known isotope"** and no longest-lived claim is shown for those 24 (asserted for all 24 on the
+panel, the page text and the descriptions; three descriptions changed, section 4). The Nubase check stays in the tests only.
+
+**For your decision — 8 shown numbers that are not in NIST's isotope list.** The NIST isotope lists for Z 95–118 are now in
+the test fixture (`nistIsotopeMassNumbers`, same NIST page, retrieved 2026-11-01). For 16 of the 24 the shown number is one
+of NIST's listed isotopes. For these 8 it is not; each is a known isotope only per Nubase 2020 (test-only), so even "a known
+isotope" is not NIST-supported for them. **Values unchanged**; the test pins this list.
+
+| Element | Shown | NIST lists (only) | Option |
+| --- | --- | --- | --- |
+| Lr (103) | 266 | 262 | show 262, or keep 266 |
+| Sg (106) | 269 | 271 | show 271, or keep 269 |
+| Bh (107) | 270 | 272 | show 272, or keep 270 |
+| Mt (109) | 278 | 276 | show 276, or keep 278 |
+| Rg (111) | 282 | 280 | show 280, or keep 282 |
+| Nh (113) | 286 | 284 | show 284, or keep 286 |
+| Mc (115) | 290 | 288 | show 288, or keep 290 |
+| Ts (117) | 294 | 292 | show 292, or keep 294 |
+
+Switching to NIST's numbers makes every shown value NIST-supported; the cost is that these are not the most stable known
+isotopes in current evaluations (e.g. Ts-294 vs NIST's Ts-292). Your call.
 
 ### Masses that stay and why
 
@@ -110,6 +129,9 @@ fails if any of the old wordings returns.)
 | Sg | "…**among the first** elements named for a living person." | "…**the first** element named for a person who was still alive." | Seaborg was alive when the name was approved (1997) |
 | Bh | "…decays **within seconds** of synthesis." | "…short-lived: its longest-lived known isotope has a half-life of about a minute." | ²⁷⁰Bh ≈ 61 s |
 | Mc | "…decays **in milliseconds**." | "…its longest-lived known isotopes decay within about a second." | ²⁹⁰Mc ≈ 0.65 s |
+| No (Part 2) | (Part 1 wording) "…even its longest-lived known isotope has a half-life of only about an hour." | "Named for Alfred Nobel — made only in particle accelerators, a few atoms at a time." | Owner decision: no longest-lived claim for Z 95–118 |
+| Bh (Part 2) | (Part 1 wording) "…short-lived: its longest-lived known isotope has a half-life of about a minute." | "Honors Niels Bohr — a short-lived synthetic element made only a few atoms at a time." | Same |
+| Mc (Part 2) | (Part 1 wording) "…its longest-lived known isotopes decay within about a second." | "Named for Moscow Oblast — synthetic and short-lived, observed only a few atoms at a time." | Same |
 | Og | "…**likely exhibits unusual** noble-gas and relativistic effects." | "…**predicted to behave unlike the lighter noble gases** because of relativistic effects." | Predicted, not observed |
 
 Left as written (checked, defensible): every description not in the table, including Tc "the

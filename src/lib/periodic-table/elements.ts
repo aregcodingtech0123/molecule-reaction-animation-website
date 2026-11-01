@@ -162,12 +162,12 @@ const ELEMENT_SEEDS: ElementSeed[] = [
   [99, "Es", "Einsteinium", 252, "actinide", "Created in hydrogen bomb debris — studied only in microscopic quantities.", 7, null],
   [100, "Fm", "Fermium", 257, "actinide", "Named for Enrico Fermi — too unstable for macroscopic applications.", 7, null],
   [101, "Md", "Mendelevium", 258, "actinide", "Honors Dmitri Mendeleev — produced atom-by-atom in particle accelerators.", 7, null],
-  [102, "No", "Nobelium", 259, "actinide", "Named for Alfred Nobel — even its longest-lived known isotope has a half-life of only about an hour.", 7, null],
+  [102, "No", "Nobelium", 259, "actinide", "Named for Alfred Nobel — made only in particle accelerators, a few atoms at a time.", 7, null],
   [103, "Lr", "Lawrencium", 266, "actinide", "Closes the actinide row — chemistry bridges transition metals and actinides.", 7, null],
   [104, "Rf", "Rutherfordium", 267, "transition-metal", "Honors Ernest Rutherford — a superheavy element with fleeting half-lives.", 7, 4],
   [105, "Db", "Dubnium", 268, "transition-metal", "Named for Dubna, Russia — studied only as individual atoms.", 7, 5],
   [106, "Sg", "Seaborgium", 269, "transition-metal", "Named for Glenn Seaborg — the first element named for a person who was still alive.", 7, 6],
-  [107, "Bh", "Bohrium", 270, "transition-metal", "Honors Niels Bohr — short-lived: its longest-lived known isotope has a half-life of about a minute.", 7, 7],
+  [107, "Bh", "Bohrium", 270, "transition-metal", "Honors Niels Bohr — a short-lived synthetic element made only a few atoms at a time.", 7, 7],
   [108, "Hs", "Hassium", 270, "transition-metal", "Named for the German state of Hesse — predicted to resemble osmium chemically.", 7, 8],
   [109, "Mt", "Meitnerium", 278, "transition-metal", "Honors Lise Meitner — exists only in particle accelerator collisions.", 7, 9],
   [110, "Ds", "Darmstadtium", 281, "transition-metal", "First synthesized in Darmstadt — chemistry remains largely unexplored.", 7, 10],
@@ -175,7 +175,7 @@ const ELEMENT_SEEDS: ElementSeed[] = [
   [112, "Cn", "Copernicium", 285, "transition-metal", "Named for Nicolaus Copernicus — may behave as a volatile metal or gas.", 7, 12],
   [113, "Nh", "Nihonium", 286, "post-transition-metal", "First element discovered in Asia (Nihon = Japan) — superheavy and synthetic.", 7, 13],
   [114, "Fl", "Flerovium", 289, "post-transition-metal", "Honors the Flerov Laboratory — possibly exhibits noble-gas-like inertness.", 7, 14],
-  [115, "Mc", "Moscovium", 290, "post-transition-metal", "Named for Moscow Oblast — its longest-lived known isotopes decay within about a second.", 7, 15],
+  [115, "Mc", "Moscovium", 290, "post-transition-metal", "Named for Moscow Oblast — synthetic and short-lived, observed only a few atoms at a time.", 7, 15],
   [116, "Lv", "Livermorium", 293, "post-transition-metal", "Honors Lawrence Livermore National Laboratory — among the heaviest known elements.", 7, 16],
   [117, "Ts", "Tennessine", 294, "halogen", "Named for Tennessee — a synthetic halogen with unknown bulk properties.", 7, 17],
   [118, "Og", "Oganesson", 294, "noble-gas", "The heaviest confirmed element — predicted to behave unlike the lighter noble gases because of relativistic effects.", 7, 18],
@@ -201,6 +201,16 @@ export const ELEMENTS: ChemicalElement[] = ELEMENT_SEEDS.map(
     };
   },
 );
+
+/**
+ * The note under a mass number. For Z <= 94 NIST itself gives the bracketed mass number of the longest-lived isotope
+ * (Tc [98] ... Pu [244]); for Z 95-118 NIST gives no such value, so the site claims only "a known isotope" (owner
+ * decision, docs/seo/DATA_REVIEW.md). Null for elements with a standard atomic weight.
+ */
+export function massNumberNote(element: ChemicalElement): string | null {
+  if (element.atomicMassKind !== "mass-number") return null;
+  return element.atomicNumber <= 94 ? "No stable isotope — longest-lived isotope" : "No stable isotope — mass number of a known isotope";
+}
 
 export const ELEMENT_BY_NUMBER = new Map(ELEMENTS.map((el) => [el.atomicNumber, el]));
 

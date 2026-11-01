@@ -94,7 +94,8 @@ export default function PeriodicTablePage() {
             Atomic Weights and Isotopic Compositions for All Elements
           </a>
           , rounded to three decimals (where NIST gives an interval, one conventional value inside it is shown). Elements
-          with no stable isotope have no standard weight; they show the mass number of their longest-lived isotope.
+          with no stable isotope have no standard weight: up to plutonium (94) they show the mass number NIST gives for the
+          longest-lived isotope; from americium (95) on, where NIST gives none, the mass number of a known isotope.
           Electron shells are counted from the ground-state configurations in the NIST Atomic Spectra Database
           (Kramida, A., Ralchenko, Yu., Reader, J. and NIST ASD Team (2024), version 5.12,{" "}
           <a

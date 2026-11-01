@@ -165,7 +165,7 @@ describe("what the site displays is sourced from NIST (decision: CIAAW is not di
       if (noStandardWeight) {
         massNumberSymbols.push(el.symbol);
         expect(Number.isInteger(el.atomicMass), el.symbol).toBe(true);
-        // the "longest-lived isotope" claimed in the UI: one of the evaluated most-stable isotopes (cross-check only, not displayed)
+        // test-only Nubase cross-check (kept, owner decision): the shown number is one of the evaluated most-stable isotopes
         expect(ref.mostStableMassNumbers, el.symbol).toContain(el.atomicMass);
       }
     }
@@ -218,5 +218,31 @@ describe("one-line descriptions (reviewed in docs/seo/DATA_REVIEW.md)", () => {
     expect(desc("Os")).toMatch(/Together with iridium/);
     expect(desc("At")).toMatch(/^Among the rarest/);
     expect(desc("Cm")).toMatch(/curium-244/);
+  });
+});
+
+describe("Z 95-118: what NIST supports for the shown mass number (owner decision: 'mass number of a known isotope')", () => {
+  /**
+   * NIST lists isotopes for every element 95-118 but marks none as longest-lived. For these 8 the number the site shows
+   * is not among NIST's listed isotopes (it is a known isotope per Nubase 2020, test-only): listed for the owner in
+   * docs/seo/DATA_REVIEW.md, values unchanged. The test fails if the list changes either way.
+   */
+  const NOT_IN_NIST_LIST: Record<string, number> = { Lr: 262, Sg: 271, Bh: 272, Mt: 276, Rg: 280, Nh: 284, Mc: 288, Ts: 292 };
+
+  it("every one of the 24 has a NIST isotope list; the shown number is in it except the 8 listed (whose NIST isotope is recorded)", () => {
+    const outside: Record<string, number> = {};
+    for (const el of ELEMENTS.filter((e) => e.atomicNumber >= 95)) {
+      const nist = (refs[el.atomicNumber - 1] as Ref & { nistIsotopeMassNumbers?: number[] }).nistIsotopeMassNumbers;
+      expect(nist?.length, el.symbol).toBeGreaterThan(0);
+      if (!nist!.includes(el.atomicMass)) {
+        expect(nist, el.symbol).toHaveLength(1);
+        outside[el.symbol] = nist![0];
+      }
+    }
+    expect(outside).toEqual(NOT_IN_NIST_LIST);
+  });
+
+  it("no description of an element 95-118 claims a longest-lived isotope", () => {
+    for (const el of ELEMENTS.filter((e) => e.atomicNumber >= 95)) expect(el.description, el.symbol).not.toMatch(/longest-lived/i);
   });
 });

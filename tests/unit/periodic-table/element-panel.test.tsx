@@ -19,11 +19,12 @@ describe("ElementDetailPanel mass", () => {
     expect(screen.queryByText(/longest-lived/i)).toBeNull();
   });
 
-  it("hassium is a mass number with the no-stable-isotope note, never an 'Atomic Mass' in u", () => {
+  it("hassium is a mass number of a known isotope (no longest-lived claim past Z 94), never an 'Atomic Mass' in u", () => {
     renderWithProviders(<ElementDetailPanel element={by("Hs")} />);
     expect(screen.getByText("Mass number")).toBeTruthy();
     expect(screen.getByText("270")).toBeTruthy();
-    expect(screen.getByText(/No stable isotope — longest-lived isotope/)).toBeTruthy();
+    expect(screen.getByText("No stable isotope — mass number of a known isotope")).toBeTruthy();
+    expect(screen.queryByText(/longest-lived/i)).toBeNull();
     expect(screen.queryByText("Atomic Mass")).toBeNull();
     expect(screen.queryByText(/\d u$/)).toBeNull();
   });
@@ -34,6 +35,24 @@ describe("ElementDetailPanel mass", () => {
       const massNumber = el.atomicMassKind === "mass-number";
       expect(screen.queryByText("Mass number") !== null, el.symbol).toBe(massNumber);
       expect(screen.queryByText("Atomic Mass") !== null, el.symbol).toBe(!massNumber);
+      unmount();
+    }
+  });
+});
+
+describe("mass-number note: NIST-supported wording only (owner decision)", () => {
+  it("Z 43-94 without a standard weight (NIST brackets the longest-lived isotope) say 'longest-lived'; Z 95-118 say only 'a known isotope'", () => {
+    const massNumberElements = ELEMENTS.filter((e) => e.atomicMassKind === "mass-number");
+    expect(massNumberElements).toHaveLength(34);
+    for (const el of massNumberElements) {
+      const { unmount } = renderWithProviders(<ElementDetailPanel element={el} />);
+      if (el.atomicNumber <= 94) {
+        expect(screen.getByText("No stable isotope — longest-lived isotope"), el.symbol).toBeTruthy();
+      } else {
+        expect(screen.getByText("No stable isotope — mass number of a known isotope"), el.symbol).toBeTruthy();
+        // nothing on the panel (note or description) claims a longest-lived isotope for these 24
+        expect(screen.queryByText(/longest-lived/i), el.symbol).toBeNull();
+      }
       unmount();
     }
   });
@@ -56,6 +75,7 @@ describe("periodic-table page attribution", () => {
     expect(text).toMatch(/rounded to three decimals/);
     expect(text).toMatch(/Kramida, A\., Ralchenko, Yu\., Reader, J\. and NIST ASD Team \(2024\)/);
     expect(text).toMatch(/NIST lists no measured ground state for elements 109–118/);
+    expect(text).toContain("from americium (95) on, where NIST gives none, the mass number of a known isotope");
     const hrefs = Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("https://physics.nist.gov/asd");
     expect(hrefs).toContain("https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl");

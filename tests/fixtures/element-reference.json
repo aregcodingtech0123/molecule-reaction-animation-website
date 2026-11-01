@@ -3,7 +3,8 @@
  "sources": {
   "ciaawAbridged": "CIAAW, Abridged Standard Atomic Weights 2024, https://ciaaw.org/abridged-atomic-weights.htm (c) CIAAW/IUPAC - acknowledgement required, see docs/seo/DATA_REVIEW.md",
   "nistStandardWeight": "NIST, Atomic Weights and Isotopic Compositions for All Elements, https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl (page states no version/date; NIST data, acknowledge NIST)",
-  "mostStableMassNumbers": "CIAAW, Radioactive elements (most stable known isotopes, The 2020 Nubase Evaluation), https://ciaaw.org/radioactive-elements.htm"
+  "mostStableMassNumbers": "CIAAW, Radioactive elements (most stable known isotopes, The 2020 Nubase Evaluation), https://ciaaw.org/radioactive-elements.htm",
+  "nistIsotopeMassNumbers": "NIST, Atomic Weights and Isotopic Compositions for All Elements (same page, all isotopes listed), retrieved 2026-11-01; recorded for Z 95-118 only, where NIST gives no standard atomic weight"
  },
  "elements": [
   {
@@ -787,6 +788,10 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     243
+   ],
+   "nistIsotopeMassNumbers": [
+    241,
+    243
    ]
   },
   {
@@ -797,6 +802,14 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     247
+   ],
+   "nistIsotopeMassNumbers": [
+    243,
+    244,
+    245,
+    246,
+    247,
+    248
    ]
   },
   {
@@ -807,6 +820,10 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     247
+   ],
+   "nistIsotopeMassNumbers": [
+    247,
+    249
    ]
   },
   {
@@ -817,6 +834,12 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     251
+   ],
+   "nistIsotopeMassNumbers": [
+    249,
+    250,
+    251,
+    252
    ]
   },
   {
@@ -826,6 +849,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    252
+   ],
+   "nistIsotopeMassNumbers": [
     252
    ]
   },
@@ -837,6 +863,9 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     257
+   ],
+   "nistIsotopeMassNumbers": [
+    257
    ]
   },
   {
@@ -847,6 +876,10 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     258
+   ],
+   "nistIsotopeMassNumbers": [
+    258,
+    260
    ]
   },
   {
@@ -856,6 +889,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    259
+   ],
+   "nistIsotopeMassNumbers": [
     259
    ]
   },
@@ -868,6 +904,9 @@
    "mostStableMassNumbers": [
     262,
     266
+   ],
+   "nistIsotopeMassNumbers": [
+    262
    ]
   },
   {
@@ -878,6 +917,9 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     267
+   ],
+   "nistIsotopeMassNumbers": [
+    267
    ]
   },
   {
@@ -887,6 +929,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    268
+   ],
+   "nistIsotopeMassNumbers": [
     268
    ]
   },
@@ -899,6 +944,9 @@
    "mostStableMassNumbers": [
     269,
     271
+   ],
+   "nistIsotopeMassNumbers": [
+    271
    ]
   },
   {
@@ -910,6 +958,9 @@
    "mostStableMassNumbers": [
     270,
     274
+   ],
+   "nistIsotopeMassNumbers": [
+    272
    ]
   },
   {
@@ -920,6 +971,9 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     269,
+    270
+   ],
+   "nistIsotopeMassNumbers": [
     270
    ]
   },
@@ -932,6 +986,9 @@
    "mostStableMassNumbers": [
     277,
     278
+   ],
+   "nistIsotopeMassNumbers": [
+    276
    ]
   },
   {
@@ -941,6 +998,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    281
+   ],
+   "nistIsotopeMassNumbers": [
     281
    ]
   },
@@ -952,6 +1012,9 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     282
+   ],
+   "nistIsotopeMassNumbers": [
+    280
    ]
   },
   {
@@ -961,6 +1024,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    285
+   ],
+   "nistIsotopeMassNumbers": [
     285
    ]
   },
@@ -973,6 +1039,9 @@
    "mostStableMassNumbers": [
     285,
     286
+   ],
+   "nistIsotopeMassNumbers": [
+    284
    ]
   },
   {
@@ -984,6 +1053,9 @@
    "mostStableMassNumbers": [
     289,
     290
+   ],
+   "nistIsotopeMassNumbers": [
+    289
    ]
   },
   {
@@ -996,6 +1068,9 @@
     288,
     289,
     290
+   ],
+   "nistIsotopeMassNumbers": [
+    288
    ]
   },
   {
@@ -1008,6 +1083,9 @@
     291,
     292,
     293
+   ],
+   "nistIsotopeMassNumbers": [
+    293
    ]
   },
   {
@@ -1018,6 +1096,9 @@
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
     294
+   ],
+   "nistIsotopeMassNumbers": [
+    292
    ]
   },
   {
@@ -1027,6 +1108,9 @@
    "ciaawAbridged": null,
    "nistStandardWeight": null,
    "mostStableMassNumbers": [
+    294
+   ],
+   "nistIsotopeMassNumbers": [
     294
    ]
   }
