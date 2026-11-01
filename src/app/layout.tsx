@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Inter, Syne } from "next/font/google";
 import "./globals.css";
@@ -6,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { themeInitScript } from "@/lib/theme/pre-hydration";
+import { rootMetadata } from "@/lib/seo/metadata";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const syne = Syne({
@@ -14,10 +14,10 @@ const syne = Syne({
   weight: ["600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: "Molecule Architecture Studio",
-  description: "A premium interactive chemistry platform to explore molecules in 3D.",
-};
+// Per request (SEO-20): robots, metadataBase and canonical URLs follow SITE_URL, which is read at runtime.
+export function generateMetadata() {
+  return rootMetadata();
+}
 
 export default async function RootLayout({
   children,
