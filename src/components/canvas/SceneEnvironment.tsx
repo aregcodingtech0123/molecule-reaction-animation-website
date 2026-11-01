@@ -14,10 +14,14 @@ import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
  * pmndrs/drei-assets@456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri (Poly Haven, CC0).
  *   potsdamer_platz_1k.hdr  sha256 7afe4c2f9700ee78c7477c53fa355463d7dda1fdede401432d6b5f9ff0a95696
  *   studio_small_03_1k.hdr  sha256 29267a4aa8c10de26cae758e4e3c4daadde88673798666ad657724bab7224a35
+ *
+ * SEO-18 / R12: the files are served with `Cache-Control: public, max-age=31536000, immutable` (next.config.ts), so
+ * a file's name MUST change when its content does: the name carries the first 8 hex digits of its sha256
+ * (tests/unit/seo/hdri-assets.test.ts enforces it).
  */
 export const ENVIRONMENT_FILES = {
-  city: "/hdri/potsdamer_platz_1k.hdr",
-  studio: "/hdri/studio_small_03_1k.hdr",
+  city: "/hdri/potsdamer_platz_1k.7afe4c2f.hdr",
+  studio: "/hdri/studio_small_03_1k.29267a4a.hdr",
 } as const;
 
 export type EnvironmentName = keyof typeof ENVIRONMENT_FILES;

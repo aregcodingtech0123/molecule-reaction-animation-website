@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
+        // SEO-18 / R12: environment maps never change under the same name (the name carries the content hash).
+        source: "/hdri/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         source: "/api/:path*",
         headers: [{ key: "Content-Security-Policy", value: API_CSP }],
       },
