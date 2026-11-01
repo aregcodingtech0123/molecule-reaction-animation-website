@@ -20,6 +20,9 @@ heuristics". It has no retention today.
   `signup_ip = NULL` for rows older than the retention and returns how many it cleared. `SECURITY INVOKER`, `search_path`
   pinned like every function since SEC-12, **a floor of 1 day** (a typo cannot wipe today's signups), `EXECUTE` revoked from
   PUBLIC and **not granted to the application role**: the web app cannot call it; only the owner/migration connection can.
+* **Mandatory + monitored (owner decision, round 2):** the job is a launch-checklist gate (§5.1, Go/no-go); with
+  `PURGE_HEARTBEAT_URL` it pings a heartbeat monitor after each successful run, so "no ping in 26 h" alerts even when the
+  scheduler never starts it (exit codes alone cannot). The privacy sentence is conditional on `SITE_OWNER.signupIpPurgeJob`.
 * Scheduled call: `npm run db:purge-signup-ips` (service script, same style as `db:reconcile`; it uses the migration connection,
   prints the count, never an IP). **Run it daily** from a scheduler — a Render Cron Job, or any cron with the owner connection
   string. It is *not* wired into the running service: the service's only in-process sweepers touch holds and webhook payloads, and I

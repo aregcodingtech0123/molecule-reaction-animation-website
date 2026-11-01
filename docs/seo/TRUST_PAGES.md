@@ -3,7 +3,7 @@
 **Status: drafts that need legal review.** `/about`, `/contact`, `/privacy`, `/terms` exist, are linked from the footer
 of every page and from a links row on the home page, carry a visible "Draft — needs legal review" notice, and are
 `noindex` (out of the sitemap) while any owner detail is a placeholder. `npm run check:launch-content` fails until every
-placeholder in `src/lib/legal/site-owner.ts` is replaced (11 today). No Organization JSON-LD is emitted until then.
+placeholder in `src/lib/legal/site-owner.ts` is replaced (12 today, including `signupIpPurgeJob`). No Organization JSON-LD is emitted until then.
 
 Nothing below is legal advice. The privacy text states only what the code does; every statement is listed here with the
 code it comes from, so a reviewer can check it and so a code change that makes it untrue can be found.
@@ -25,7 +25,7 @@ code it comes from, so a reviewer can check it and so a code change that makes i
 | AI Lab: conversation sent to Gemini; messages not stored; one charge record per answer; logs carry account id + reference, never text | `src/app/api/chat/route.ts` (`boundConversation(messages)` → Gemini; `console.*` calls log `userId`, `referenceId` only), `ai_credit_holds` |
 | Browser loads 3D structures from PubChem, sending the SMILES string and the IP | `src/lib/molecules/sdf-parser.ts` `fetchMoleculeFromSMILES` (browser `fetch` to `pubchem.ncbi.nlm.nih.gov`) |
 | Emails through Resend | `services/…/lib/email.ts` |
-| `signup_ip` cleared when the account is 90 days old | migration `016_signup_ip_retention.sql` `purge_signup_ips()` + daily `npm run db:purge-signup-ips` (true only while the job runs: launch checklist §5.1) |
+| `signup_ip` cleared when the account is 90 days old — **conditional**: the page says it only when `SITE_OWNER.signupIpPurgeJob` is filled in; otherwise "kept with the account for now; an automatic clearing after 90 days is planned" | migration `016_signup_ip_retention.sql` `purge_signup_ips()` + daily `npm run db:purge-signup-ips` with a heartbeat alert (true only while the job runs: launch checklist §5.1, mandatory; `tests/unit/legal/privacy-signup-ip.test.tsx`) |
 | The stored Lemon order message is cleared 30 days after processing | `services/…/services/webhookInbox.service.ts` `PAYLOAD_RETENTION = "30 days"` (`UPDATE lemon_webhook_events SET payload = NULL …`) |
 | Ledger records cannot be deleted | `credit_ledger_transactions` FKs `ON DELETE RESTRICT`, `tests/db/immutability-and-constraints.test.ts` |
 
@@ -39,7 +39,7 @@ not yet describe the script's own data use — **add to legal review**.
 (`LAUNCH_CHECKLIST.md` recommends Vercel + Render + Neon, not decided), `logRetention` (decided by the hosting plans:
 Vercel 1 h–30 days, Render 7–30 days per the checklist), `geminiDataUse` (Google's terms differ between paid and unpaid
 Gemini API use — depends on the plan you choose), `accountDeletion` (the code has **no** self-service deletion, and the
-database refuses to delete a user who has purchase records), `effectiveDate`.
+database refuses to delete a user who has purchase records), `signupIpPurgeJob` (where the daily purge runs and which heartbeat alert watches it — declaring it is what lets the policy state the 90 days), `effectiveDate`.
 
 ## 3. Points for your decision (found while writing)
 

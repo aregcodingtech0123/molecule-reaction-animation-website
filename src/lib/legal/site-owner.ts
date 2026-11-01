@@ -33,6 +33,12 @@ export interface SiteOwner {
   geminiDataUse: string;
   /** How a user can have their account deleted (the code has no self-service deletion). */
   accountDeletion: string;
+  /**
+   * Where the daily `db:purge-signup-ips` job runs and what alerts you when it does not (a heartbeat monitor). The privacy
+   * policy says the signup address is cleared after 90 days ONLY once this is filled in: the sentence is true only while
+   * the job runs. Filling it in is the owner's statement that the job is scheduled and monitored (LAUNCH_CHECKLIST §5.1).
+   */
+  signupIpPurgeJob: string;
   /** Effective date of the privacy policy and terms (YYYY-MM-DD). */
   effectiveDate: string;
 }
@@ -48,6 +54,7 @@ export const SITE_OWNER: SiteOwner = {
   logRetention: `${PLACEHOLDER_PREFIX} how long hosting logs are kept`,
   geminiDataUse: `${PLACEHOLDER_PREFIX} what Google may do with prompts under the Gemini API plan used`,
   accountDeletion: `${PLACEHOLDER_PREFIX} how to request account deletion and what is kept (e.g. purchase records)`,
+  signupIpPurgeJob: `${PLACEHOLDER_PREFIX} where the daily signup-address purge job runs and which heartbeat monitor alerts if it does not`,
   effectiveDate: `${PLACEHOLDER_PREFIX} effective date`,
 };
 

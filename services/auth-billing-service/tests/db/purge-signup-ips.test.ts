@@ -2,7 +2,9 @@
  * Migration 016: purge_signup_ips() and `npm run db:purge-signup-ips` (docs/seo/PRIVACY_FOLLOWUPS.md §1).
  * PostgreSQL 18, throwaway databases. The ledger is never touched.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -148,3 +150,88 @@ describe("npm run db:purge-signup-ips", () => {
     }
   });
 });
+
+describe("heartbeat (dead-man's switch: PURGE_HEARTBEAT_URL)", () => {
+  /** Async spawn: the heartbeat server lives in this process, so the child must not block the event loop. */
+  function runAsync(url: string, heartbeat?: string): Promise<{ code: number | null; out: string }> {
+    return new Promise((resolve) => {
+      const env: Record<string, string> = { PATH: process.env.PATH ?? "", SYSTEMROOT: process.env.SYSTEMROOT ?? "", MOLECULESTUDIO_SKIP_DOTENV: "1", NODE_ENV: "development", DATABASE_URL: url };
+      if (heartbeat !== undefined) env.PURGE_HEARTBEAT_URL = heartbeat;
+      const child = spawn(process.execPath, [path.join(serviceRoot, "scripts", "purge-signup-ips.mjs")], { cwd: serviceRoot, env });
+      let out = "";
+      child.stdout.on("data", (d) => (out += d));
+      child.stderr.on("data", (d) => (out += d));
+      child.on("close", (code) => resolve({ code, out }));
+    });
+  }
+
+  let server: http.Server;
+  let base: string;
+  let status = 200;
+  const hits: string[] = [];
+  beforeAll(async () => {
+    server = http.createServer((req, res) => {
+      hits.push(`${req.method} ${req.url}`);
+      res.statusCode = status;
+      res.end("ok");
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(async () => {
+    await new Promise((r) => server.close(r));
+  });
+
+  it("pings once after a successful purge, exit 0, and prints the host but never the secret path", async () => {
+    hits.length = 0;
+    status = 200;
+    const res = await runAsync(db.url, `${base}/ping/SECRET-TOKEN-123`);
+    expect(res.code, res.out).toBe(0);
+    expect(hits).toEqual(["GET /ping/SECRET-TOKEN-123"]);
+    expect(res.out).toMatch(/heartbeat sent to 127\.0\.0\.1:\d+/);
+    expect(res.out).not.toContain("SECRET-TOKEN-123");
+  });
+
+  it("sends nothing when PURGE_HEARTBEAT_URL is unset or blank", async () => {
+    hits.length = 0;
+    expect((await runAsync(db.url)).code).toBe(0);
+    expect((await runAsync(db.url, "  ")).code).toBe(0);
+    expect(hits).toEqual([]);
+  });
+
+  it("a failed purge sends no heartbeat (so the monitor alerts) and exits 1", async () => {
+    const old = await ScratchDb.create({ migrate: false });
+    try {
+      hits.length = 0;
+      const res = await runAsync(old.url, `${base}/ping/x`);
+      expect(res.code).toBe(1);
+      expect(hits).toEqual([]);
+    } finally {
+      await old.destroy();
+    }
+  });
+
+  it("the purge still happened but the monitor answered 500: exit 2, the message names the status, not the secret", async () => {
+    hits.length = 0;
+    status = 500;
+    const u = await userAged(200, "198.51.100.99");
+    const res = await runAsync(db.url, `${base}/ping/SECRET-TOKEN-456`);
+    expect(res.code).toBe(2);
+    expect(res.out).toMatch(/answered HTTP 500/);
+    expect(res.out).not.toContain("SECRET-TOKEN-456");
+    expect(await ipOf(u.id)).toBeNull();
+    status = 200;
+  });
+
+  it("an unreachable monitor or a malformed URL: exit 2 and no URL in the output", async () => {
+    const dead = await runAsync(db.url, "http://127.0.0.1:9/ping/SECRET-TOKEN-789");
+    expect(dead.code).toBe(2);
+    expect(dead.out).toMatch(/heartbeat to 127\.0\.0\.1:9 failed/);
+    expect(dead.out).not.toContain("SECRET-TOKEN-789");
+    const bad = await runAsync(db.url, "ftp://example.com/x");
+    expect(bad.code).toBe(2);
+    expect(bad.out).toMatch(/not an http\(s\) URL/);
+    expect((await runAsync(db.url, "not a url")).code).toBe(2);
+  });
+});
+

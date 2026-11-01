@@ -4,7 +4,12 @@
  *
  *   node scripts/purge-signup-ips.mjs [--days 90]
  *
- * Prints how many addresses were cleared — never an address. Exit 0 on success, 64 on a bad argument.
+ * Prints how many addresses were cleared — never an address. Exit 0 on success, 64 on a bad argument, 1 on failure
+ * (including a missing migration 016), 2 if the job succeeded but the heartbeat ping failed.
+ *
+ * Dead-man's switch: set PURGE_HEARTBEAT_URL to the ping URL of a heartbeat monitor (healthchecks.io-style: it alerts
+ * when NO ping arrives within the expected period). The script GETs it once, only after the purge succeeded, so a job
+ * that fails OR never runs at all is noticed. The URL usually carries a secret: only its host is ever printed.
  * It is not part of the running service on purpose: nothing billing-adjacent gets a new background task.
  */
 import pg from "pg";
@@ -23,11 +28,34 @@ if (args.length) {
 
 loadServiceEnv();
 
+/** One GET to the heartbeat monitor; resolves to true when it answered 2xx. Never prints the URL, only its host. */
+async function ping(raw) {
+  let url;
+  try {
+    url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("protocol");
+  } catch {
+    console.error("[purge-signup-ips] PURGE_HEARTBEAT_URL is not an http(s) URL; the heartbeat was not sent.");
+    return false;
+  }
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) console.error(`[purge-signup-ips] heartbeat to ${url.host} answered HTTP ${res.status}.`);
+    else console.log(`[purge-signup-ips] heartbeat sent to ${url.host}.`);
+    return res.ok;
+  } catch {
+    console.error(`[purge-signup-ips] heartbeat to ${url.host} failed.`);
+    return false;
+  }
+}
+
 const client = new pg.Client({ connectionString: resolveMigrationUrl() });
 await client.connect();
 try {
   const { rows } = await client.query("SELECT purge_signup_ips(make_interval(days => $1::int)) AS cleared", [days]);
   console.log(`[purge-signup-ips] cleared ${rows[0].cleared} signup address(es) older than ${days} days.`);
+  const heartbeat = process.env.PURGE_HEARTBEAT_URL?.trim();
+  if (heartbeat && !(await ping(heartbeat))) process.exitCode = 2;
 } catch (err) {
   if (err?.code === "42883") {
     console.error("[purge-signup-ips] purge_signup_ips() does not exist: apply migration 016 first (npm run db:migrate).");

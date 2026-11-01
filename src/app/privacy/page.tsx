@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LegalPage, Owner } from "@/components/legal/LegalPage";
-import { SITE_OWNER } from "@/lib/legal/site-owner";
+import { isPlaceholder, SITE_OWNER } from "@/lib/legal/site-owner";
 import { routeMetadata } from "@/lib/seo/metadata";
 
 export const generateMetadata = routeMetadata("/privacy");
@@ -12,6 +12,8 @@ export const generateMetadata = routeMetadata("/privacy");
  */
 export default function PrivacyPage() {
   const o = SITE_OWNER;
+  // "cleared after 90 days" is true only while the daily purge job runs: the owner declares that in SITE_OWNER.
+  const purgeScheduled = !isPlaceholder(o.signupIpPurgeJob) && o.signupIpPurgeJob.trim() !== "";
   return (
     <LegalPage title="Privacy policy">
       <p>
@@ -33,7 +35,10 @@ export default function PrivacyPage() {
         <li>
           With email and password we store your email address, your password as a one-way bcrypt hash (never the password
           itself), your first name, last name and date of birth as you enter them, the IP address you signed up from
-          (cleared automatically once the account is 90 days old), whether your email address is verified, and when the
+          {purgeScheduled
+            ? " (cleared automatically once the account is 90 days old)"
+            : " (kept with the account for now; an automatic clearing after 90 days is planned and will be stated here once it runs)"}
+          , whether your email address is verified, and when the
           account was created.
         </li>
         <li>

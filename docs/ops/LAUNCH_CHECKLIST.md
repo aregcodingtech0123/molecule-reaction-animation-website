@@ -223,7 +223,7 @@ npm run check:launch-content
 
 - [ ] Exit code `0`: no `TODO(owner):` placeholder left in `src/lib/legal/site-owner.ts` (legal name, country, postal address,
       contact email, governing law, refund policy, hosting providers, log retention, Gemini data use, account deletion,
-      effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
+      **signup-address purge job (§5.1 — mandatory)**, effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
       a "Draft" notice, are `noindex` and out of the sitemap, and no Organization JSON-LD is emitted.
 - [ ] A lawyer has reviewed `/privacy` and `/terms` (no script can check this). Sources of every privacy statement and the
       open points: `docs/seo/TRUST_PAGES.md`.
@@ -261,9 +261,9 @@ same settings:
 cd services/auth-billing-service
 export MIGRATION_DATABASE_URL='postgresql://…<rehearsal branch, direct, no -pooler>…?sslmode=require'
 npm run db:migrate:status      # every file "pending", 15 files (001 … 015)
-npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=14
+npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=16
 npm run db:migrate             # again → mode=tracked baselined=0 applied=0   (the runner is idempotent)
-npm run db:migrate:status      # all 14 "applied"
+npm run db:migrate:status      # all 16 "applied"
 npm run db:reconcile           # exit 0: two "OK" lines
 ```
 
@@ -283,7 +283,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
   -- pending_checkout_orders, revoked_tokens, schema_migrations, user_balances, users, verification_tokens
 ```
 
-- [ ] All of the above match, including `mode=fresh … applied=14` and `SELECT version()` = PostgreSQL 18.
+- [ ] All of the above match, including `mode=fresh … applied=16` and `SELECT version()` = PostgreSQL 18.
 - [ ] You did **not** run `db:setup` (it is for local databases: it connects to the `postgres` maintenance database to
       `CREATE DATABASE`) and did **not** run `--baseline` (that is only for a database created before the runner
       existed; on an empty database the runner picks `mode=fresh` by itself).
@@ -298,7 +298,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
 
 - [ ] Create a Neon branch of production named `pre-launch-<date>` (instant, costs nothing — a restore point).
 - [ ] Same commands as §2.2 with the **production** direct URL in `MIGRATION_DATABASE_URL` (`--dry-run` is available
-      if you want the plan first). Expected: `mode=fresh baselined=0 applied=14`, then the SQL checks, then
+      if you want the plan first). Expected: `mode=fresh baselined=0 applied=16`, then the SQL checks, then
       `npm run db:reconcile` → exit 0.
 - [ ] `unset MIGRATION_DATABASE_URL` in that shell afterwards.
 
@@ -550,7 +550,7 @@ Nothing in this repository pages you; wire these up before announcing the launch
 | --- | --- | --- | --- |
 | Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
-| Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90) | daily | any non-zero exit (`1` = the job failed or migration 016 is missing, `64` = bad argument). It prints a count, never an address. Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy says "kept for 90 days": without this job that sentence is false** |
+| **MANDATORY** — Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90), with `PURGE_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit of the job (`1` = it failed or migration 016 is missing, `2` = it purged but the heartbeat ping failed, `64` = bad argument); (2) **no ping from the heartbeat monitor within 26 hours** (e.g. healthchecks.io-style "period 1 day, grace 2 h", email/SMS) — this is what catches a job that **never ran** (a scheduler that is disabled, deleted or out of credit sends no exit code at all). The job prints a count, never an address, and sends the ping only after a successful purge; the ping URL is a secret (only its host is ever printed). Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy states "cleared automatically once the account is 90 days old" only after you fill `SITE_OWNER.signupIpPurgeJob` (`src/lib/legal/site-owner.ts`); until then it says the clearing is planned. Fill it only when both alerts exist and a test run showed the ping arriving** |
 
 Where to run them: `db:reconcile` needs the service folder with `npm ci` done, Node, and the owner URL; the cron SQL needs
 `psql` and that URL. Keep the owner URL out of the Express host's runtime environment. Options: **(a)** a scheduled GitHub Actions workflow (`schedule:`)
@@ -722,11 +722,12 @@ None of these is a hidden defect; each is a decision with a trigger. Details liv
 Launch only when all of these are true:
 
 - [ ] §1.5 `check:config` passes (including `SITE_URL`); the hosts hold the same values.
-- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=14`, SQL checks match, reconcile exit 0.
+- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=16`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
 - [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
+- [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then fill `SITE_OWNER.signupIpPurgeJob` so the privacy policy may say the address is cleared after 90 days.
 - [ ] §6 you have the rotation steps, the incident page and the rollback bookmarks at hand.
 - [ ] §7 you have read the limitations and accept them.
 

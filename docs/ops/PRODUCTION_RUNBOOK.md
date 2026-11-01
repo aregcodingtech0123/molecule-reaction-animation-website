@@ -183,7 +183,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 `014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 > **Empty database (first deployment)?** Skip `--baseline`: run `node scripts/migrate.mjs` and expect
-> `mode=fresh baselined=0 applied=14` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
+> `mode=fresh baselined=0 applied=16` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
 > before the runner did.
 
 ```bash
@@ -441,8 +441,11 @@ Where to run them, which log lines to alert on and how long logs survive on each
   `services/auth-billing-service/tests/db/cli.test.ts`.
   **Signup address retention** (daily, privacy): `node scripts/purge-signup-ips.mjs` (`--days N`, default 90) clears
   `users.signup_ip` for older accounts (migration 016) and prints how many; it never prints an address and touches no
-  ledger, balance or billing row. Non-zero exit = alert (`1` the job failed or 016 is not applied, `64` bad argument). Same
-  scheduler and owner URL as the reconciliation above; covered by `tests/db/purge-signup-ips.test.ts`.
+  ledger, balance or billing row. Non-zero exit = alert (`1` the job failed or 016 is not applied, `2` it purged but the
+  heartbeat ping failed, `64` bad argument). **Mandatory dead-man's switch:** set `PURGE_HEARTBEAT_URL` to a heartbeat
+  monitor's ping URL (it is sent once, only after a successful purge, and never printed beyond its host) and alert when no
+  ping arrives within 26 hours — a job that never runs sends no exit code. Same scheduler and owner URL as the
+  reconciliation above; covered by `tests/db/purge-signup-ips.test.ts`.
   Issues: `balance_mismatch`, `missing_balance_row`, `capture_failed` (a debit reached the service but
   could not be posted — not charged), `hold_expired_unsettled` (neither capture nor release arrived —
   not charged; correlate `reference_id` with BFF `CAPTURE_FAILED` / `RELEASE_FAILED` logs). The last
