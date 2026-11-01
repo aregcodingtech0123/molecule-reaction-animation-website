@@ -211,8 +211,8 @@ The atom positions are schematic. Element counts compared with PubChem's formula
 | Heme b | H31 | H32 | |
 
 Several models also have bond lengths far outside chemical ranges (e.g. aspirin C3–C7 4.35 Å, capsaicin C4–O9 0.36 Å, heme
-Fe–N 1.41 Å where ~2.0 Å is typical). Water (H–O–H 104.5°) and methane (109.3–109.9°) are correct. Explore's "atoms" /
-"bonds" totals come from these models. **Options:** (a) regenerate the eight from PubChem 3D conformers (the same source the
+Fe–N 1.41 Å where ~2.0 Å is typical). Water (H–O–H 104.5°) and methane (109.3–109.9°) are correct. Explore's "atoms" / "bonds" totals (sidebar "15a · 16b") and the home
+page's comparison tiles ("15 atoms · 16 bonds" for caffeine, which has 24 atoms) come from these models. **Options:** (a) regenerate the eight from PubChem 3D conformers (the same source the
 AI Lab already loads at runtime), (b) label them "schematic" in Explore, (c) leave as is.
 
 ## 7. Element categories (Part 2) — against IUPAC
