@@ -55,17 +55,15 @@ describe("molecule page metadata", () => {
     expect(await moleculeMetadata(params("xyz"), parent)).toEqual({});
   });
 
-  it("the summary is built from verified fields only (state, molar mass, description or its stand-in)", () => {
+  it("the summary is built from verified fields only (state, molar mass, description)", () => {
     expect(moleculeSummary(moleculePageFacts("caffeine")!)).toBe(
       "Caffeine (C₈H₁₀N₄O₂) is a solid at room temperature with a molar mass of 194.19 g/mol. A central nervous system stimulant found in coffee and tea.",
     );
-    // DNA pair: molar mass and state withheld → name, label and description only
     expect(moleculeSummary(moleculePageFacts("dna-fragment")!)).toBe(
-      "DNA Base Pair (Adenine–Thymine): a hydrogen-bonded base pair forming the rungs of the DNA double helix.",
+      "DNA Base Pair (Adenine–Thymine) is a solid at room temperature with a molar mass of 261.24 g/mol (adenine + thymine, free bases). A hydrogen-bonded base pair forming the rungs of the DNA double helix.",
     );
-    // C60: description withheld → the verified stand-in
-    expect(moleculeSummary(moleculePageFacts("buckminsterfullerene")!)).toContain("12 pentagons and 20 hexagons");
-    expect(moleculeSummary(moleculePageFacts("buckminsterfullerene")!)).not.toMatch(/aromaticity/);
+    expect(moleculeSummary(moleculePageFacts("buckminsterfullerene")!)).toContain("12 pentagonal and 20 hexagonal faces");
+    expect(moleculeSummary(moleculePageFacts("buckminsterfullerene")!)).not.toMatch(/Nobel|1985|aromaticity/);
   });
 
   it("PubChem CIDs on the pages are the ones the facts were checked against (fixture)", () => {

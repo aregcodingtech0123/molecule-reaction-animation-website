@@ -71,7 +71,7 @@ export const ETHANOL: MoleculeData = {
     ],
     funFacts: [
       "Your liver turns ethanol into acetaldehyde before it becomes acetate—pace matters.",
-      "Ethanol disrupts membrane fluidity and protein structure, which is part of why it’s such a broad biological solvent.",
+      "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH).",
     ],
     color: "#38bdf8",
   },
@@ -100,7 +100,7 @@ export const ASPIRIN: MoleculeData = {
     ],
     funFacts: [
       "Willow bark salicin is the plant-world ancestor of this synthetic superstar.",
-      "Its acetyl group helps it survive stomach acid better than salicylic acid alone.",
+      "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem).",
     ],
     color: "#f43f5e",
   },
@@ -224,7 +224,7 @@ export const BUCKMINSTERFULLERENE: MoleculeData = {
   name: "Buckminsterfullerene",
   formula: "C₆₀",
   description:
-    "Soccer-ball symmetry in pure carbon—a Nobel-celebrated cage that taught us aromaticity doesn’t require flat hexagons.",
+    "A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners.",
   category: "macro",
   disciplineTag: "NANOTECH",
   modelPath: null,
@@ -273,7 +273,6 @@ export const HEME_GROUP: MoleculeData = {
     ],
     funFacts: [
       "Four heme units in hemoglobin enable cooperative binding—sigmoidal curves aren’t chemistry trivia, they’re physiology.",
-      "The axial histidine tug-of-war fine-tunes oxygen affinity versus CO competition.",
     ],
     color: "#dc2626",
   },

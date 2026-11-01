@@ -31,9 +31,7 @@ export const WATER: MoleculeData = {
       "Chemical reaction medium",
     ],
     funFacts: [
-      "Water is the only natural substance that exists in all three physical states at temperatures normally found on Earth.",
-      "A water molecule stays in the atmosphere for only about 9 days before falling as precipitation.",
-      "Hot water can freeze faster than cold water — this is known as the Mpemba effect.",
+      "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C.",
     ],
     color: "#3b82f6",
   },
@@ -130,7 +128,6 @@ export const GLUCOSE: MoleculeData = {
   education: {
     molecularWeight: "180.156 g/mol",
     state: "solid",
-    boilingPoint: "Decomposes at 146°C",
     meltingPoint: "146°C",
     bondTypes: ["Covalent", "Polar C–O bonds", "Ring Structure"],
     uses: [
@@ -203,7 +200,6 @@ export const CAFFEINE: MoleculeData = {
     ],
     funFacts: [
       "Caffeine blocks adenosine receptors in the brain, preventing the feeling of tiredness.",
-      "The average cup of espresso contains about 63mg of caffeine — a lethal dose would require ~80 cups consumed very rapidly.",
       "Caffeine is the world's most widely consumed psychoactive substance.",
     ],
     color: "#a855f7",
@@ -260,9 +256,9 @@ export const DNA_FRAGMENT: MoleculeData = {
     { id: "tb9", from: "T_C5", to: "T_CH3", order: 1 },
   ],
   education: {
-    molecularWeight: "~600 g/mol (pair)",
+    molecularWeight: "261.24 g/mol (adenine + thymine, free bases)",
     state: "solid",
-    bondTypes: ["Aromatic", "Hydrogen Bond (×2 A–T)", "Glycosidic Bond"],
+    bondTypes: ["Aromatic", "Hydrogen Bond (×2 A–T)"],
     uses: [
       "Genetic information storage in all living organisms",
       "Template for mRNA transcription",
@@ -271,7 +267,6 @@ export const DNA_FRAGMENT: MoleculeData = {
     ],
     funFacts: [
       "Adenine always pairs with Thymine via 2 hydrogen bonds — this is Watson-Crick base pairing.",
-      "If the DNA from all your cells were uncoiled and laid end-to-end, it would reach from Earth to the Sun and back ~600 times.",
       "The human genome contains approximately 3 billion base pairs.",
     ],
     color: "#06b6d4",
@@ -331,8 +326,7 @@ export const PROTEIN_FRAGMENT: MoleculeData = {
     ],
     funFacts: [
       "The peptide bond has partial double-bond character due to resonance — it's planar and doesn't freely rotate.",
-      "There are 20 standard amino acids, and life uses combinations of them to build over 100,000 distinct human proteins.",
-      "The ribosome synthesizes a new peptide bond roughly every 0.05 seconds.",
+      "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026).",
     ],
     color: "#f59e0b",
   },

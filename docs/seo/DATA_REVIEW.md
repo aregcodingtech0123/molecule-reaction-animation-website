@@ -157,8 +157,7 @@ Everything in section 5 is documentation read from the sources' own pages; it is
 Method: PubChem PUG REST (computed formula and molecular weight) and PUG View (the "Melting Point" / "Boiling Point"
 sections, i.e. the values PubChem shows from its depositors), retrieved by script on 2026-11-01 into
 `tests/fixtures/molecule-reference.json` (not shipped). `tests/unit/molecules/molecule-data.test.ts` compares all 14
-molecules. **No value in `src/lib/molecules` was changed.** Items listed "withheld" stay in the data and in Explore exactly as
-before, but the new indexable `/molecules/<id>` pages leave them out until you decide (`src/lib/molecules/page-facts.ts`).
+molecules. **No value in `src/lib/molecules` was changed.** In Part 2 the doubtful items were withheld from the pages; after your review they were corrected or removed in the data itself (§6.2).
 
 **Count:** the data has **14** molecules (`ALL_MOLECULES`), not 15 as the Part 0 audit said (the home page links them in
 two places). There are 14 molecule pages.
@@ -171,29 +170,38 @@ two places). There are 14 molecule pages.
 | Molar mass | 13 of 13 agree with PubChem's computed value to the precision both print (serotonin 176.22 vs PubChem 176.21 and C₆₀ 720.66 vs 720.6 are rounding) |
 | Melting / boiling points shown | all 11 within 3 °C of a PubChem value: water 0 / 100 °C · methane −182.5 / −161.5 °C · glucose mp 146 °C · caffeine 235–238 °C / 178 °C (sublimes) · ethanol −114.1 / 78.37 °C · aspirin mp 135 °C · capsaicin mp 65–67 °C (PubChem: 65 °C) |
 
-### 6.2 Differences and unverified claims — **your decision** (withheld from the pages, unchanged in the data)
+### 6.2 The 14 doubtful items — **resolved** (owner instruction after Part 2: fix with a cited source, otherwise remove)
 
-| Molecule | Item | In the data | Finding | Options |
-| --- | --- | --- | --- | --- |
-| Glucose | boiling point | "Decomposes at 146°C" | PubChem gives no boiling point; 146 °C is its *melting* point (α-D-glucose). The statement conflates the two | remove, or "decomposes on strong heating (no boiling point)" |
-| DNA base pair | molar mass | "~600 g/mol (pair)" | Adenine + thymine (the bases the model shows) = 135.13 + 126.11 = **261.24 g/mol**. ~600 g/mol fits a nucleotide pair with the sugar–phosphate backbone, which the model does not show | 261.24 g/mol "for the two free bases", or keep ~600 and say "as nucleotides" |
-| DNA base pair | bond type | "Glycosidic Bond" | the pair shown has no sugar, so no glycosidic bond | remove |
-| DNA base pair | fun fact | "…from Earth to the Sun and back ~600 times" | published estimates vary widely; I could not confirm "~600 round trips" (my own estimate ≈ 250) | remove, or cite a source |
-| Water | fun fact | "the only natural substance that exists in all three physical states at temperatures normally found on Earth" | popular claim, not a sourced fact | remove or soften ("one of the few…") |
-| Water | fun fact | "Hot water can freeze faster than cold water — the Mpemba effect" | the effect is disputed in the literature | remove or "is reported to… (disputed)" |
-| Caffeine | fun fact | "about 63 mg per espresso — a lethal dose would require ~80 cups" | 80 × 63 mg ≈ 5 g; commonly cited lethal estimates are around 10 g or more. Internally inconsistent | remove |
-| Peptide (Gly-Ala) | fun fact | "over 100,000 distinct human proteins" | ~20 000 protein-coding genes; higher counts depend on how isoforms are counted | remove or reword |
-| Peptide (Gly-Ala) | fun fact | "a new peptide bond roughly every 0.05 seconds" | right order of magnitude for bacteria (~15–20 amino acids/s); eukaryotic ribosomes are slower (~5/s) | add "in bacteria" or remove |
-| Ethanol | fun fact | "Ethanol disrupts membrane fluidity … part of why it's such a broad biological solvent" | mixes two unrelated properties | remove or reword |
-| Aspirin | fun fact | "Its acetyl group helps it survive stomach acid better than salicylic acid alone" | not supported; acetylation was meant to reduce the irritation salicylic acid causes | remove or reword |
-| Heme b | fun fact | "The axial histidine tug-of-war fine-tunes oxygen affinity versus CO competition." | the axial (proximal) histidine binds the iron; discrimination against CO is attributed to the *distal* histidine | reword ("the distal histidine…") or remove |
-| DNA base pair | state | "solid" | a base pair inside a double helix is not a substance with a phase | leave the state out for the pair |
-| C₆₀ | description | "…a Nobel-celebrated cage that taught us aromaticity doesn't require flat hexagons" | the Nobel (1996) is right; C₆₀'s aromaticity is weak and debated | the page shows its answer-first summary instead of this description until you decide |
+Each item was corrected in `src/lib/molecules` itself, so Explore and the molecule pages show the same thing and none of the
+old wordings remains anywhere (`molecule-data.test.ts` "corrected or removed claims" pins all 14). Sources were fetched
+on 2026-11-01; where a source could not be read the claim was **removed**, not kept.
 
-Checked and kept: methane "80× more potent than CO₂ over 20 years" (IPCC AR6 gives ≈ 80 for fossil methane), the two
-hydrogen bonds of A–T, ~3 billion base pairs, the brain's ~120 g glucose/day, 12 pentagons + 20 hexagons, serotonin in
-gut/platelets, epinephrine/adrenaline naming, avian TRPV1, all "uses" lists. Playful wording ("nociceptor theater",
-"mesolimbic myths") is tone, not a fact, and is unchanged.
+| # | Molecule | Item | Was | Now | Source or reason for removal |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Glucose | boiling point | "Decomposes at 146°C" | **removed** (melting point 146 °C stays) | PubChem D-glucose lists no boiling point; the only entry is "greater than 212 °F at 760 mmHg (USCG, 1999)" (US Coast Guard CHRIS), which is not a boiling point. 146 °C is its melting point (PubChem) |
+| 2 | DNA base pair | molar mass | "~600 g/mol (pair)" | **"261.24 g/mol (adenine + thymine, free bases)"** | PubChem computed molecular weights: adenine 135.13 (CID 190) + thymine 126.11 (CID 1135) |
+| 3 | DNA base pair | bond type | "Glycosidic Bond" | **removed** | the pair shown has no sugar, so no glycosidic bond |
+| 4 | DNA base pair | fun fact | "…Earth to the Sun and back ~600 times" | **removed** | no source found; my own estimate differed |
+| 5 | DNA base pair | state | "solid" | **kept** (now consistent with item 2) | PubChem lists both free bases (adenine, thymine) as "Solid" |
+| 6 | Water | fun fact | "the only natural substance… in all three states" | **replaced:** "Liquid water is densest at about 4 °C: water at 4 °C is denser than water at 0 °C." | USGS Water Science School, *Water density* (https://www.usgs.gov/special-topics/water-science-school/science/water-density): "water at about 39°F (4°C) is denser than water at 32°F (0°C)" |
+| 7 | Water | fun fact | Mpemba effect | **removed** | disputed in the literature; no authoritative source for the claim as stated |
+| 8 | Caffeine | fun fact | "63 mg per espresso… ~80 cups" | **removed** | internally inconsistent; no source |
+| 9 | Peptide (Gly-Ala) | fun fact | "over 100,000 distinct human proteins" | **replaced:** "The human genome has about 20,000 protein-coding genes (19,878 in Ensembl release 116, June 2026)." | Ensembl, *Homo sapiens* annotation, release 116 (https://jun2026.archive.ensembl.org/Homo_sapiens/Info/Annotation): "Coding genes 19,878". The NHGRI and HGNC pages returned 404 |
+| 10 | Peptide (Gly-Ala) | fun fact | "a peptide bond every 0.05 seconds" | **removed** | no source could be fetched for ribosome speed |
+| 11 | Ethanol | fun fact | membrane fluidity / "broad solvent" | **replaced:** "Ethanol is miscible with water (PubChem lists it as miscible, citing HSDB, ICSC and NIOSH)." | PubChem CID 702 Solubility: "In water, miscible" (HSDB), "Solubility in water: miscible" (ICSC), "Miscible" (NIOSH Pocket Guide). The phrase "in all proportions" is not on the page, so it is not used |
+| 12 | Aspirin | fun fact | "acetyl group helps it survive stomach acid" | **replaced:** "Its systematic name, 2-acetyloxybenzoic acid, describes a benzoic acid carrying an acetyloxy group (PubChem)." | PubChem computed IUPAC name for CID 2244 (in `tests/fixtures/molecule-reference.json`). The acetylation-synthesis page could not be read, so no synthesis claim is made |
+| 13 | C₆₀ | description | "a Nobel-celebrated cage… aromaticity…" | **"A closed cage of 60 carbon atoms: a truncated icosahedron with 12 pentagonal and 20 hexagonal faces, one carbon at each of its 60 corners."** | geometry (a truncated icosahedron has 60 vertices, 12 pentagons, 20 hexagons: Euler's formula) and PubChem's name "(C60-Ih)[5,6]fullerene". The Nobel Prize (1996) and 1985 discovery claims are **not** made: nobelprize.org returned 403 and the Nature article redirected to a login |
+| 14 | Heme b | fun fact | "axial histidine tug-of-war…CO competition" | **removed** | no source fetched (the PDB-101 page is about hemoglobin and does not discuss the distal histidine) |
+
+Also removed with item 6 because its source failed: water's "A water molecule stays in the atmosphere for only about 9
+days" (the USGS residence-time page returned 404); I had not listed it before.
+
+**Honest limit — what this review did *not* do.** Formulas, molar masses and melting/boiling points were checked against
+PubChem by script (§6.1). The remaining "uses" lists and fun facts (about 40 statements) were **read and judged**, not
+sourced: the facts I listed in the Part 2 review as "checked and kept" (methane "80× over 20 years", "~3 billion base pairs",
+the brain's "~120 g glucose per day", "12 pentagons and 20 hexagons", the name "Buckminsterfullerene", serotonin in the
+gut) are well known but I did not fetch a source for them in this review. If "no unverified statement on any public page" is
+meant strictly for every sentence, each of those needs a source or removal: tell me and I will do that as its own change.
 
 ### 6.3 The 3D models — **8 of 14 do not contain the formula's atoms** (unchanged; nothing about them is stated on the pages)
 
