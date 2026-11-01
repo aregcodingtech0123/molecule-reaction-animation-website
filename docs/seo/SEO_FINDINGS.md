@@ -295,3 +295,17 @@ failing launch check, answer-first "Common questions" on home and pricing. Test 
 | SEO-30 | P1 | Privacy | Google sign-ups get a **generated** first name, last name and date of birth (`generateRandomProfile`); `signup_ip` has no retention; no account deletion exists | open — owner decision (`TRUST_PAGES.md` §3); the draft privacy policy describes the current behaviour |
 | SEO-31 | Note | Audit | Part 0 said 15 molecules; the data has 14 (`ALL_MOLECULES`) | corrected (14 pages) |
 | SEO-32 | Note | Data | The phase illustration (now the only element visual) draws Og as a gas and "Crystalline solid" for elements never made in bulk | open — owner decision (`DATA_REVIEW.md` §8) |
+
+### Part 2 verification (2026-11-01, Node 24.22.2, PostgreSQL 18.6 test container)
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 39 files, **687 passed** · lines **91.89 %** (1327/1444) · branches **81.36 %** (821/1009) | floors 91.89 / 81.36: met exactly (Part 2 changed no service code) |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` (unit + BFF api) | 49 files, **719 passed** · BFF set **94.83 %** lines (275/290) | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; the six new routes 345.2 / 380 KiB (no route-specific client JS); `/periodic-table` 364.1 → 363.0 (Wikipedia code gone), `/pricing` 346.3 → 347.9, `/` 809.2 → 810.8 (FAQ) | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks (the SEO spec now has 25) |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | includes JSON-LD under the enforced CSP in Chromium with a working control |
+| `npm run check:launch-content` | **exit 1** (11 placeholders) | expected until the owner details are filled |
+| ESLint on every file Part 2 touched | no errors | the 26 pre-existing errors elsewhere are unchanged (SEO-27) |
