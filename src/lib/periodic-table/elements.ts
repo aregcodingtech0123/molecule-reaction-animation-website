@@ -220,20 +220,4 @@ export function buildPeriodicGrid(): GridCell[][] {
   return grid;
 }
 
-/** Approximate electron distribution per shell for orbit visualization. */
-export function estimateElectronShells(atomicNumber: number): number[] {
-  const capacities = [2, 8, 18, 32, 32, 18, 8];
-  let remaining = atomicNumber;
-  const shells: number[] = [];
-
-  for (const capacity of capacities) {
-    if (remaining <= 0) break;
-    const count = Math.min(remaining, capacity);
-    shells.push(count);
-    remaining -= count;
-  }
-
-  return shells;
-}
-
 export const DEFAULT_ELEMENT = ELEMENT_BY_NUMBER.get(6)!;

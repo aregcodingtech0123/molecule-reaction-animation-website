@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { estimateElectronShells } from "@/lib/periodic-table/elements";
+import { electronShells } from "@/lib/periodic-table/electron-configuration";
 import type { ChemicalElement } from "@/lib/periodic-table/types";
 import { CATEGORY_STYLES } from "@/lib/periodic-table/category-styles";
 
@@ -11,7 +11,9 @@ interface AtomicOrbitAnimationProps {
 }
 
 export function AtomicOrbitAnimation({ element, className }: AtomicOrbitAnimationProps) {
-  const shells = estimateElectronShells(element.atomicNumber);
+  // NIST ground-state shells; null for elements NIST does not list (Z 109-118): then only the nucleus is drawn.
+  const verifiedShells = electronShells(element.atomicNumber);
+  const shells = verifiedShells ?? [];
   const orbitColor = CATEGORY_STYLES[element.category].orbit;
   const maxRadius = 88;
   const shellStep = shells.length > 1 ? maxRadius / shells.length : maxRadius;
@@ -82,6 +84,11 @@ export function AtomicOrbitAnimation({ element, className }: AtomicOrbitAnimatio
           <span className="font-display text-2xl font-black text-neutral-900 dark:text-white">{element.symbol}</span>
         </motion.div>
       </div>
+      {verifiedShells === null && (
+        <p className="mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
+          Electron shells are not shown: the ground-state configuration of this element has not been measured.
+        </p>
+      )}
     </div>
   );
 }
