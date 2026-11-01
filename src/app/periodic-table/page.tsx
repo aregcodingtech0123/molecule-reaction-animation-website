@@ -107,7 +107,9 @@ export default function PeriodicTablePage() {
             physics.nist.gov/asd
           </a>
           , National Institute of Standards and Technology); electrons are grouped by principal quantum number.
-          NIST lists no measured ground state for elements 109–118, so no shells are shown for them.
+          NIST lists no measured ground state for elements 109–118, so no shells are shown for them. Element categories
+          follow the common textbook classification, not IUPAC designations; for polonium, tennessine and oganesson the
+          panel gives IUPAC&apos;s own wording (IUPAC Red Book 2005, IR-3.5; IUPAC announcement of 30 November 2016).
         </p>
       </div>
     </main>

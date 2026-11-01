@@ -268,19 +268,37 @@ defines no "metalloid", "nonmetal" or "post-transition metal".
 | nonmetal | H, C, N, O, P, S, Se | **no IUPAC collective name** |
 | post-transition metal | Al, Ga, In, Sn, Tl, Pb, Bi, Nh, Fl, Mc, Lv | **no IUPAC collective name**; Nh–Lv are predicted |
 
-**Your decision (nothing changed):** (a) keep the textbook categories and add a one-line note on the periodic-table page that
-metalloid / nonmetal / post-transition are conventional, not IUPAC, groupings; (b) move Po to "post-transition metal" and
-mark Ts, Og and Nh–Lv as "predicted"; (c) both. "lanthanide/actinide" is common usage; "lanthanoid/actinoid" is optional.
+**Applied (owner decision after Part 2): keep the common grouping, label it, and state IUPAC's wording for Po, Ts and Og.**
 
-## 8. The phase illustration (now the only element visual) — for your review
+* Every element's panel says **"Common classification, not an IUPAC designation"** under its category badge; the legend under the
+  table says "Categories: common classification, not an IUPAC designation."; the periodic-table page text says the categories follow
+  the common textbook classification and names the sources. The categories themselves are unchanged (Po stays "metalloid", Ts
+  "halogen", Og "noble gas").
+* Three panels carry IUPAC's own wording (`src/lib/periodic-table/classification.ts`, pinned by test):
+  * **Polonium** — "IUPAC lists polonium among the chalcogens (group 16) and does not classify it as a metalloid; “metalloid” here
+    is the common classification." Source: IUPAC Red Book 2005, IR-3.5 (chalcogens: O, S, Se, Te, Po; no definition of "metalloid").
+    No IUPAC page I could read says polonium is, or is not, a metal.
+  * **Tennessine** — "IUPAC places tennessine in group 17; the “halogen” label here reflects that group position." Source: IUPAC,
+    30 November 2016, *IUPAC announces the names of the elements 113, 115, 117, and 118*: the ending is “-ine” "for element 117
+    and belonging to group 17" (https://iupac.org/iupac-announces-the-names-of-the-elements-113-115-117-and-118/). The page does not
+    use the word "halogen"; IR-3.5 names group 17 "halogens" but predates tennessine (2005), so the label rests on the group number.
+  * **Oganesson** — same, group 18 ("-on"), "noble gas" reflects the group position.
+* **Not verified:** the IUPAC periodic table image (4 May 2022) could not be read as text; the 2016 *Names and symbols* paper
+  (doi 10.1515/pac-2016-0501) returned 405; the Gold Book (403) was not read, so IUPAC's Gold Book definitions of "transition
+  element" and "metalloid" remain unchecked.
 
-With the Wikipedia photo gone, the panel's own illustration states a phase for every element
-(`src/lib/periodic-table/physical-state.ts`): gas for H, He, N, O, F, Ne, Cl, Ar, Kr, Xe, Rn and **Og**; liquid for Br and Hg;
-"Crystalline solid" for everything else. Unchanged, but two points are not supported by measurement:
+## 8. The phase illustration (the only element visual) — resolved, one cutoff for you to confirm
 
-* **Og (118)** is drawn as a gas. No bulk oganesson has ever existed; relativistic calculations predict a **solid** at room
-  temperature. Options: "unknown (predicted solid)", or keep.
-* **"Crystalline solid"** is shown for elements never made in visible amounts (roughly Fm–Og except Og) and for elements whose
-  state is predicted only. Options: show "Phase unknown — never made in bulk" for those, or keep.
-
-The gas-cloud colours ("Simulated discharge glow") come from `emission-spectrum.ts` and were not checked in this part.
+* **Oganesson is no longer drawn as a gas.** It was in the "gas" list; PubChem's periodic table says only "Expected to be a Gas" (and
+  "Expected to be a Solid" for Ds–Ts), relativistic calculations predict a solid, and no bulk sample exists. It now shows
+  "State unknown / not produced in bulk".
+* **"Crystalline solid" is no longer shown for elements never made in bulk.** The panel shows "State unknown / not produced in
+  bulk" (and no crystal pattern) for **astatine, francium and every element from fermium (Z = 100) to oganesson: 21 elements**.
+  States over all 118: 11 gases, 2 liquids (Br, Hg), 21 unknown, 84 solids (test).
+* **Your call — the cutoff has no source.** I could not read an authoritative statement for "never made in bulk": the Royal
+  Society of Chemistry element pages returned 403, and PubChem's table lists estimated melting points for Fm–Lr that nobody has
+  measured. The set follows the site's own descriptions ("exists only in trace amounts", "too unstable for macroscopic
+  applications"). If you would rather start at einsteinium (99), at Rf (104), or only at the "Expected to be…" elements
+  (110–118) that PubChem itself marks as predicted, it is one constant (`FIRST_ELEMENT_NEVER_MADE_IN_BULK`, and `TRACE_ONLY`
+  for At and Fr). A different list is a one-line change plus the test.
+* The gas-cloud colours ("Simulated discharge glow") come from `emission-spectrum.ts` and were not checked.

@@ -79,6 +79,9 @@ describe("periodic-table page attribution", () => {
     const hrefs = Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("https://physics.nist.gov/asd");
     expect(hrefs).toContain("https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl");
-    expect(text).not.toMatch(/CIAAW|IUPAC/);
+    // CIAAW values are never displayed (licence); IUPAC is cited only for the category wording
+    expect(text).not.toMatch(/CIAAW|Nubase|Abridged Standard Atomic Weights/);
+    expect(text).toContain("follow the common textbook classification, not IUPAC designations");
+    expect(text).toContain("IUPAC Red Book 2005, IR-3.5");
   });
 });

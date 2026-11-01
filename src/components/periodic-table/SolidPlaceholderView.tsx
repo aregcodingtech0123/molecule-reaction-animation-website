@@ -22,6 +22,7 @@ export function SolidPlaceholderView({ element, className }: SolidPlaceholderVie
         className,
       )}
     >
+      {state !== "unknown" && (
       <div
         className="absolute inset-0 opacity-40"
         style={{
@@ -35,6 +36,7 @@ export function SolidPlaceholderView({ element, className }: SolidPlaceholderVie
           backgroundPosition: "0 0, 14px 0, 14px -14px, 0 14px",
         }}
       />
+      )}
 
       <motion.div
         animate={{ rotate: 360 }}
@@ -50,7 +52,7 @@ export function SolidPlaceholderView({ element, className }: SolidPlaceholderVie
       <div className="relative z-10 text-center">
         <p className="font-display text-4xl font-black text-neutral-800 dark:text-white/90">{element.symbol}</p>
         <p className="mt-1 text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
-          {state === "liquid" ? "Liquid phase" : "Crystalline solid"}
+          {state === "liquid" ? "Liquid phase" : state === "unknown" ? "State unknown / not produced in bulk" : "Crystalline solid"}
         </p>
       </div>
     </div>
