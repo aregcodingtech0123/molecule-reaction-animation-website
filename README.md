@@ -46,7 +46,7 @@ The Next.js app acts as a **BFF gateway** — the browser calls `/api/auth/*` an
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js **24** (`engines`: `>=24 <25` in both `package.json` files; CI and every test run on 24). Node 25+ breaks the jsdom unit tests: it defines its own global `localStorage`, which shadows jsdom's
 - Docker Desktop (recommended for local Postgres) **or** PostgreSQL 14+ / Neon / Supabase
 - [Lemon Squeezy](https://www.lemonsqueezy.com) store + API key + variants (USD MoR)
 - [Google Cloud](https://console.cloud.google.com) OAuth Web client ID (optional, for Google sign-in)
