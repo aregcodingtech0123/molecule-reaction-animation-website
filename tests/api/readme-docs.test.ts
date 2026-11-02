@@ -6,16 +6,21 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import sitemap from "@/app/sitemap";
+import { LEGAL_REVIEWED_ENV, OWNER_FIELDS, REQUIRED_FIELDS } from "@/lib/legal/site-owner";
 import { CREDIT_PACKAGES } from "../../services/auth-billing-service/src/config/packages";
 import { DEFAULT_GEMINI_MODEL } from "@/lib/ai/lab-assistant-prompt";
 import { ATOM_MODEL_META } from "@/lib/atom-models/data";
 import { LANGUAGE_OPTIONS } from "@/lib/i18n/languages";
 import { ELEMENTS } from "@/lib/periodic-table/elements";
+import { checkLaunchContent } from "../../scripts/check-launch-content.mjs";
 import { parseArgs } from "../../scripts/seo/verify-live.mjs";
+import { FULL_OWNER_ENV } from "../support/site-owner-env";
 
 const root = path.resolve(__dirname, "../..");
-const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
+/** Line endings are normalised: a Windows checkout with core.autocrlf turns the repository's LF into CRLF, which must not matter. */
+const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const exists = (rel: string) => fs.existsSync(path.join(root, rel));
 const README = read("README.md");
 const rootPkg = JSON.parse(read("package.json"));
@@ -52,6 +57,8 @@ function walk(dir: string, accept: RegExp): string[] {
   }
   return out;
 }
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("README.md names real scripts and variables", () => {
   it("every `npm run <script>` exists in the root or the service package.json", () => {
@@ -94,8 +101,50 @@ describe("README.md names real scripts and variables", () => {
     for (const name of ["JWT_SECRET", "INTERNAL_SERVICE_SECRET", "EMAIL_TOMBSTONE_SECRET", "DATABASE_URL", "LEMONSQUEEZY_WEBHOOK_SECRET", "GEMINI_API_KEY", "SITE_URL"]) {
       expect(vars, name).toContain(`\`${name}\``);
     }
-    // there are no SITE_OWNER_* variables: the README must not invent any
-    expect(README).not.toMatch(/SITE_OWNER_[A-Z]/);
+  });
+
+  it("the SITE_OWNER_* variables it names are exactly the 14 required + 6 optional ones of OWNER_FIELDS, each in .env.example, and no other", () => {
+    const required = REQUIRED_FIELDS.map((f) => f.env);
+    const optional = [...OWNER_FIELDS.filter((f) => !f.required).map((f) => f.env), LEGAL_REVIEWED_ENV];
+    expect(required).toHaveLength(14);
+    expect(optional).toHaveLength(6);
+    const owner = section("Environment variables").split("### Owner details for the trust pages")[1];
+    expect(owner, "README lost its owner-details subsection").toBeTruthy();
+    const named = (text: string) => new Set([...text.matchAll(/`(SITE_OWNER_[A-Z0-9_]+)`/g)].map((m) => m[1]));
+    const table = owner.split("* **Gate.**")[0];
+    const [requiredRows, optionalRow] = [table.split("| **Optional")[0], table.split("| **Optional")[1] ?? ""];
+    expect([...named(requiredRows)].sort()).toEqual([...required].sort());
+    expect([...named(optionalRow)].sort()).toEqual([...optional].sort());
+    // nothing outside the subsection invents a variable either
+    expect([...named(README)].filter((v) => !required.includes(v) && !optional.includes(v))).toEqual([]);
+    expect(owner).toContain("**Required (14)**");
+    expect(owner).toContain("**Optional (6)**");
+    const template = read(".env.example");
+    for (const v of [...required, ...optional]) expect(template, v).toMatch(new RegExp(`^# ${v}=`, "m"));
+  });
+
+  it("the owner-details subsection states the gate as the code behaves: check:launch-content exit codes, 20 vs 24 sitemap URLs, the guard pairing", () => {
+    const owner = section("Environment variables").split("### Owner details for the trust pages")[1];
+    // check:launch-content: 1 with every required variable open, 0 once all are set (and optional ones never matter)
+    expect(checkLaunchContent({}).problems).toHaveLength(14);
+    expect(checkLaunchContent(FULL_OWNER_ENV).problems).toEqual([]);
+    expect(read("scripts/check-launch-content.mts")).toMatch(/process\.exit\(64\)/);
+    expect(owner).toMatch(/exits `1`; `0` means all 14 are set and valid, `64` is a usage error/);
+    // sitemap: 20 URLs while the gate is closed, 24 once it is open
+    try {
+      vi.stubEnv("SITE_URL", "https://studio.example");
+      vi.stubEnv("VERCEL_ENV", "");
+      expect(sitemap()).toHaveLength(20);
+      for (const [name, value] of Object.entries(FULL_OWNER_ENV)) vi.stubEnv(name, value);
+      expect(sitemap()).toHaveLength(24);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(owner).toContain("20 sitemap URLs instead of 24");
+    // the README says the details live on the Next.js host and that the guard must match Express
+    expect(owner).toContain("must agree with `EMAIL_TOMBSTONE_GUARD` on Express");
+    expect(read("scripts/check-config.mts")).toContain("SITE_OWNER_EMAIL_TOMBSTONE_GUARD");
+    expect(owner).toContain("docs/seo/LEGAL_REVIEW_QUESTIONS.md");
   });
 
   it("every check:live-seo command line it shows is accepted by the script's own argument parser", () => {

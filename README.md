@@ -18,7 +18,7 @@ Status: the code, tests and operating documents are in this repository. Nothing 
 | Account | Profile editing, "Download my data" export, "Delete my account" (anonymisation after a 14-day grace period) | `/profile` |
 | Billing | Three credit packs sold in USD through Lemon Squeezy (merchant of record) | `/pricing` |
 
-`/dashboard`, `/ai-lab` and `/profile` redirect signed-out visitors to `/login`. `/learn` and `/showcase` are "coming soon" placeholders. `/about`, `/contact`, `/privacy` and `/terms` are drafts until the owner fills the placeholders in `src/lib/legal/site-owner.ts` (see [SEO](#seo-aeo-geo)).
+`/dashboard`, `/ai-lab` and `/profile` redirect signed-out visitors to `/login`. `/learn` and `/showcase` are "coming soon" placeholders. `/about`, `/contact`, `/privacy` and `/terms` are English-only drafts that need legal review. They show the operator's details from `SITE_OWNER_*` environment variables and stay `noindex` until the 14 required ones are set (see [Owner details](#owner-details-for-the-trust-pages)).
 
 Credit packs (from `services/auth-billing-service/src/config/packages.ts`):
 
@@ -96,6 +96,7 @@ Edit both files before the first start:
 
 * Replace `JWT_SECRET` and `INTERNAL_SERVICE_SECRET` with random values (`openssl rand -base64 48`). **Each must be identical in both files.** The service refuses to start on the placeholder values from `.env.example` or on weak ones.
 * Leave `DATABASE_URL` in the service file pointing at the local Docker database.
+* Optional: the `SITE_OWNER_*` lines in the root file are commented out. Locally you can leave them; the four trust pages then show only what is set, and they are `noindex` anyway while `SITE_URL` is unset. They matter for a deployment ([Owner details](#owner-details-for-the-trust-pages)).
 * Add `GEMINI_API_KEY` (root file) to use the AI Lab, `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_GOOGLE_CLIENT_ID` for Google sign-in, and the `LEMONSQUEEZY_*` values to create real checkouts.
 
 ```bash
@@ -151,6 +152,7 @@ Names only. Never commit values. The complete table with defaults and the reason
 | Where | Variables |
 | --- | --- |
 | Next.js (root `.env`) | `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`, `FRONTEND_URL`, `SITE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CLIENT_IP_HEADER`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`; optional `GEMINI_MODEL`, `GEMINI_TIMEOUT_MS`, `GEMINI_MAX_OUTPUT_TOKENS`, `BILLING_RETRY_DELAYS_MS`, `BILLING_CALL_TIMEOUT_MS`, `CSP_MODE`, `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` |
+| Next.js, trust pages (root `.env`) | 14 required and 6 optional `SITE_OWNER_*` variables, listed under [Owner details](#owner-details-for-the-trust-pages) |
 | Express (`services/auth-billing-service/.env`) | `PORT`, `HOST`, `NODE_ENV`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `EMAIL_TOMBSTONE_SECRET`, `EMAIL_TOMBSTONE_GUARD`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE`, `RESEND_API_KEY`, `SENDER_EMAIL`, `TRUST_PROXY_HOPS`, `AI_HOLD_TTL_SECONDS`, `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL`, `PURGE_HEARTBEAT_URL`, `DELETION_HEARTBEAT_URL` |
 
 Points worth knowing:
@@ -159,8 +161,23 @@ Points worth knowing:
 * `FRONTEND_URL` must be the exact public origin; the BFF rejects every state-changing request whose `Origin` differs (403 `CSRF_REJECTED`).
 * `INTERNAL_SERVICE_SECRET` authenticates the BFF to Express's `/consume`, `/capture` and `/refund`. It must be identical on both services.
 * `EMAIL_TOMBSTONE_SECRET` is the key for the 12-month hash of deleted accounts' e-mail addresses. It must be its own random value (not `JWT_SECRET`, not `INTERNAL_SERVICE_SECRET`). Production start-up requires it while `EMAIL_TOMBSTONE_GUARD` is on (the default), and so does `db:process-deletions`.
-* The owner's legal details (legal name, country, address, contact e-mail, and so on) are **not** environment variables. They are the `TODO(owner):` fields of the `SITE_OWNER` object in `src/lib/legal/site-owner.ts`; `npm run check:launch-content` lists the ones still open.
+* The operator's legal details are `SITE_OWNER_*` variables of the **Next.js** host (not Express), read on every request: a change takes effect without a rebuild. See below.
 * **`npm run check:config`** validates the configuration of both hosts before a deploy without printing any value: `npm run check:config -- --service ./.env.launch-express.local --web ./.env.launch-next.local` (exit `0` ready, `1` problems, `64` usage error). Details: [`docs/ops/LAUNCH_CHECKLIST.md` §1.5](docs/ops/LAUNCH_CHECKLIST.md).
+
+### Owner details for the trust pages
+
+Only the owner can supply who runs the site, where to write, which providers host it and what the refund terms are, so none of it is in the code. Every value is plain text from a server-side variable (never `NEXT_PUBLIC_*`), rendered escaped, never as HTML; `\n` or a real line break is a line break and a blank line starts a new paragraph. A variable that is empty or malformed is treated as not set: it is not shown, nor is any sentence or section that depends on it, and no placeholder text is ever printed. Source of truth: `OWNER_FIELDS` in [`src/lib/legal/site-owner.ts`](src/lib/legal/site-owner.ts); the commented template is [`.env.example`](.env.example); formats and limits are in the runbook's [environment variable table](docs/ops/PRODUCTION_RUNBOOK.md#5-environment-variables-both-services-old-code-ignores-them).
+
+| Group | Variables |
+| --- | --- |
+| **Required (14)**: who and where | `SITE_OWNER_LEGAL_NAME`, `SITE_OWNER_COUNTRY`, `SITE_OWNER_POSTAL_ADDRESS`, `SITE_OWNER_CONTACT_EMAIL` |
+| **Required**: terms and privacy text | `SITE_OWNER_GOVERNING_LAW`, `SITE_OWNER_REFUND_POLICY` (text or one https URL), `SITE_OWNER_HOSTING_PROVIDERS`, `SITE_OWNER_LOG_RETENTION`, `SITE_OWNER_GEMINI_DATA_USE`, `SITE_OWNER_ACCOUNT_DELETION`, `SITE_OWNER_EFFECTIVE_DATE` (`YYYY-MM-DD`) |
+| **Required**: declarations, never displayed | `SITE_OWNER_SIGNUP_IP_PURGE_JOB`, `SITE_OWNER_ACCOUNT_DELETION_JOB` (set each only once its daily job runs and is monitored), `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` (`enabled ...` or `disabled ...`; must agree with `EMAIL_TOMBSTONE_GUARD` on Express, `npm run check:config` compares them) |
+| **Optional (6)** | `SITE_OWNER_REGISTRATION_NUMBER`, `SITE_OWNER_SUPPORT_EMAIL`, `SITE_OWNER_PRIVACY_EMAIL`, `SITE_OWNER_PHONE`, `SITE_OWNER_LAST_UPDATED` (`YYYY-MM-DD`), `SITE_OWNER_LEGAL_REVIEWED` |
+
+* **Gate.** While any required variable is empty or malformed, the four pages are `noindex`, out of the sitemap (20 sitemap URLs instead of 24) and the `Organization` JSON-LD is not emitted. `npm run check:launch-content` lists each open variable by name and exits `1`; `0` means all 14 are set and valid, `64` is a usage error. `-- --web <file>` checks a dotenv export of the web host instead of the shell environment. It prints names and rules, never values.
+* **Draft notice.** The pages carry "Draft — needs legal review" until `SITE_OWNER_LEGAL_REVIEWED=true`. Set it only after a lawyer has reviewed `/privacy` and `/terms`; it changes nothing else. The drafts claim no legal compliance. The open questions for counsel: [`docs/seo/LEGAL_REVIEW_QUESTIONS.md`](docs/seo/LEGAL_REVIEW_QUESTIONS.md); where each privacy statement comes from: [`docs/seo/TRUST_PAGES.md`](docs/seo/TRUST_PAGES.md).
+* **English only.** The pages say so and nothing for them is in the 12 locale bundles. The retention periods they state (90 days, 30 days, 12 months, 14 days) are what the code does, not variables; a test fails if page and code drift apart.
 
 ## Money flow
 
@@ -213,7 +230,7 @@ npm run test:db:down        # remove the container
 
 **Coverage floors.** Vitest has no `thresholds` configured; the floors are the last recorded figures, which a later change must not go below. Latest recorded (`docs/seo/SEO_FINDINGS.md`, Part 3 table): service **92.10 %** lines and **81.81 %** branches; the BFF set (`src/lib/gateway`, `src/app/api/**`, `src/lib/billing/server-billing.ts`) **94.83 %** lines. Strategy and targets per layer: [`docs/testing/TEST_PLAN.md`](docs/testing/TEST_PLAN.md).
 
-**Safety guards.** `scripts/test/db-guard.mjs` refuses any database that is not local with `test` in its name; `scripts/test/network-guard.mjs` makes any non-loopback request fail unless a test stubbed it; Vitest replaces `dotenv` with a stub so no real `.env` is read.
+**Safety guards.** `scripts/test/db-guard.mjs` refuses any database that is not local with `test` in its name; `scripts/test/network-guard.mjs` makes any non-loopback request fail unless a test stubbed it; Vitest replaces `dotenv` with a stub so no real `.env` is read, and `tests/setup/owner-env.ts` clears every `SITE_OWNER_*` variable so a developer's own owner details cannot change a result (`scripts/test/e2e-env.mjs` sets them blank for the E2E servers).
 
 **CI** (`.github/workflows/test.yml`, Node 24, `postgres:18-alpine` service container, pinned actions, no secrets): `service` (typecheck, coverage), `web` (`typecheck:tests`, coverage, `next build`, bundle budget), `lint` (non-blocking), `e2e` and `e2e-production`.
 
@@ -268,14 +285,14 @@ Documents: [`docs/performance/README.md`](docs/performance/README.md) (how numbe
 * **Hidden by default.** The site is indexable only when `SITE_URL` is a public https origin on a production deployment; otherwise every page is `noindex` and `robots.txt` disallows everything.
 * **Route registry.** `src/lib/seo/routes.ts` classifies every page; a unit test fails when a page is added without being classified. `sitemap.xml` and `robots.txt` come from it.
 * **Per page**: unique title, description and self-canonical, Open Graph and Twitter cards, a generated share image, one `<h1>`, a real 404. Sign-in, signed-in and placeholder pages are `noindex`.
-* **Structured data**: `WebSite`, `WebApplication`, `BreadcrumbList` on molecule pages, and `Organization` only once the owner details are real.
+* **Structured data**: `WebSite`, `WebApplication`, `BreadcrumbList` on molecule pages, and `Organization` only once the 14 required `SITE_OWNER_*` variables are set.
 * **Content**: molecule and element facts are checked against NIST and PubChem and credited on the pages. Molecule and element text lives in `src/lib/molecules/*` and in the 12 locale bundles in `src/lib/i18n/content/`; a test fails when they drift. Only English is indexed.
-* **Trust pages** (`/about`, `/contact`, `/privacy`, `/terms`) are drafts that need legal review and are `noindex` until `npm run check:launch-content` passes.
+* **Trust pages** (`/about`, `/contact`, `/privacy`, `/terms`) are drafts that need legal review and are `noindex` until all 14 required `SITE_OWNER_*` variables are set, which `npm run check:launch-content` verifies.
 
 Commands:
 
 ```bash
-npm run check:launch-content                      # fails while owner placeholders remain
+npm run check:launch-content                      # exit 1 while a required SITE_OWNER_* variable is empty
 npm run check:live-seo -- https://<site> --trust no    # read-only check of a live origin
 npm run test:seo                                  # Playwright SEO suite
 ```
@@ -306,7 +323,7 @@ The repository has no `Dockerfile`, `render.yaml` or `vercel.json`; hosts are co
 |   |                           # legal, onboarding, periodic-table, profile, reactions, seo, ui
 |   |-- context/  hooks/        # auth, theme and language providers; hooks
 |   |-- lib/                    # ai, auth, billing, gateway, i18n (12 locales), molecules, periodic-table,
-|   |                           # atom-models, reactions, security (CSP, CSRF), seo, legal, rateLimit, theme
+|   |                           # atom-models, reactions, security (CSP, CSRF), seo, legal (SITE_OWNER_* reader), rateLimit, theme
 |   |-- proxy.ts                # page gating, per-request CSP nonce, noindex rules
 |   `-- instrumentation.ts
 |-- services/auth-billing-service/
@@ -339,7 +356,7 @@ The repository has no `Dockerfile`, `render.yaml` or `vercel.json`; hosts are co
 | | [`BEHAVIOUR_CHANGES.md`](docs/ops/BEHAVIOUR_CHANGES.md) | Breaking and behaviour changes of the remediation phase |
 | `docs/security/` | [`THREAT_MODEL.md`](docs/security/THREAT_MODEL.md), [`SECURITY_FINDINGS.md`](docs/security/SECURITY_FINDINGS.md), [`DEPENDENCY_TRIAGE.md`](docs/security/DEPENDENCY_TRIAGE.md), [`DB_ROLES.md`](docs/security/DB_ROLES.md) | Assets and trust boundaries, every finding with its fix, dependency advisories, the database role split |
 | `docs/performance/` | [`README.md`](docs/performance/README.md), [`PERFORMANCE_FINDINGS.md`](docs/performance/PERFORMANCE_FINDINGS.md), [`PERFORMANCE_SUMMARY.md`](docs/performance/PERFORMANCE_SUMMARY.md) | The harness, raw findings, the summary |
-| `docs/seo/` | [`SEO_SUMMARY.md`](docs/seo/SEO_SUMMARY.md), [`SEO_LAUNCH_CHECKLIST.md`](docs/seo/SEO_LAUNCH_CHECKLIST.md), [`SEO_FINDINGS.md`](docs/seo/SEO_FINDINGS.md), [`CWV_RESULTS.md`](docs/seo/CWV_RESULTS.md), [`DATA_REVIEW.md`](docs/seo/DATA_REVIEW.md), [`PART2_DESIGN.md`](docs/seo/PART2_DESIGN.md), [`TRUST_PAGES.md`](docs/seo/TRUST_PAGES.md) | Summary and owner to-do list, canonical host and Search Console, findings, Core Web Vitals, data sources, molecule pages and structured data, trust-page sources |
+| `docs/seo/` | [`SEO_SUMMARY.md`](docs/seo/SEO_SUMMARY.md), [`SEO_LAUNCH_CHECKLIST.md`](docs/seo/SEO_LAUNCH_CHECKLIST.md), [`SEO_FINDINGS.md`](docs/seo/SEO_FINDINGS.md), [`CWV_RESULTS.md`](docs/seo/CWV_RESULTS.md), [`DATA_REVIEW.md`](docs/seo/DATA_REVIEW.md), [`PART2_DESIGN.md`](docs/seo/PART2_DESIGN.md), [`TRUST_PAGES.md`](docs/seo/TRUST_PAGES.md), [`LEGAL_REVIEW_QUESTIONS.md`](docs/seo/LEGAL_REVIEW_QUESTIONS.md) | Summary and owner to-do list, canonical host and Search Console, findings, Core Web Vitals, data sources, molecule pages and structured data, trust-page sources and the `SITE_OWNER_*` table, questions for counsel |
 | | [`PRIVACY_FOLLOWUPS.md`](docs/seo/PRIVACY_FOLLOWUPS.md), [`GOOGLE_PROFILE_DESIGN.md`](docs/seo/GOOGLE_PROFILE_DESIGN.md), [`ACCOUNT_DELETION_DESIGN.md`](docs/seo/ACCOUNT_DELETION_DESIGN.md), [`ACCOUNT_DELETION_IMPLEMENTATION.md`](docs/seo/ACCOUNT_DELETION_IMPLEMENTATION.md) | Privacy design notes: IP retention, Google sign-up data, account deletion and export |
 | `docs/testing/` | [`TEST_PLAN.md`](docs/testing/TEST_PLAN.md), [`FINDINGS.md`](docs/testing/FINDINGS.md), [`TEST_CHANGES.md`](docs/testing/TEST_CHANGES.md), [`REMEDIATION_SUMMARY.md`](docs/testing/REMEDIATION_SUMMARY.md), [`I18N_REVIEW.md`](docs/testing/I18N_REVIEW.md) | Test strategy and guards, functional findings, every test change with its reason, remediation status, machine-translation review |
 
@@ -351,7 +368,7 @@ The accepted limitations and what would trigger revisiting each are in [`docs/op
 * Lemon Squeezy discount codes must not be created until the webhook validates the amount paid ([`LAUNCH_NOTES.md`](docs/ops/LAUNCH_NOTES.md)).
 * Refunds are reviewed by hand; credits are never clawed back automatically.
 * The non-English UI text is machine-translated and awaits native review.
-* The trust pages are drafts and the legal placeholders are still open until the owner fills them.
+* The trust pages are English-only drafts: the 14 required `SITE_OWNER_*` variables must be set and a lawyer must review them (`SITE_OWNER_LEGAL_REVIEWED`). The drafts have no liability clause and no age statement; see `LEGAL_REVIEW_QUESTIONS.md`.
 * No admin UI and no account-disable flag; the levers are SQL.
 * The CI `lint` job is non-blocking because of existing `react-hooks` findings.
 * Local performance figures are not production figures.
