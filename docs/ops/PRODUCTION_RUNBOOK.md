@@ -183,7 +183,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 `014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 > **Empty database (first deployment)?** Skip `--baseline`: run `node scripts/migrate.mjs` and expect
-> `mode=fresh baselined=0 applied=17` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
+> `mode=fresh baselined=0 applied=18` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
 > before the runner did.
 
 ```bash
@@ -478,6 +478,21 @@ Where to run them, which log lines to alert on and how long logs survive on each
   expired order is still credited and the row marked `completed`. Example cron:
   `15 * * * * psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"`.
   Checkouts that fail at Lemon are now marked `failed` immediately.
+- **Purchases that credited nobody** (same job, migration 018): `webhook_missing_user` lists signed `order_created` deliveries whose buyer
+  matched **no account** — `custom_data.user_id` missing/unknown and no account with the buyer's e-mail, which includes an account that was
+  deleted (anonymised) before the order arrived. Lemon got a 200 (it will not resend) and **nothing was credited, so the buyer paid and
+  received nothing.** The list shows the Lemon order id and times only, never an e-mail. Procedure per order: (1) open the order in the Lemon
+  dashboard (Orders → the order id) and **refund it** (`Issue a refund`; see the Orders API/dashboard), or — if the buyer should have
+  credits and is a real customer — find their account and post the credits yourself with `post_credit_transaction()` (`ADMIN_ADJUSTMENT`,
+  reference `ls_order_<id>` so a replay stays idempotent); (2) mark it reviewed so the next run is quiet:
+
+  ```text
+  UPDATE lemon_webhook_events SET reviewed_at = NOW()
+   WHERE provider_order_id = '<order id>' AND outcome = 'missing_user' AND reviewed_at IS NULL;
+  ```
+
+  It never changes credits or any existing list. (Other uncredited outcomes — amount/currency mismatch, unknown pack, another store's order —
+  are *not* in this list; they stay log alerts, checklist §5.2.)
 - **Stored webhook events not processed** (same job, R19): `webhook_unprocessed` lists deliveries Express stored
   and acknowledged (Lemon will not resend them) that were still not processed 15 minutes later — their credits may be
   missing. Express retries them every minute (10 attempts) by itself; when they are listed, fix the cause shown in
@@ -495,10 +510,14 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–017 (only if they cause a problem)
+### 10.1 Migrations 008–018 (only if they cause a problem)
 
 ```sql
 BEGIN;
+-- 018 (the webhook_missing_user list of db:reconcile; the column only records that you reviewed an order)
+DROP FUNCTION IF EXISTS webhook_missing_user_to_review();
+DROP INDEX IF EXISTS idx_lemon_webhook_events_missing_user;
+ALTER TABLE lemon_webhook_events DROP COLUMN IF EXISTS reviewed_at;
 -- 017 (account deletion + re-registration guard; also stop the daily `db:process-deletions` job. Accounts already anonymised stay
 -- anonymised — their e-mail is gone and cannot be restored; only the bookkeeping columns and the tombstone table are removed)
 DROP FUNCTION IF EXISTS anonymise_user(UUID, TEXT, BYTEA, INTERVAL);
@@ -542,7 +561,8 @@ DELETE FROM schema_migrations
 WHERE filename IN ('008_ledger_hardening.sql', '009_ai_credit_holds.sql', '010_session_token_version.sql',
                    '011_checkout_order_expiry.sql', '012_function_search_path.sql',
                    '013_lemon_order_refunds.sql', '014_ai_daily_caps.sql', '015_lemon_webhook_inbox.sql',
-                   '016_signup_ip_retention.sql', '017_account_deletion.sql');
+                   '016_signup_ip_retention.sql', '017_account_deletion.sql',
+                   '018_webhook_missing_user_review.sql');
 COMMIT;
 ```
 

@@ -377,3 +377,20 @@ Migration 017 (anonymise by `anonymise_user()`, 12-month keyed e-mail tombstones
 | `npm run check:launch-content` | **exit 1** (14 placeholders) | expected |
 | ESLint on the new and changed files | 0 errors (2 existing warnings in `errorHandler.ts`, `billing.controller.ts`) | the 4 `react-hooks` errors in `profile/page.tsx` (2, identical at the previous commit), `verify-email/page.tsx`, `AuthGatePage.tsx` are unchanged |
 
+## Part 3 — launch checklist, live check, reconcile section (branch `seo/launch`, 2026-11-02, Node 24.22.2, PostgreSQL 18.6)
+
+SEO-15 (canonical host) is resolved by documentation and a check: `docs/seo/SEO_LAUNCH_CHECKLIST.md` §2 (one canonical host; permanent redirects; how to see which status Vercel's dashboard redirect really uses, because Vercel's pages do not say) and `npm run check:live-seo` (§3). Also in this part: `db:reconcile` section `webhook_missing_user` (migration 018, owner decision), `docs/seo/SEO_SUMMARY.md`, and the sitemap size in `LAUNCH_CHECKLIST.md` §4.0 corrected from "five public pages" to 20 (24 once the trust pages are no longer drafts).
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 45 files, **824 passed** · lines **92.10 %** (1434/1557) · branches **81.81 %** (931/1138) | floors 92.10 / 81.81: met exactly |
+| Root `tsc --noEmit`, `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 61 files, **1038 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | |
+| `npm run test:seo` | **25 passed** | |
+| `npm run check:live-seo` (real production build, `SITE_URL=https://studio.example`, `--trust no`) | all PASS, 20 sitemap URLs | `tests/api/seo-verify-live.test.ts` proves it also FAILS for each defect it claims to catch |
+| `npm run check:launch-content` | **exit 1** (14 placeholders) | expected |
+| ESLint on the new files | clean | |
+
