@@ -1,12 +1,12 @@
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
-import { isPlaceholder, remainingPlaceholders, SITE_OWNER, type SiteOwner } from "@/lib/legal/site-owner";
+import { blockingFields, readSiteOwner } from "@/lib/legal/site-owner";
 import { resolveSiteIndexing, SITE_NAME } from "@/lib/seo/site";
 
 /**
  * Structured data (SEO-16, Part 2 design note §2). Rules:
  *  - only true descriptions of visible content, built from the same constants the pages render;
  *  - only while the site is indexable (absolute URLs need SITE_URL's origin; fail closed like SEO-20);
- *  - no Organization while the owner details are placeholders (it would name nobody, or a placeholder);
+ *  - no Organization until every required SITE_OWNER_* variable is set (it would name nobody);
  *  - no FAQPage (Google ended FAQ rich results on May 7, 2026), no ratings or reviews (none exist).
  * A JSON-LD script is a data block, not executed: it needs no CSP nonce (verified in the production E2E).
  */
@@ -32,17 +32,20 @@ export function websiteJsonLd(env: Env = process.env): JsonLdObject | null {
   return { "@context": CONTEXT, "@type": "WebSite", name: SITE_NAME, url: `${base}/` };
 }
 
-/** Home and About: only once every owner field is real. */
-export function organizationJsonLd(env: Env = process.env, owner: SiteOwner = SITE_OWNER): JsonLdObject | null {
+/** About: only once every required owner variable is set and valid; optional ones appear only when given. */
+export function organizationJsonLd(env: Env = process.env, ownerEnv: Env = env): JsonLdObject | null {
   const base = origin(env);
-  if (!base || remainingPlaceholders(owner).length > 0) return null;
+  const status = readSiteOwner(ownerEnv);
+  if (!base || blockingFields(status).length > 0) return null;
+  const { owner } = status;
   return {
     "@context": CONTEXT,
     "@type": "Organization",
     name: owner.legalName,
     url: `${base}/`,
-    email: isPlaceholder(owner.contactEmail) ? undefined : owner.contactEmail,
-    address: owner.postalAddress,
+    email: owner.contactEmail,
+    address: owner.postalAddress.replace(/\n+/g, ", "),
+    ...(owner.phone ? { telephone: owner.phone } : {}),
   };
 }
 

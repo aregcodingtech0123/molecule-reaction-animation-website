@@ -394,3 +394,19 @@ SEO-15 (canonical host) is resolved by documentation and a check: `docs/seo/SEO_
 | `npm run check:launch-content` | **exit 1** (14 placeholders) | expected |
 | ESLint on the new files | clean | |
 
+
+## Owner details as environment variables (branch `feat/site-owner-env`, 2026-11-02, Node 26.13 locally with `NODE_OPTIONS=--no-experimental-webstorage` for the jsdom suites (SEO-24), PostgreSQL 18.6)
+
+The 14 owner placeholders of `src/lib/legal/site-owner.ts` are now `SITE_OWNER_*` environment variables of the web host, read per request (`TRUST_PAGES.md` §2); empty = not shown, malformed = not set, the 14 required ones gate indexing and `check:launch-content`; new draft texts for the four pages; `LEGAL_REVIEW_QUESTIONS.md`. No billing, auth, ledger, CSP, gating or header code changed.
+
+| Check | Result | Floor / note |
+| --- | --- | --- |
+| Service `typecheck`, `test:coverage` | clean · 45 files, **824 passed** · lines **92.10 %** (1434/1557) · branches **81.81 %** (931/1138) | floors 92.10 / 81.81: met exactly (service unchanged) |
+| Root `typecheck:tests` | clean | |
+| Root `vitest --coverage` | 63 files, **1122 passed** · BFF set **94.83 %** lines (275/290), 83.61 % branches | floor 94.83: met exactly |
+| `next build`, `perf:bundle-budget` | OK; `/terms` 344.6 / 380 KiB | |
+| E2E dev ×2 | **49 passed**, 26 skipped — both runs | skipped = production-only checks |
+| E2E production build | **75 passed**, 0 skipped | after TC-101 |
+| `npm run test:seo` | **25 passed** | after TC-101 |
+| `npm run check:launch-content` | **exit 1** (14 required variables empty, named) | expected |
+| ESLint on the new and changed files | clean | |

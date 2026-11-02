@@ -1,23 +1,34 @@
 import Link from "next/link";
-import { LegalPage, Owner } from "@/components/legal/LegalPage";
+import { LegalPage, OwnerBlock, OwnerLines, OwnerPolicy } from "@/components/legal/LegalPage";
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
-import { SITE_OWNER } from "@/lib/legal/site-owner";
+import { getSiteOwner } from "@/lib/legal/site-owner";
 import { routeMetadata } from "@/lib/seo/metadata";
 
 export const generateMetadata = routeMetadata("/terms");
+// The operator's details and policies come from SITE_OWNER_* variables, read on every request.
+export const dynamic = "force-dynamic";
 
 /**
- * DRAFT terms of use (D6). Statements about how the service works are taken from the code (credit packs from
- * CREDIT_PACKAGES, one credit charge per AI answer released when the answer fails); everything legal is a placeholder
- * from SITE_OWNER and needs legal review.
+ * Terms of use (D6). Statements about how the service works are taken from the code (credit packs from CREDIT_PACKAGES, one
+ * credit charge per AI answer, released when the answer fails). What only the owner can decide (refunds, governing law,
+ * manual deletion) is shown when its SITE_OWNER_* variable is set and left out otherwise. No limitation of liability is
+ * written here: that is for counsel (docs/seo/LEGAL_REVIEW_QUESTIONS.md).
  */
 export default function TermsPage() {
-  const o = SITE_OWNER;
+  const o = getSiteOwner();
+  const operator = [o.legalName, o.country].filter(Boolean).join(", ");
   return (
     <LegalPage title="Terms of use">
       <p>
-        These terms apply to Molecule Architecture Studio, operated by <Owner value={o.legalName} /> (
-        <Owner value={o.country} />, <Owner value={o.postalAddress} />).
+        These terms apply to Molecule Architecture Studio
+        {operator ? `, operated by ${operator}` : ""}
+        {o.postalAddress && (
+          <>
+            {" "}
+            (<OwnerLines value={o.postalAddress} />)
+          </>
+        )}
+        .
       </p>
 
       <h2>The service</h2>
@@ -39,8 +50,15 @@ export default function TermsPage() {
         Each AI Lab answer uses credits. They are reserved when you send a message and charged when the model has
         produced an answer. If the request fails, times out or the model returns nothing, the reservation is released and
         nothing is charged. An answer that is withheld because the exchange broke the content policy is still charged. Payments are
-        processed by Lemon Squeezy as merchant of record, under its own terms. Refunds: <Owner value={o.refundPolicy} />.
+        processed by Lemon Squeezy as merchant of record, under its own terms.
       </p>
+
+      {o.refundPolicy && (
+        <>
+          <h2>Refunds</h2>
+          <OwnerPolicy value={o.refundPolicy} />
+        </>
+      )}
 
       <h2>AI answers</h2>
       <p>
@@ -49,16 +67,20 @@ export default function TermsPage() {
       </p>
 
       <h2>Your account</h2>
-      <p>
-        Keep your password to yourself; you are responsible for activity on your account. Deleting your account:{" "}
-        <Owner value={o.accountDeletion} />.
-      </p>
+      <p>Keep your password to yourself; you are responsible for activity on your account.</p>
+      {o.accountDeletion && (
+        <>
+          <p>Deleting your account:</p>
+          <OwnerBlock value={o.accountDeletion} />
+        </>
+      )}
 
-      <h2>Liability, governing law and changes</h2>
-      <p>
-        <Owner value={o.governingLaw} />. This section (limitation of liability, governing law, how these terms change)
-        needs legal review.
-      </p>
+      {o.governingLaw && (
+        <>
+          <h2>Governing law</h2>
+          <OwnerBlock value={o.governingLaw} />
+        </>
+      )}
 
       <p>
         How we handle personal data: <Link href="/privacy" className="underline">privacy policy</Link>.

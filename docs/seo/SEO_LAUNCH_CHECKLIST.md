@@ -32,12 +32,11 @@ The site is fail-closed: unless `SITE_URL` is a valid https origin **and** the d
 `robots.txt` says `Disallow: /` and the sitemap is empty (SEO-20). So there is no way to launch visible by accident — and no way to launch
 visible by forgetting these gates:
 
-- [ ] **`npm run check:launch-content` exits 0** (`LAUNCH_CHECKLIST.md` §1.6). Today it exits 1 with **14 placeholders** in
-      `src/lib/legal/site-owner.ts`. While any remains, `/about`, `/contact`, `/privacy`, `/terms` are `noindex` and out of the sitemap and no
+- [ ] **`npm run check:launch-content` exits 0** (`LAUNCH_CHECKLIST.md` §1.6). Until you set the **14 required variables** (`SITE_OWNER_*` on the web host) it exits 1 and names them. While any remains, `/about`, `/contact`, `/privacy`, `/terms` are `noindex` and out of the sitemap and no
       `Organization` JSON-LD is emitted — that is the intended *soft launch* state, **not** an error. Decide which you want:
-      *(a)* launch now with draft trust pages (20 sitemap URLs), or *(b)* fill the placeholders first (24 URLs).
-- [ ] If *(b)*: a lawyer has reviewed `/privacy` and `/terms` (§1.6), and the three new owner fields are filled in **only when true**:
-      `signupIpPurgeJob`, `accountDeletionJob` (§5.1 jobs scheduled, both alerts exist) and `emailTombstoneGuard` (`enabled …` / `disabled …`,
+      *(a)* launch now with draft trust pages (20 sitemap URLs), or *(b)* set the required owner variables first (24 URLs).
+- [ ] If *(b)*: a lawyer has reviewed `/privacy` and `/terms` (§1.6), and the three declarations are set **only when true**:
+      `SITE_OWNER_SIGNUP_IP_PURGE_JOB`, `SITE_OWNER_ACCOUNT_DELETION_JOB` (§5.1 jobs scheduled, both alerts exist) and `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` (`enabled …` / `disabled …`,
       matching `EMAIL_TOMBSTONE_GUARD`).
 - [ ] `npm run check:config` passes with the production values, including **`SITE_URL` equal to `FRONTEND_URL`** (§1.5). A `SITE_URL` that differs
       is a `PROBLEM`: canonical URLs and the sitemap would name a host that is not the app's public origin.
@@ -200,7 +199,7 @@ so it cannot silently become indexable or miss the sitemap.
 | --- | --- | --- |
 | robots blocks the whole site / sitemap empty / `noindex` on every page | `SITE_URL` unset, not https, or the deployment is not `VERCEL_ENV=production` | `LAUNCH_CHECKLIST.md` §1.4; redeploy the **production** deployment |
 | sitemap or canonical names another host | `SITE_URL` ≠ the host you are checking | set `SITE_URL` = the canonical origin; or check the canonical host |
-| trust pages missing (`--trust yes`) | placeholders remain in `src/lib/legal/site-owner.ts` | §1 |
+| trust pages missing (`--trust yes`) | a required `SITE_OWNER_*` variable is empty or invalid on the web host (`npm run check:launch-content` names it) | §1 |
 | title/canonical not in `<head>` for an AI crawler | the crawler is not in Next's HTML-limited list (SEO-12) | `htmlLimitedBots` config; see `SEO_FINDINGS.md` |
 | `FAQPage`/unknown JSON-LD type | someone added markup | remove it, or update the allowed list deliberately |
 | gated page answers 200 | the proxy matcher changed | security issue — `src/proxy.ts`, `PROTECTED_PREFIXES` |
@@ -217,7 +216,7 @@ so it cannot silently become indexable or miss the sitemap.
 
 Launch **visible** only when all of these are true; otherwise leave `SITE_URL` as is (the site is hidden by design):
 
-- [ ] §1: `check:config` passes; the trust-page decision is made (soft launch with drafts, or placeholders filled and reviewed).
+- [ ] §1: `check:config` passes; the trust-page decision is made (soft launch with drafts, or the owner variables set and reviewed).
 - [ ] §2: one canonical host chosen; the other hostnames and `http://` redirect to it (permanent, ≤ 3 hops, path and query kept — or the temporary type is accepted knowingly); the `*.vercel.app` question is answered.
 - [ ] §3: `npm run check:live-seo` exits 0 against the production origin, and the browser console shows no CSP violation on `/` and a molecule page.
 - [ ] §4: Search Console Domain property verified (the DNS record stays), sitemap shows **Success**.

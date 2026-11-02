@@ -117,7 +117,7 @@ policy only gets tighter. The new molecule pages have no images.
 `/about`, `/contact`, `/privacy`, `/terms`, server-rendered, linked from the footer on every page (including the home
 page, which Google's OAuth branding rules require for the privacy policy) and from a small links row on the home page.
 
-* One file holds the owner details (`src/lib/legal/site-owner.ts`): legal entity, country, postal address, contact email,
+* *(Superseded: the owner details are now `SITE_OWNER_*` environment variables of the web host, read per request - `TRUST_PAGES.md` §2.)* One file held the owner details (`src/lib/legal/site-owner.ts`): legal entity, country, postal address, contact email,
   governing law, refund wording, hosting providers. Every unknown value is an explicit placeholder marker.
 * Each page shows a visible **"Draft — needs legal review"** notice. While any placeholder remains the four pages are
   `noindex` and out of the sitemap, and `Organization` JSON-LD is not emitted.

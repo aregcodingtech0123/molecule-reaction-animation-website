@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { INDEXABLE_ROUTES } from "@/lib/seo/routes";
+import { indexableRoutes } from "@/lib/seo/routes";
 import { resolveSiteIndexing } from "@/lib/seo/site";
 
 // SEO-20: SITE_URL is read on every request, never baked in at build time.
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = resolveSiteIndexing();
   if (!site.indexable) return [];
-  const paths = INDEXABLE_ROUTES.flatMap((route) =>
+  const paths = indexableRoutes().flatMap((route) =>
     route.dynamic ? route.dynamic.ids.map((id) => route.path.replace(/\[[^\]]+\]/, id)) : [route.path],
   );
   return paths.map((path) => ({ url: path === "/" ? site.origin : `${site.origin}${path}` }));

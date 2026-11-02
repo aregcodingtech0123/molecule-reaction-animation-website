@@ -4,8 +4,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PROTECTED_PREFIXES } from "@/proxy";
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
-import { INDEXABLE_ROUTES, SEO_ROUTES, seoRoute } from "@/lib/seo/routes";
-import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
+import { indexableRoutes, seoRoutes, seoRoute } from "@/lib/seo/routes";
+import { FULL_OWNER_ENV, OPTIONAL_OWNER_VARS, ownerEnvWithout } from "../../support/site-owner-env";
+
+// The draft state: no SITE_OWNER_* variable set (tests/setup/owner-env.ts clears them).
+const SEO_ROUTES = seoRoutes({});
+const INDEXABLE_ROUTES = indexableRoutes({});
 import { ALL_MOLECULES } from "@/lib/molecules/data";
 
 const appDir = path.resolve(__dirname, "../../../src/app");
@@ -28,15 +32,27 @@ describe("SEO route registry", () => {
     expect(SEO_ROUTES.map((r) => r.path).sort()).toEqual(pageRoutes().sort());
   });
 
-  it("indexes only the public product pages, the molecule pages, and the trust pages once they are not drafts", () => {
-    const trust = ["/about", "/contact", "/privacy", "/terms"];
-    const expected = ["/", "/explore", "/atom-models", "/periodic-table", "/molecules", "/molecules/[id]", ...(TRUST_PAGES_ARE_DRAFTS ? [] : trust), "/pricing"];
-    expect(INDEXABLE_ROUTES.map((r) => r.path)).toEqual(expected);
+  const PUBLIC = ["/", "/explore", "/atom-models", "/periodic-table", "/molecules", "/molecules/[id]"];
+  const TRUST = ["/about", "/contact", "/privacy", "/terms"];
+
+  it("indexes only the public product pages and the molecule pages while the owner variables are missing (the draft state)", () => {
+    expect(INDEXABLE_ROUTES.map((r) => r.path)).toEqual([...PUBLIC, "/pricing"]);
   });
 
-  it("the trust pages are noindex (links followed) while any owner detail is a placeholder (D6)", () => {
-    expect(TRUST_PAGES_ARE_DRAFTS).toBe(true); // today: placeholders remain (npm run check:launch-content fails)
-    for (const p of ["/about", "/contact", "/privacy", "/terms"]) expect(seoRoute(p).robots, p).toBe("noindex-follow");
+  it("indexes the four trust pages too once every required SITE_OWNER_* variable is set and valid; the optional ones are not needed", () => {
+    expect(indexableRoutes(FULL_OWNER_ENV).map((r) => r.path)).toEqual([...PUBLIC, ...TRUST, "/pricing"]);
+    expect(indexableRoutes(ownerEnvWithout(...OPTIONAL_OWNER_VARS))).toHaveLength(indexableRoutes(FULL_OWNER_ENV).length);
+  });
+
+  it("the trust pages are noindex (links followed) while any required owner variable is missing or invalid (D6)", () => {
+    for (const p of TRUST) expect(seoRoute(p, {}).robots, p).toBe("noindex-follow");
+    for (const name of Object.keys(FULL_OWNER_ENV).filter((n) => !OPTIONAL_OWNER_VARS.includes(n))) {
+      expect(seoRoute("/privacy", ownerEnvWithout(name)).robots, `without ${name}`).toBe("noindex-follow");
+    }
+    expect(seoRoute("/terms", { ...FULL_OWNER_ENV, SITE_OWNER_CONTACT_EMAIL: "not an email" }).robots).toBe("noindex-follow");
+    expect(seoRoute("/terms", { ...FULL_OWNER_ENV, SITE_OWNER_EFFECTIVE_DATE: "2026-13-40" }).robots).toBe("noindex-follow");
+    expect(seoRoute("/terms", { ...FULL_OWNER_ENV, SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "maybe" }).robots).toBe("noindex-follow");
+    for (const p of TRUST) expect(seoRoute(p, FULL_OWNER_ENV).robots, p).toBe("index");
   });
 
   it("the only dynamic route is /molecules/[id], with exactly one id per molecule", () => {

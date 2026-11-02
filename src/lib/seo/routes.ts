@@ -1,5 +1,5 @@
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
-import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
+import { trustPagesReady, type Env } from "@/lib/legal/site-owner";
 import { ALL_MOLECULES } from "@/lib/molecules/data";
 
 /**
@@ -33,12 +33,13 @@ export interface SeoRoute {
   dynamic?: { ids: readonly string[] };
 }
 
-/** Trust pages stay noindex (and out of the sitemap) while the owner details are placeholders (D6). */
-const TRUST_ROBOTS: RouteRobots = TRUST_PAGES_ARE_DRAFTS ? "noindex-follow" : "index";
+/** The four trust pages: indexable only once every required SITE_OWNER_* variable is set (D6), decided per request. */
+export const TRUST_PATHS = ["/about", "/contact", "/privacy", "/terms"] as const;
 
 const packs = CREDIT_PACKAGES.map((p) => `${p.name} $${p.priceUsd} for ${p.credits} credits`).join(", ");
 
-export const SEO_ROUTES: readonly SeoRoute[] = [
+/** The route list without the trust pages' robots value (filled in per request by `seoRoutes`). */
+const BASE_ROUTES: readonly SeoRoute[] = [
   {
     path: "/",
     title: "Interactive 3D chemistry",
@@ -85,25 +86,25 @@ export const SEO_ROUTES: readonly SeoRoute[] = [
     path: "/about",
     title: "About",
     description: "Who makes Molecule Architecture Studio, what it is for and how it is built.",
-    robots: TRUST_ROBOTS,
+    robots: "noindex-follow",
   },
   {
     path: "/contact",
     title: "Contact",
     description: "How to reach the team behind Molecule Architecture Studio for support, privacy requests and legal notices.",
-    robots: TRUST_ROBOTS,
+    robots: "noindex-follow",
   },
   {
     path: "/privacy",
     title: "Privacy policy",
     description: "What Molecule Architecture Studio stores about you, which services receive it, and why.",
-    robots: TRUST_ROBOTS,
+    robots: "noindex-follow",
   },
   {
     path: "/terms",
     title: "Terms of use",
     description: "The terms for using Molecule Architecture Studio and buying AI Lab credit packs.",
-    robots: TRUST_ROBOTS,
+    robots: "noindex-follow",
   },
   {
     path: "/pricing",
@@ -128,10 +129,20 @@ export const SEO_ROUTES: readonly SeoRoute[] = [
   { path: "/profile", title: "Profile", description: "Your account details.", robots: "noindex" },
 ];
 
-export const INDEXABLE_ROUTES = SEO_ROUTES.filter((r) => r.robots === "index");
+/**
+ * Every route with its robots value for THIS request's environment: the trust pages are `index` once every required
+ * SITE_OWNER_* variable is set and valid, `noindex-follow` before (the draft state, which is also what an empty
+ * environment gives). Nothing here is evaluated at import time.
+ */
+export function seoRoutes(env: Env = process.env): readonly SeoRoute[] {
+  const ready = trustPagesReady(env);
+  return BASE_ROUTES.map((r) => ((TRUST_PATHS as readonly string[]).includes(r.path) ? { ...r, robots: ready ? ("index" as const) : r.robots } : r));
+}
 
-export function seoRoute(path: string): SeoRoute {
-  const route = SEO_ROUTES.find((r) => r.path === path);
+export const indexableRoutes = (env: Env = process.env): readonly SeoRoute[] => seoRoutes(env).filter((r) => r.robots === "index");
+
+export function seoRoute(path: string, env: Env = process.env): SeoRoute {
+  const route = seoRoutes(env).find((r) => r.path === path);
   if (!route) throw new Error(`No SEO route registered for ${path}`);
   return route;
 }

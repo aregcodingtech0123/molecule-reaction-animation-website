@@ -41,7 +41,7 @@ export default defineConfig({
           name: "unit",
           environment: "jsdom",
           include: ["tests/unit/**/*.test.{ts,tsx}"],
-          setupFiles: ["tests/setup/network.ts", "tests/setup/dom.ts"],
+          setupFiles: ["tests/setup/network.ts", "tests/setup/dom.ts", "tests/setup/owner-env.ts"],
         },
       },
       {
@@ -51,7 +51,7 @@ export default defineConfig({
           environment: "node",
           include: ["tests/api/**/*.test.ts"],
           env: { TEST_DB_NAME: "moleculestudio_bff_test" },
-          setupFiles: [path.join(serviceTests, "setup/env.ts"), "tests/setup/network.ts", "tests/setup/bff-env.ts"],
+          setupFiles: [path.join(serviceTests, "setup/env.ts"), "tests/setup/network.ts", "tests/setup/bff-env.ts", "tests/setup/owner-env.ts"],
           globalSetup: [path.join(serviceTests, "setup/global-db.ts")],
         },
       },

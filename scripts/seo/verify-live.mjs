@@ -176,7 +176,7 @@ export async function verifyLive(options) {
     const forbidden = sitemapPaths.filter((p) => NEVER_LISTED.some((n) => p === n || p.startsWith(`${n}/`)));
     expect(forbidden.length === 0, "no auth, gated, coming-soon or API URL in the sitemap", "", `listed: ${forbidden.join(" ")}`);
     const trustListed = TRUST_PATHS.filter((p) => listed.has(p));
-    if (opts.trust === "yes") expect(trustListed.length === 4, "trust pages are in the sitemap (--trust yes)", "4/4", `only ${trustListed.length}/4 listed - are placeholders still in src/lib/legal/site-owner.ts?`);
+    if (opts.trust === "yes") expect(trustListed.length === 4, "trust pages are in the sitemap (--trust yes)", "4/4", `only ${trustListed.length}/4 listed - is a required SITE_OWNER_* variable still empty on the web host (npm run check:launch-content)?`);
     else if (opts.trust === "no") expect(trustListed.length === 0, "trust pages are still drafts (--trust no)", "not listed", `listed: ${trustListed.join(" ")}`);
     else pass("trust pages in the sitemap", `${trustListed.length}/4`);
     pass("sitemap size", `${locs.length} URLs`);

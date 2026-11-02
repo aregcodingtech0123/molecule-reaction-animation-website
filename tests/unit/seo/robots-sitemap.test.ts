@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { AI_CRAWLERS, disallowedCrawlerTokens, type AiCrawler } from "@/lib/seo/crawler-policy";
-import { INDEXABLE_ROUTES, SEO_ROUTES } from "@/lib/seo/routes";
+import { indexableRoutes, seoRoutes } from "@/lib/seo/routes";
 import { ALL_MOLECULES } from "@/lib/molecules/data";
-import { TRUST_PAGES_ARE_DRAFTS } from "@/lib/legal/site-owner";
+import { FULL_OWNER_ENV } from "../../support/site-owner-env";
 
 afterEach(() => vi.unstubAllEnvs());
 const indexable = () => {
@@ -37,7 +37,7 @@ describe("robots.txt", () => {
 
   it("does not disallow any auth, gated or coming-soon path (a blocked URL cannot show its noindex)", () => {
     indexable();
-    for (const route of SEO_ROUTES.filter((x) => x.robots !== "index")) {
+    for (const route of seoRoutes({}).filter((x) => x.robots !== "index")) {
       expect(JSON.stringify(robots()), route.path).not.toContain(route.path);
     }
   });
@@ -57,15 +57,28 @@ describe("sitemap.xml", () => {
       "https://studio.example/pricing",
     ]);
     // one entry per static indexable route plus one per molecule (the template path itself never appears)
-    expect(entries.length).toBe(INDEXABLE_ROUTES.length - 1 + ALL_MOLECULES.length);
+    expect(entries.length).toBe(indexableRoutes({}).length - 1 + ALL_MOLECULES.length);
     expect(entries.some((e) => e.url.includes("["))).toBe(false);
     for (const e of entries) expect(e).not.toHaveProperty("lastModified");
+  });
+
+  it("with every required SITE_OWNER_* variable set the four trust pages join the list (24 URLs instead of 20) - and only then", () => {
+    indexable();
+    expect(sitemap()).toHaveLength(20);
+    for (const [name, value] of Object.entries(FULL_OWNER_ENV)) vi.stubEnv(name, value);
+    const ready = sitemap().map((e) => e.url);
+    expect(ready).toHaveLength(24);
+    for (const p of ["/about", "/contact", "/privacy", "/terms"]) expect(ready).toContain(`https://studio.example${p}`);
+    vi.stubEnv("SITE_OWNER_PRIVACY_EMAIL", "");
+    expect(sitemap()).toHaveLength(24); // optional
+    vi.stubEnv("SITE_OWNER_CONTACT_EMAIL", "");
+    expect(sitemap()).toHaveLength(20); // required: the gate closes again on the next request
   });
 
   it("never contains a gated, auth or coming-soon route", () => {
     indexable();
     const urls = sitemap().map((e) => e.url);
-    for (const p of ["/dashboard", "/ai-lab", "/profile", "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/learn", "/showcase", ...(TRUST_PAGES_ARE_DRAFTS ? ["/about", "/contact", "/privacy", "/terms"] : [])]) {
+    for (const p of ["/dashboard", "/ai-lab", "/profile", "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/learn", "/showcase", "/about", "/contact", "/privacy", "/terms"]) {
       expect(urls.some((u) => u.endsWith(p)), p).toBe(false);
     }
   });
