@@ -1,29 +1,55 @@
 import Link from "next/link";
-import { LegalPage, Owner } from "@/components/legal/LegalPage";
-import { isPlaceholder, SITE_OWNER } from "@/lib/legal/site-owner";
+import { LegalPage, OwnerBlock, OwnerEmail, OwnerLines } from "@/components/legal/LegalPage";
+import { getSiteOwner, privacyContact, tombstoneGuardEnabled } from "@/lib/legal/site-owner";
 import { routeMetadata } from "@/lib/seo/metadata";
 
 export const generateMetadata = routeMetadata("/privacy");
+// The operator's details and the statements about scheduled jobs come from SITE_OWNER_* variables, read on every request.
+export const dynamic = "force-dynamic";
 
 /**
- * DRAFT privacy policy (D6). Every statement about data is taken from what the code does — the source of each one is
- * listed in docs/seo/TRUST_PAGES.md. What the code does not decide (legal bases, host log retention, the Gemini
- * plan's terms, deletion) comes from SITE_OWNER and is a placeholder until the owner and a lawyer fill it in.
+ * Privacy policy (D6). Every statement about data is taken from what the code does - the source of each one is listed in
+ * docs/seo/TRUST_PAGES.md. What the code does not decide (host log retention, the Gemini plan's terms, manual deletion) comes
+ * from SITE_OWNER_* variables and is shown only when set. A practice that depends on a scheduled job is described as active
+ * only when the owner has declared the job (SITE_OWNER_SIGNUP_IP_PURGE_JOB, SITE_OWNER_ACCOUNT_DELETION_JOB,
+ * SITE_OWNER_EMAIL_TOMBSTONE_GUARD starting with "enabled"). No legal conclusion is drawn here; see docs/seo/LEGAL_REVIEW_QUESTIONS.md.
  */
 export default function PrivacyPage() {
-  const o = SITE_OWNER;
-  // "cleared after 90 days" is true only while the daily purge job runs: the owner declares that in SITE_OWNER.
-  const purgeScheduled = !isPlaceholder(o.signupIpPurgeJob) && o.signupIpPurgeJob.trim() !== "";
-  // Self-service deletion only "works" while the daily job runs; the e-mail hash paragraph appears only if the owner enabled the guard.
-  const deletionLive = !isPlaceholder(o.accountDeletionJob) && o.accountDeletionJob.trim() !== "";
-  const tombstoneEnabled = !isPlaceholder(o.emailTombstoneGuard) && /^enabled/i.test(o.emailTombstoneGuard.trim());
+  const o = getSiteOwner();
+  const contact = privacyContact(o);
+  const operator = [o.legalName, o.country].filter(Boolean).join(", ");
+  const purgeScheduled = o.signupIpPurgeJob !== "";
+  const deletionLive = o.accountDeletionJob !== "";
+  const tombstoneEnabled = tombstoneGuardEnabled(o);
   return (
     <LegalPage title="Privacy policy">
       <p>
-        This policy explains what Molecule Architecture Studio stores about you, which other services receive it, and
-        why. The site is operated by <Owner value={o.legalName} /> (<Owner value={o.country} />). Questions and requests:{" "}
-        <Owner value={o.contactEmail} />.
+        This policy explains what Molecule Architecture Studio stores about you, which other services receive it, and why.
       </p>
+
+      {(operator || o.postalAddress || contact) && (
+        <>
+          <h2>Who is responsible for this site</h2>
+          <ul>
+            {operator && (
+              <li>
+                Operator: {operator}
+                {o.registrationNumber ? ` (registration number ${o.registrationNumber})` : ""}
+              </li>
+            )}
+            {o.postalAddress && (
+              <li>
+                Postal address: <OwnerLines value={o.postalAddress} />
+              </li>
+            )}
+            {contact && (
+              <li>
+                Questions and requests about your data: <OwnerEmail value={contact} />
+              </li>
+            )}
+          </ul>
+        </>
+      )}
 
       <h2>Browsing without an account</h2>
       <p>
@@ -53,6 +79,7 @@ export default function PrivacyPage() {
           To verify your email address and to reset a password we email you a one-time link. We keep only a hash of the
           link&apos;s token; verification links expire after 24 hours, password-reset links after 1 hour.
         </li>
+        <li>New accounts receive 10 credits once.</li>
       </ul>
 
       <h2>Signing in</h2>
@@ -71,7 +98,7 @@ export default function PrivacyPage() {
         Lemon Squeezy includes, such as the buyer&apos;s email address; that stored copy is cleared 30 days after the order was
         processed), the credits added, and a permanent record of every
         purchase, use and refund of credits. Refund notices from Lemon Squeezy are stored the same way. We email you a
-        receipt for each purchase. Refunds: <Owner value={o.refundPolicy} />.
+        receipt for each purchase. Our refund terms are in the <Link href="/terms" className="underline">terms of use</Link>.
       </p>
 
       <h2>The AI Lab</h2>
@@ -79,9 +106,14 @@ export default function PrivacyPage() {
         When you send a message in the AI Lab, our server sends the conversation (your recent messages and the
         assistant&apos;s replies) to Google&apos;s Gemini API to produce an answer. We do not store your messages in our
         database; we record one credit charge per answer, with a reference number and the time. Error logs can contain
-        your account id and that reference number, never the text. What Google may do with the messages under the Gemini
-        API plan we use: <Owner value={o.geminiDataUse} />.
+        your account id and that reference number, never the text.
       </p>
+      {o.geminiDataUse && (
+        <>
+          <p>What Google may do with the messages under the Gemini API plan we use:</p>
+          <OwnerBlock value={o.geminiDataUse} />
+        </>
+      )}
       <p>
         When the assistant suggests a molecule, your browser loads its 3D structure directly from PubChem (run by the US
         National Center for Biotechnology Information), so PubChem receives the molecule&apos;s structure (as a SMILES
@@ -93,8 +125,16 @@ export default function PrivacyPage() {
 
       <h2>Where the data is kept and for how long</h2>
       <ul>
-        <li>Hosting: <Owner value={o.hostingProviders} />.</li>
-        <li>Server and hosting logs: <Owner value={o.logRetention} />.</li>
+        {o.hostingProviders && (
+          <li>
+            Hosting: <OwnerLines value={o.hostingProviders} />
+          </li>
+        )}
+        {o.logRetention && (
+          <li>
+            Server and hosting logs: <OwnerLines value={o.logRetention} />
+          </li>
+        )}
         <li>
           Your account data is kept while your account exists. Records of credit purchases, use and refunds cannot be
           deleted: the database refuses it, because they are the accounting record of what was paid for.
@@ -111,33 +151,50 @@ export default function PrivacyPage() {
             Google again). Deletion takes effect after a 14-day grace period, during which you can sign in and cancel. When it takes
             effect, your email address, name, date of birth, sign-in methods and signup address are removed and the account can no
             longer be used; your remaining credits are permanently lost and cannot be restored. The records of credit purchases, use and
-            refunds are kept as the accounting record, without your name or email address. You can also write to <Owner value={o.contactEmail} />:{" "}
-            <Owner value={o.accountDeletion} />.
+            refunds are kept as the accounting record, without your name or email address.
+            {contact && (
+              <>
+                {" "}
+                You can also write to <OwnerEmail value={contact} />.
+              </>
+            )}
+            {o.accountDeletion && <OwnerBlock value={o.accountDeletion} />}
           </li>
         ) : (
-          <li>
-            Deleting your account: self-service deletion is being introduced and is not active yet. Until then: <Owner value={o.accountDeletion} />.
-          </li>
+          o.accountDeletion && (
+            <li>
+              Deleting your account: self-service deletion is not active yet.
+              <OwnerBlock value={o.accountDeletion} />
+            </li>
+          )
         )}
         {tombstoneEnabled && (
           <li>
-            <em>[Draft &mdash; needs legal review before launch]</em> So that the one-time signup bonus cannot be collected again by
-            deleting an account and registering the same address, we keep a one-way, keyed hash of the email address of a deleted
-            account for 12 months, then delete it. The hash cannot be turned back into the address without our secret key, but it is still
-            personal data; whether this is permitted next to your right to erasure, and its legal basis, are for legal review.
+            So that the one-time signup bonus cannot be collected again by deleting an account and registering the same address,
+            we keep a one-way, keyed hash of the email address of a deleted account for 12 months, then delete it. The hash cannot
+            be turned back into the address without our secret key; it is kept only for this purpose.
           </li>
         )}
       </ul>
 
-      <h2>Your rights</h2>
-      <p>
-        The rights you have over your data (access, correction, deletion, objection, complaint to a supervisory
-        authority) and the legal basis for each use above depend on where you and the operator are; this section needs
-        legal review. Governing law: <Owner value={o.governingLaw} />. To make a request, write to{" "}
-        <Owner value={o.contactEmail} />.
-      </p>
+      <h2>Who receives your data</h2>
+      <ul>
+        <li>Google: sign-in with Google (the identity token is checked with Google) and the AI Lab conversation (Gemini).</li>
+        <li>Lemon Squeezy: your email address and account id when you start a checkout, and the payment itself.</li>
+        <li>Resend: your email address and the message, for verification, password-reset and receipt emails.</li>
+        <li>PubChem: the structure of a suggested molecule and your IP address, from your browser.</li>
+        {o.hostingProviders && <li>Our hosting providers, listed above, process the data the site and its database hold.</li>}
+      </ul>
 
+      <h2>Your requests</h2>
       <p>
+        You can download your data and ask for your account to be deleted on your profile page.
+        {contact && (
+          <>
+            {" "}
+            For anything else about your data, write to <OwnerEmail value={contact} />.
+          </>
+        )}{" "}
         See also the <Link href="/terms" className="underline">terms of use</Link>.
       </p>
     </LegalPage>

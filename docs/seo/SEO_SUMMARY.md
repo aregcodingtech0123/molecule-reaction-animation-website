@@ -25,7 +25,7 @@ guarantees rankings; search engines decide what they index and when ([`SEO_LAUNC
 | Structured data | `WebSite` (home), `WebApplication` with the three packs, `BreadcrumbList` on molecule pages, `Organization` only with real owner details. **No FAQ markup** (Google ended FAQ rich results in May 2026), no ratings | SEO-16 |
 | Data accuracy | 118 elements checked against NIST (masses, shells), 21 description claims corrected, 14 molecule facts fixed or removed, ~40 uses/fun facts sourced, reworded or removed, 9 of 14 3D models regenerated from PubChem, categories labelled "common classification, not an IUPAC designation" | `DATA_REVIEW.md` |
 | Licences | Wikipedia images removed (no licence we could satisfy); NIST, PubChem, IUPAC credited on the pages; CIAAW values not shown | `DATA_REVIEW.md` §0, §5 |
-| Trust pages | `/about`, `/contact`, `/privacy`, `/terms` as **drafts needing legal review**; `check:launch-content` fails while any of 14 placeholders remains | `TRUST_PAGES.md` |
+| Trust pages | `/about`, `/contact`, `/privacy`, `/terms` as **drafts needing legal review**; `check:launch-content` fails while any of the 14 required `SITE_OWNER_*` variables is empty | `TRUST_PAGES.md` |
 | Performance | fonts measured (no change on evidence), environment-map caching fixed, signed-in pages measured | `CWV_RESULTS.md` |
 | Launch tooling | `npm run check:live-seo` (checks a live origin and the host redirects), `SEO_LAUNCH_CHECKLIST.md`, both tested | `SEO_LAUNCH_CHECKLIST.md` |
 
@@ -50,15 +50,15 @@ The credit ledger, balances and their triggers were never changed; tests assert 
 | D3 | `SITE_URL` server-only, fail-closed |
 | D4 | 118 per-element pages deferred (thin data) |
 | D5 | 14 molecule pages built |
-| D6 | Trust pages as drafts; placeholders block `check:launch-content` |
+| D6 | Trust pages as drafts; an empty required `SITE_OWNER_*` variable blocks `check:launch-content` |
 | D7 | Atom-derived icon; fonts unchanged after measurement; `/learn`, `/showcase` noindex; no `llms.txt` |
 | later | heme model left as is (counts hidden); "not produced in bulk" cutoff accepted; Phase B deletion approved with a 14-day grace; tombstone guard behind a switch (`EMAIL_TOMBSTONE_GUARD`) pending legal review |
 
 ## 4. What is still yours to do (in this order)
 
-1. Fill the **14 placeholders** in `src/lib/legal/site-owner.ts` (legal name, country, address, contact e-mail, governing law, refund policy, hosting, log retention, Gemini data use, account deletion process, signup-IP job, deletion job, e-mail-hash decision, effective date) and **have a lawyer review `/privacy` and `/terms`**.
+1. Set the **14 required `SITE_OWNER_*` variables** on the web host (legal name, country, address, contact e-mail, governing law, refund policy, hosting, log retention, Gemini data use, account deletion process, signup-IP job, deletion job, e-mail-hash decision, effective date) and **have a lawyer review `/privacy` and `/terms`**.
 2. Decide the **e-mail-hash guard** with counsel (`LAUNCH_CHECKLIST.md` §1.6), then set `EMAIL_TOMBSTONE_GUARD` and, if on, a separate `EMAIL_TOMBSTONE_SECRET`.
-3. Schedule the **two daily jobs** (`db:purge-signup-ips`, `db:process-deletions`) each with **both** alerts (non-zero exit; no heartbeat in 26 h), and `db:reconcile` daily (`LAUNCH_CHECKLIST.md` §5.1). The privacy text describes these practices as active only after you declare them in `site-owner.ts`.
+3. Schedule the **two daily jobs** (`db:purge-signup-ips`, `db:process-deletions`) each with **both** alerts (non-zero exit; no heartbeat in 26 h), and `db:reconcile` daily (`LAUNCH_CHECKLIST.md` §5.1). The privacy text describes these practices as active only after you declare them in the `SITE_OWNER_*` variables.
 4. Choose the **canonical host** and set up its redirects; run `npm run check:live-seo` (`SEO_LAUNCH_CHECKLIST.md` §2–§3).
 5. Search Console Domain property, sitemap, and the weeks-after routine (`SEO_LAUNCH_CHECKLIST.md` §4–§7).
 6. Native translation (28→34 English placeholders per language, the 924 UI strings, the new deletion/export screens) — not a blocker for English-only indexing (`LAUNCH_CHECKLIST.md` §1.7).
@@ -67,7 +67,7 @@ The credit ledger, balances and their triggers were never changed; tests assert 
 
 * **A new page** must be classified in `src/lib/seo/routes.ts` — a unit test fails otherwise, so it cannot silently become indexable or miss the sitemap.
 * **Molecule or element text** lives in two places: `src/lib/molecules/*` **and** the 12 locale bundles in `src/lib/i18n/content/` (Explore reads the bundles). A sync test fails if they drift. Every shown fact needs a fetched source or is removed (`DATA_REVIEW.md` §0).
-* **After a release that touches routes, metadata or `site-owner.ts`:** `npm run check:live-seo -- https://<site> --trust <yes|no>`.
+* **After a release that touches routes, metadata or the `SITE_OWNER_*` variables:** `npm run check:live-seo -- https://<site> --trust <yes|no>`.
 * **To hide the site:** unset `SITE_URL` and redeploy (`SEO_LAUNCH_CHECKLIST.md` §8).
 * **Never** add FAQ/review/rating markup without visible, real content; the live check fails on unknown JSON-LD types on purpose.
 
@@ -86,7 +86,7 @@ The suites below were run on **Node 24.22.2 and PostgreSQL 18.6** (the project's
 | E2E on the production build | **75 passed** |
 | `npm run test:seo` | **25 passed** |
 | `npm run check:live-seo` against the real production build (local, `SITE_URL=https://studio.example`) | all checks pass for 20 sitemap URLs (`--trust no`) |
-| `npm run check:launch-content` | exit 1, 14 placeholders — intended until you fill them |
+| `npm run check:launch-content` | exit 1, 14 required variables empty — intended until you set them |
 
 Test changes of every part are recorded in [`../testing/TEST_CHANGES.md`](../testing/TEST_CHANGES.md) (TC-60 … TC-91 for this phase).
 

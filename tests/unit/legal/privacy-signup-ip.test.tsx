@@ -1,13 +1,14 @@
 /**
- * The privacy page may only describe a data practice as active when the owner has declared (SITE_OWNER) that the job that makes it
- * true is scheduled and monitored:
- *  - "cleared automatically once the account is 90 days old"  <- signupIpPurgeJob (daily db:purge-signup-ips)
- *  - self-service deletion (14-day grace period)              <- accountDeletionJob (daily db:process-deletions)
- *  - the 12-month e-mail hash of deleted accounts             <- emailTombstoneGuard starts with "enabled" (after legal review)
- * Otherwise it says what is true today.
+ * The privacy page may only describe a data practice as active when the owner has declared (SITE_OWNER_* variables) that the job that
+ * makes it true is scheduled and monitored:
+ *  - "cleared automatically once the account is 90 days old"  <- SITE_OWNER_SIGNUP_IP_PURGE_JOB (daily db:purge-signup-ips)
+ *  - self-service deletion (14-day grace period)              <- SITE_OWNER_ACCOUNT_DELETION_JOB (daily db:process-deletions)
+ *  - the 12-month e-mail hash of deleted accounts             <- SITE_OWNER_EMAIL_TOMBSTONE_GUARD starts with "enabled" (after legal review)
+ * Otherwise it says what is true today. The variables are read on every render, so the tests only set the environment.
  */
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import PrivacyPage from "@/app/privacy/page";
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -17,53 +18,55 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-afterEach(() => {
-  vi.doUnmock("@/lib/legal/site-owner");
-  vi.resetModules();
-});
+afterEach(() => vi.unstubAllEnvs());
 
-async function pageText(overrides: Record<string, string>): Promise<string> {
-  vi.resetModules();
-  vi.doMock("@/lib/legal/site-owner", async () => {
-    const actual = await vi.importActual<typeof import("@/lib/legal/site-owner")>("@/lib/legal/site-owner");
-    return { ...actual, SITE_OWNER: { ...actual.SITE_OWNER, ...overrides } };
-  });
-  const { default: PrivacyPage } = await import("@/app/privacy/page");
+function pageText(env: Record<string, string>): string {
+  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
   return renderToString(PrivacyPage()).replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ");
 }
-const privacyText = (signupIpPurgeJob: string) => pageText({ signupIpPurgeJob });
+const privacyText = (job: string) => pageText({ SITE_OWNER_SIGNUP_IP_PURGE_JOB: job });
 
 describe("privacy policy: signup address retention", () => {
-  it("while the purge job is a placeholder: no automatic-clearing claim, says it is planned", async () => {
-    const text = await privacyText("TODO(owner): where the job runs");
+  it("while the purge job is not declared: no automatic-clearing claim, says it is planned", () => {
+    const text = privacyText("");
     expect(text).not.toContain("cleared automatically");
     expect(text).not.toMatch(/once the account is 90 days old/);
     expect(text).toContain("kept with the account for now");
     expect(text).toContain("signed up from (kept with the account for now; an automatic clearing after 90 days is planned and will be stated here once it runs), whether");
   });
 
-  it("an empty value counts as not declared", async () => {
-    expect(await privacyText("   ")).not.toContain("cleared automatically");
+  it("a blank value counts as not declared", () => {
+    expect(privacyText("   ")).not.toContain("cleared automatically");
   });
 
-  it("once the owner declares the job: states the 90-day clearing", async () => {
-    const text = await privacyText("Render Cron Job, daily 03:10 UTC; healthchecks.io alerts after 26 h");
+  it("once the owner declares the job: states the 90-day clearing", () => {
+    const text = privacyText("Render Cron Job, daily 03:10 UTC; healthchecks.io alerts after 26 h");
     expect(text).toContain("signed up from (cleared automatically once the account is 90 days old), whether");
     expect(text).not.toContain("planned");
+  });
+
+  it("never prints the declaration itself", () => {
+    expect(privacyText("Render Cron Job, daily 03:10 UTC; healthchecks.io alerts after 26 h")).not.toContain("healthchecks.io");
   });
 });
 
 describe("privacy policy: account deletion", () => {
-  it("while the deletion job is a placeholder: says self-service deletion is not active yet and points to the manual route", async () => {
-    const text = await pageText({ accountDeletionJob: "TODO(owner): where the job runs", accountDeletion: "email us at help@studio.example" });
-    expect(text).toContain("self-service deletion is being introduced and is not active yet");
+  it("while the deletion job is not declared: says self-service deletion is not active yet and shows the manual route", () => {
+    const text = pageText({ SITE_OWNER_ACCOUNT_DELETION_JOB: "", SITE_OWNER_ACCOUNT_DELETION: "email us at help@studio.example" });
+    expect(text).toContain("self-service deletion is not active yet");
     expect(text).toContain("email us at help@studio.example");
     expect(text).not.toContain("14-day grace period");
     expect(text).not.toContain("Delete my account");
   });
 
-  it("once the owner declares the job: describes the 14-day grace period, the lost credits and the retained accounting records", async () => {
-    const text = await pageText({ accountDeletionJob: "Render Cron Job daily 03:30 UTC; heartbeat alert after 26 h" });
+  it("with neither the job nor the manual route given, the deletion paragraph is left out altogether", () => {
+    const text = pageText({ SITE_OWNER_ACCOUNT_DELETION_JOB: "", SITE_OWNER_ACCOUNT_DELETION: "" });
+    expect(text).not.toContain("Deleting your account");
+    expect(text).not.toContain("not active yet");
+  });
+
+  it("once the owner declares the job: describes the 14-day grace period, the lost credits and the retained accounting records", () => {
+    const text = pageText({ SITE_OWNER_ACCOUNT_DELETION_JOB: "Render Cron Job daily 03:30 UTC; heartbeat alert after 26 h" });
     expect(text).toContain("Delete my account");
     expect(text).toContain("14-day grace period, during which you can sign in and cancel");
     expect(text).toContain("your remaining credits are permanently lost and cannot be restored");
@@ -74,18 +77,19 @@ describe("privacy policy: account deletion", () => {
 
 describe("privacy policy: the e-mail hash of deleted accounts (legal review)", () => {
   it.each([
-    ["a placeholder", "TODO(owner): decide after legal review"],
+    ["not set", ""],
     ["disabled", "disabled (legal review rejected it)"],
     ["blank", "  "],
-  ])("%s: the text does not mention it", async (_label, value) => {
-    expect(await pageText({ emailTombstoneGuard: value })).not.toMatch(/keyed hash/);
+    ["invalid", "maybe later"],
+  ])("%s: the text does not mention it", (_label, value) => {
+    expect(pageText({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: value })).not.toMatch(/keyed hash/);
   });
 
-  it("enabled: a marked draft paragraph states the 12-month keyed hash, that it is still personal data, and that legal review decides", async () => {
-    const text = await pageText({ emailTombstoneGuard: "enabled (12 months), approved by counsel on 2026-12-01" });
-    expect(text).toContain("[Draft — needs legal review before launch]");
+  it("enabled: states the 12-month keyed hash and its only purpose, without a legal conclusion", () => {
+    const text = pageText({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "enabled (12 months), approved by counsel on 2026-12-01" });
     expect(text).toContain("one-way, keyed hash of the email address of a deleted account for 12 months, then delete it");
-    expect(text).toContain("it is still personal data");
-    expect(text).toContain("right to erasure");
+    expect(text).toContain("kept only for this purpose");
+    expect(text).not.toMatch(/approved by counsel/); // the declaration is never printed
+    expect(text).not.toMatch(/lawful|complian|permitted|GDPR|KVKK/i);
   });
 });

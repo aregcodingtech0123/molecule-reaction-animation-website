@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import {
   aiHoldTtlSeconds,
+  emailTombstoneGuardSetting,
   isProductionNodeEnv,
   productionConfigProblems,
 } from "../services/auth-billing-service/src/config/productionConfig";
@@ -37,6 +38,7 @@ import { bffProductionConfigProblems } from "../src/instrumentation";
 import { geminiTimeoutMs } from "../src/lib/ai/gemini-limits";
 import { billingCallTimeoutMs, retryDelays } from "../src/lib/billing/server-billing";
 import { weakSecretReason as webSecretReason } from "../src/lib/security/secret-strength";
+import { invalidReason, readSiteOwner, tombstoneGuardEnabled } from "../src/lib/legal/site-owner";
 import { NOINDEX_REASON_TEXT, resolveSiteIndexing } from "../src/lib/seo/site";
 
 type Env = Record<string, string | undefined>;
@@ -133,6 +135,27 @@ export function checkConfig(service: Env, web: Env, examples = { service: exampl
     problems.push(`web: ${NOINDEX_REASON_TEXT[site.reason]} — the production site would be hidden from search engines (noindex on every page, robots.txt Disallow: /).`);
   } else if (trimmed(web.FRONTEND_URL) && !sameOrigin(site.origin, trimmed(web.FRONTEND_URL))) {
     problems.push("web: SITE_URL differs from FRONTEND_URL — canonical URLs and the sitemap would name a host that is not the app's public origin.");
+  }
+
+  // ── Trust-page owner details (SITE_OWNER_*, web host) ─────────────────────
+  // Format only: a value that fails its check would not be shown on the pages. Names and rules are printed, never values.
+  // Whether the required ones are all set is `npm run check:launch-content`'s question (a warning here).
+  const ownerStatus = readSiteOwner(web);
+  for (const field of ownerStatus.invalid) problems.push(`web: ${field.env} ${invalidReason(field)}.`);
+  if (ownerStatus.empty.length > 0) {
+    warnings.push(`web: ${ownerStatus.empty.length} required SITE_OWNER_* variable(s) are empty - the trust pages stay noindex (run npm run check:launch-content to list them).`);
+  }
+  // The privacy text and the API service must describe the same decision on the 12-month e-mail hash.
+  if (ownerStatus.owner.emailTombstoneGuard) {
+    const serviceGuard = emailTombstoneGuardSetting(service as NodeJS.ProcessEnv);
+    if (!serviceGuard.invalid) {
+      const declared = tombstoneGuardEnabled(ownerStatus.owner);
+      if (declared && !serviceGuard.enabled) {
+        problems.push("SITE_OWNER_EMAIL_TOMBSTONE_GUARD says enabled but the service has EMAIL_TOMBSTONE_GUARD off - the privacy policy would describe a hash that is not kept.");
+      } else if (!declared && serviceGuard.enabled) {
+        problems.push("SITE_OWNER_EMAIL_TOMBSTONE_GUARD says disabled but the service has EMAIL_TOMBSTONE_GUARD on (the default) - a hash is kept that the privacy policy does not mention.");
+      }
+    }
   }
 
   // ── Placeholders copied from .env.example ─────────────────────────────────

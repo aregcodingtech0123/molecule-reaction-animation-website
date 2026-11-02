@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { INDEXABLE_ROUTES } from "@/lib/seo/routes";
+import { indexableRoutes } from "@/lib/seo/routes";
 
 // SEO-14. One <title> (Next adds its own when this file has none), a descriptive h1 and links back into the site.
 // The status stays 404 and Next adds `<meta name="robots" content="noindex">` for this page.
@@ -23,7 +23,7 @@ export default function NotFound() {
         The page you asked for does not exist or has moved. These pages do:
       </p>
       <ul className="mt-6 flex flex-wrap justify-center gap-3 text-sm">
-        {INDEXABLE_ROUTES.filter((route) => !route.dynamic).map((route) => (
+        {indexableRoutes().filter((route) => !route.dynamic).map((route) => (
           <li key={route.path}>
             <Link href={route.path} className="rounded-full border border-current/20 px-4 py-2 hover:underline">
               {LABELS[route.path] ?? route.title}

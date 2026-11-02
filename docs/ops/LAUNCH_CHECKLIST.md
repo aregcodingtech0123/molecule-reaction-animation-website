@@ -181,6 +181,29 @@ locally: 16 concurrent logins 78 → 151 per second with 8 threads (performance 
 | `CLIENT_IP_HEADER` | per platform: Vercel `x-forwarded-for` (runbook §5 table); anything else only after the client-IP test (§A) |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | if the platform runs more than one instance |
 
+**Trust-page owner details** (Next.js host; `SITE_OWNER_*`, server-side, read on every request, never `NEXT_PUBLIC_*`; empty = not shown; format and
+long-text rules in [runbook §5](PRODUCTION_RUNBOOK.md#5-environment-variables-both-services-old-code-ignores-them)). The first fourteen are **required**:
+while any is empty or invalid the four pages stay `noindex` and `npm run check:launch-content` exits 1.
+
+| Variable | Value (example format) |
+| --- | --- |
+| `SITE_OWNER_LEGAL_NAME` | `Example Studio Ltd` |
+| `SITE_OWNER_COUNTRY` | `Exampleland` |
+| `SITE_OWNER_POSTAL_ADDRESS` | `1 Example Street\nExample City 00000` |
+| `SITE_OWNER_CONTACT_EMAIL` | `hello@your-domain.example` |
+| `SITE_OWNER_GOVERNING_LAW` | the governing law and courts your counsel names |
+| `SITE_OWNER_REFUND_POLICY` | your refund wording (blank line = new paragraph), or one `https://` URL |
+| `SITE_OWNER_HOSTING_PROVIDERS` | the providers you actually use (web app, API, database) |
+| `SITE_OWNER_LOG_RETENTION` | how long those hosts keep logs (§5.3) |
+| `SITE_OWNER_GEMINI_DATA_USE` | what Google may do with prompts under the Gemini plan you use |
+| `SITE_OWNER_ACCOUNT_DELETION` | how to ask for deletion by e-mail and what is kept |
+| `SITE_OWNER_SIGNUP_IP_PURGE_JOB` | set **only when true** (§5.1): where the job runs and what alerts you. Never displayed |
+| `SITE_OWNER_ACCOUNT_DELETION_JOB` | set **only when true** (§5.1). Never displayed |
+| `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` | `enabled …` or `disabled …` (§1.6); must match `EMAIL_TOMBSTONE_GUARD` on Express. Never displayed |
+| `SITE_OWNER_EFFECTIVE_DATE` | `2026-12-01` |
+| `SITE_OWNER_REGISTRATION_NUMBER`, `SITE_OWNER_SUPPORT_EMAIL`, `SITE_OWNER_PRIVACY_EMAIL`, `SITE_OWNER_PHONE`, `SITE_OWNER_LAST_UPDATED` | optional; shown only when given |
+| `SITE_OWNER_LEGAL_REVIEWED` | `true` removes the "Draft — needs legal review" notice; only after counsel has signed |
+
 `NODE_ENV` for `next start` is set by Next itself (the production-mode E2E asserts the `Secure` cookie flag without
 setting it). `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_*`, `GEMINI_MODEL`, `GEMINI_TIMEOUT_MS`, `GEMINI_MAX_OUTPUT_TOKENS`,
 `BILLING_*`, `CSP_MODE` are optional; leave `CSP_MODE` unset (enforcing).
@@ -216,26 +239,33 @@ npm run check:config -- --service ./.env.launch-express.local --web ./.env.launc
       the longest turn (defaults: 600 s against 117.25 s — R20), and `LEMONSQUEEZY_ALLOW_TEST_MODE` set to a truthy value
       (`true`, `1`, `yes`, `y`, `on`) in the Express file — a `PROBLEM` naming the variable, exit `1`. Unset, empty and
       `false` / `0` / `no` / `off` pass; any other value only warns (the service honours exactly `true`, so it is inert).
+- [ ] It also validates the **format** of every `SITE_OWNER_*` value that is set (e-mail shape, real `YYYY-MM-DD` date, telephone characters, `enabled`/`disabled`, maximum length) and that
+      `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` agrees with `EMAIL_TOMBSTONE_GUARD`; empty required ones are a warning here (the gate is §1.6). Names and rules only, never values.
 
 ### 1.6 `npm run check:launch-content` (trust pages, SEO Part 2)
 
 ```
-npm run check:launch-content
+npm run check:launch-content                              # reads this shell's environment
+npm run check:launch-content -- --web ./.env.launch-next.local   # or the file you made for check:config
 ```
 
-- [ ] Exit code `0`: no `TODO(owner):` placeholder left in `src/lib/legal/site-owner.ts` (legal name, country, postal address,
-      contact email, governing law, refund policy, hosting providers, log retention, Gemini data use, account deletion,
-      **signup-address purge job (§5.1 — mandatory)**, **account-deletion job (§5.1 — mandatory)**, **e-mail-hash decision (below)**, effective date). Exit `1` lists each remaining field. While any remains, `/about`, `/contact`, `/privacy`, `/terms` show
-      a "Draft" notice, are `noindex` and out of the sitemap, and no Organization JSON-LD is emitted.
-- [ ] **Legal review of the re-registration guard** (docs/seo/ACCOUNT_DELETION_DESIGN.md §3.3): when an account is deleted, a keyed
+- [ ] Exit code `0`: every **required** `SITE_OWNER_*` variable of §1.4 is set and valid (legal name, country, postal address, contact e-mail,
+      governing law, refund policy, hosting providers, log retention, Gemini data use, account deletion,
+      **signup-address purge job (§5.1 — mandatory)**, **account-deletion job (§5.1 — mandatory)**, **e-mail-hash decision (below)**, effective date).
+      Exit `1` lists each empty variable **by name** with what it is for, and each set-but-malformed one with the rule it broke (never the value); `64` = usage error.
+      While any remains, `/about`, `/contact`, `/privacy`, `/terms` are `noindex` and out of the sitemap (20 URLs instead of 24) and no Organization
+      JSON-LD is emitted. A value is never shown unless it is set and valid; nothing placeholder-like is ever printed on a page.
+- [ ] **Legal review of the re-registration guard** (docs/seo/ACCOUNT_DELETION_DESIGN.md §3.3, question list: `docs/seo/LEGAL_REVIEW_QUESTIONS.md`): when an account is deleted, a keyed
       hash (HMAC-SHA256 under `EMAIL_TOMBSTONE_SECRET`) of its e-mail is kept for **12 months** so the same address cannot collect the
       10-credit signup bonus again; a purge job removes older ones. That hash is still personal data. Ask counsel: is it allowed next to
       the right to erasure (GDPR Art. 17; KVKK Art. 7), what is the legal basis (legitimate interest in preventing abuse?), is 12 months
-      proportionate, and what must `/privacy` say (a marked draft paragraph is already there). Then **either** set
-      `EMAIL_TOMBSTONE_GUARD=true` and write `enabled …` in `SITE_OWNER.emailTombstoneGuard`, **or** set `EMAIL_TOMBSTONE_GUARD=false`
-      (no hash is computed, looked up or stored; the secret is no longer needed) and write `disabled …`. The two must agree.
-- [ ] A lawyer has reviewed `/privacy` and `/terms` (no script can check this). Sources of every privacy statement and the
-      open points: `docs/seo/TRUST_PAGES.md`.
+      proportionate, and what must `/privacy` say. Then **either** set
+      `EMAIL_TOMBSTONE_GUARD=true` on Express and `SITE_OWNER_EMAIL_TOMBSTONE_GUARD=enabled …` on the web host, **or** set `EMAIL_TOMBSTONE_GUARD=false`
+      (no hash is computed, looked up or stored; the secret is no longer needed) and `SITE_OWNER_EMAIL_TOMBSTONE_GUARD=disabled …`. The two must agree:
+      `npm run check:config` fails when they do not. The privacy page mentions the hash only when the web value starts with `enabled`.
+- [ ] A lawyer has reviewed `/privacy` and `/terms` (no script can check this; the drafts claim no legal compliance). Sources of every privacy statement and the
+      open points: `docs/seo/TRUST_PAGES.md`. Only then set `SITE_OWNER_LEGAL_REVIEWED=true`, which removes the "Draft — needs legal review" notice
+      (until then `check:launch-content` prints a note, not a failure).
 - [ ] The check reads only the file or env you hand it. It cannot see what the **host's dashboard** really holds, so
       the file must be a faithful export of it (§3.5 re-confirms on the live host).
 - [ ] Delete both files afterwards (`rm .env.launch-*.local`).
@@ -267,6 +297,9 @@ both must be reviewed before non-English visitors are invited:
       `buildDeletionRequestedEmail`) and the "Download my data" section.
 - [ ] **924 machine-translated strings** (84 UI keys × 11 locales) await native review (`docs/testing/I18N_REVIEW.md`);
       the **22 keys with legal, pricing or billing meaning go first**.
+- [ ] **The four trust pages are English only, on purpose** (`/about`, `/contact`, `/privacy`, `/terms`): legal text is not machine-translated, and each page says
+      "This page is available in English only." A translation of `/privacy` and `/terms` must come from counsel or a qualified translator, never from the UI
+      dictionaries. The owner details (`SITE_OWNER_*`) are shown exactly as you wrote them, in the language you wrote them. This change added **no strings to the 12 locale bundles**.
 - [ ] New English-only labels added by the SEO work (trust pages, "Common classification, not an IUPAC designation", "State
       unknown / not produced in bulk", the profile page's "Download my data" section) have no translation yet; decide which
       locales get them.
@@ -589,8 +622,8 @@ Nothing in this repository pages you; wire these up before announcing the launch
 | --- | --- | --- | --- |
 | Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`, `webhook_missing_user`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
-| **MANDATORY** — Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90), with `PURGE_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit of the job (`1` = it failed or migration 016 is missing, `2` = it purged but the heartbeat ping failed, `64` = bad argument); (2) **no ping from the heartbeat monitor within 26 hours** (e.g. healthchecks.io-style "period 1 day, grace 2 h", email/SMS) — this is what catches a job that **never ran** (a scheduler that is disabled, deleted or out of credit sends no exit code at all). The job prints a count, never an address, and sends the ping only after a successful purge; the ping URL is a secret (only its host is ever printed). Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy states "cleared automatically once the account is 90 days old" only after you fill `SITE_OWNER.signupIpPurgeJob` (`src/lib/legal/site-owner.ts`); until then it says the clearing is planned. Fill it only when both alerts exist and a test run showed the ping arriving** |
-| **MANDATORY** — Account deletion (migration 017) | `npm run db:process-deletions` (service folder, owner URL; `-- --dry-run` lists what is due), with `EMAIL_TOMBSTONE_SECRET` set (or `EMAIL_TOMBSTONE_GUARD=false`) and `DELETION_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit (`1` = a failure, a missing migration 017, or a missing/short `EMAIL_TOMBSTONE_SECRET` — it refuses to run rather than store an unkeyed hash; `2` = it worked but the heartbeat ping failed; `64` = bad argument); (2) **no ping within 26 hours** (catches a job that never ran — without it nobody is ever deleted although the site promises it). It anonymises accounts whose request is ≥ 14 days old, postpones (and counts) accounts with an open AI reservation or pending checkout, removes e-mail tombstones older than 12 months, and prints counts only. Never touches the ledger or balances. **`/privacy` describes self-service deletion as active only after you fill `SITE_OWNER.accountDeletionJob` — fill it only when both alerts exist and a dry run showed the job working** |
+| **MANDATORY** — Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90), with `PURGE_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit of the job (`1` = it failed or migration 016 is missing, `2` = it purged but the heartbeat ping failed, `64` = bad argument); (2) **no ping from the heartbeat monitor within 26 hours** (e.g. healthchecks.io-style "period 1 day, grace 2 h", email/SMS) — this is what catches a job that **never ran** (a scheduler that is disabled, deleted or out of credit sends no exit code at all). The job prints a count, never an address, and sends the ping only after a successful purge; the ping URL is a secret (only its host is ever printed). Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy states "cleared automatically once the account is 90 days old" only after you set `SITE_OWNER_SIGNUP_IP_PURGE_JOB` on the web host; until then it says the clearing is planned. Fill it only when both alerts exist and a test run showed the ping arriving** |
+| **MANDATORY** — Account deletion (migration 017) | `npm run db:process-deletions` (service folder, owner URL; `-- --dry-run` lists what is due), with `EMAIL_TOMBSTONE_SECRET` set (or `EMAIL_TOMBSTONE_GUARD=false`) and `DELETION_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit (`1` = a failure, a missing migration 017, or a missing/short `EMAIL_TOMBSTONE_SECRET` — it refuses to run rather than store an unkeyed hash; `2` = it worked but the heartbeat ping failed; `64` = bad argument); (2) **no ping within 26 hours** (catches a job that never ran — without it nobody is ever deleted although the site promises it). It anonymises accounts whose request is ≥ 14 days old, postpones (and counts) accounts with an open AI reservation or pending checkout, removes e-mail tombstones older than 12 months, and prints counts only. Never touches the ledger or balances. **`/privacy` describes self-service deletion as active only after you set `SITE_OWNER_ACCOUNT_DELETION_JOB` — fill it only when both alerts exist and a dry run showed the job working** |
 
 Where to run them: `db:reconcile` needs the service folder with `npm ci` done, Node, and the owner URL; the cron SQL needs
 `psql` and that URL. Keep the owner URL out of the Express host's runtime environment. Options: **(a)** a scheduled GitHub Actions workflow (`schedule:`)
@@ -770,11 +803,11 @@ Launch only when all of these are true:
 - [ ] [`SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md) Go / no-go (SEO) is ticked (canonical host and redirects, `npm run check:live-seo`, Search Console).
 - [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
-- [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then fill `SITE_OWNER.signupIpPurgeJob` so the privacy policy may say the address is cleared after 90 days.
+- [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then set `SITE_OWNER_SIGNUP_IP_PURGE_JOB` so the privacy policy may say the address is cleared after 90 days.
 - [ ] §6 you have the rotation steps, the incident page and the rollback bookmarks at hand.
-- [ ] §5.1 **the daily `db:process-deletions` job is scheduled, has run at least once on production (its log shows "anonymised N account(s)" and "heartbeat sent"), and BOTH alerts exist.** Only then fill `SITE_OWNER.accountDeletionJob`.
-- [ ] §1.6 the re-registration guard is decided with counsel (`enabled` or `disabled`) and `SITE_OWNER.emailTombstoneGuard` matches `EMAIL_TOMBSTONE_GUARD`.
-- [ ] The manual deletion process (runbook §11) is understood by whoever answers `SITE_OWNER.contactEmail`, until you have run the self-service path once end to end.
+- [ ] §5.1 **the daily `db:process-deletions` job is scheduled, has run at least once on production (its log shows "anonymised N account(s)" and "heartbeat sent"), and BOTH alerts exist.** Only then set `SITE_OWNER_ACCOUNT_DELETION_JOB`.
+- [ ] §1.6 the re-registration guard is decided with counsel (`enabled` or `disabled`) and `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` matches `EMAIL_TOMBSTONE_GUARD` (`check:config` verifies it).
+- [ ] The manual deletion process (runbook §11) is understood by whoever answers `SITE_OWNER_CONTACT_EMAIL`, until you have run the self-service path once end to end.
 - [ ] §1.7 the native-translation items are done, or you have decided to launch English-only for now (then say so in §7).
 - [ ] §7 you have read the limitations and accept them.
 

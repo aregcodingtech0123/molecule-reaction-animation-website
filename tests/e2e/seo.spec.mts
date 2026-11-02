@@ -268,7 +268,8 @@ test.describe("indexable production site (SITE_URL = https origin)", () => {
       expect(p.robots, path).toEqual(["noindex, follow"]);
       expect(p.canonical, path).toEqual([]);
       expect(p.html, path).toContain("Draft — needs legal review.");
-      expect(p.html, path).toContain("[to be provided:");
+      // owner details come from SITE_OWNER_* variables (none set in this stack): nothing placeholder-like may reach a visitor
+      expect(p.html, path).not.toMatch(/to be provided|TODO\(owner\)/);
     }
     const home = await page(srv, "/");
     for (const path of TRUST) expect(home.html, `home links ${path}`).toContain(`href="${path}"`);

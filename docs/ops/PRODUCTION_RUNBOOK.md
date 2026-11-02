@@ -253,6 +253,37 @@ base64 above.)
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment; `check:config` fails on a truthy value. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
+| `SITE_OWNER_LEGAL_NAME` | **required for launch**, one line, ≤ 200 chars | — | trust pages (SEO Part 2, D6): who operates the site (About, Contact, Privacy, Terms; Organization JSON-LD). Server-side, read on every request, **never `NEXT_PUBLIC_*`**, web host only. Empty = not shown. See *Owner details* below |
+| `SITE_OWNER_COUNTRY` | **required**, one line, ≤ 100 | — | country of the operator |
+| `SITE_OWNER_POSTAL_ADDRESS` | **required**, text ≤ 500 (line breaks kept) | — | postal address for legal notices (Contact, Privacy, Terms, JSON-LD) |
+| `SITE_OWNER_CONTACT_EMAIL` | **required**, e-mail ≤ 254 | — | general contact; also the privacy-request address unless `SITE_OWNER_PRIVACY_EMAIL` is set |
+| `SITE_OWNER_GOVERNING_LAW` | **required**, text ≤ 1500 | — | governing law and courts (Terms "Governing law" section appears only when set) |
+| `SITE_OWNER_REFUND_POLICY` | **required**, text ≤ 4000 or one https URL | — | refund policy (Terms "Refunds" section; a lone https URL becomes a link) |
+| `SITE_OWNER_HOSTING_PROVIDERS` | **required**, text ≤ 1000 | — | hosting providers actually used (Privacy) |
+| `SITE_OWNER_LOG_RETENTION` | **required**, text ≤ 1000 | — | how long hosting logs are kept (Privacy) |
+| `SITE_OWNER_GEMINI_DATA_USE` | **required**, text ≤ 2000 | — | what Google may do with AI Lab prompts under the Gemini plan you use (Privacy) |
+| `SITE_OWNER_ACCOUNT_DELETION` | **required**, text ≤ 2000 | — | how to ask for deletion by e-mail and what is kept (Privacy, Terms) |
+| `SITE_OWNER_SIGNUP_IP_PURGE_JOB` | **required**, text ≤ 1000, **never displayed** | — | your statement that the daily `db:purge-signup-ips` job runs and is monitored (§9, `LAUNCH_CHECKLIST.md` §5.1). Set it **only when true**: it lets the policy say "cleared once the account is 90 days old" |
+| `SITE_OWNER_ACCOUNT_DELETION_JOB` | **required**, text ≤ 1000, **never displayed** | — | same for the daily `db:process-deletions` job; lets the policy describe self-service deletion as active. Set only when true |
+| `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` | **required**, must start with `enabled` or `disabled`, ≤ 1000, **never displayed** | — | your decision on the 12-month e-mail hash of deleted accounts; the policy mentions the hash only when `enabled`. Must agree with `EMAIL_TOMBSTONE_GUARD` on the service (`check:config` fails if not) |
+| `SITE_OWNER_EFFECTIVE_DATE` | **required**, `YYYY-MM-DD` (a real date) | — | effective date shown on all four pages |
+| `SITE_OWNER_REGISTRATION_NUMBER` | optional, one line, ≤ 100 | — | company registration or tax number; shown only if given |
+| `SITE_OWNER_SUPPORT_EMAIL` | optional, e-mail | — | separate support address (Contact) |
+| `SITE_OWNER_PRIVACY_EMAIL` | optional, e-mail | — | address for privacy requests / data-protection contact (Contact, Privacy); falls back to `SITE_OWNER_CONTACT_EMAIL` |
+| `SITE_OWNER_PHONE` | optional, `+`, digits, spaces and `( ) . - /` | — | telephone number (Contact; Organization JSON-LD) |
+| `SITE_OWNER_LAST_UPDATED` | optional, `YYYY-MM-DD` | — | "Last updated" on the four pages |
+| `SITE_OWNER_LEGAL_REVIEWED` | optional, exactly `true` | — | removes the "Draft — needs legal review" notice from the four pages. It changes nothing else (the required variables decide indexing). Set it only after counsel has reviewed `/privacy` and `/terms` |
+
+**Owner details (`SITE_OWNER_*`, web host only).** These are the facts only you can supply for the four trust pages. They are read from the
+environment of the Next.js host **on every request** (a change needs a restart or redeploy of that host, not a rebuild), they are published on the
+pages, so nothing here is a secret. Rules:
+
+* **Empty or unset = not shown.** A field, and any sentence or section that depends on it, is simply left out; no placeholder text ever appears.
+* **A value that fails its format counts as not set** (e-mail shape, real `YYYY-MM-DD` date, telephone characters, `enabled`/`disabled`, maximum length), so a typo cannot show up on a page or open the gate. `npm run check:config` and `npm run check:launch-content` name the variable and the rule, never the value.
+* **The 14 required variables gate the launch.** While any is empty or invalid, `/about`, `/contact`, `/privacy` and `/terms` are `noindex`, out of the sitemap (20 URLs instead of 24) and no `Organization` JSON-LD is emitted, and `npm run check:launch-content` exits 1 naming them.
+* **Format of long values.** Plain text only, rendered as text (HTML in a value is shown as characters, never interpreted). A blank line starts a new paragraph; a single line break stays a line break; where a dashboard cannot hold a real line break, write `\n`. Example: `Refunds within 14 days if no credits were used.\n\nWrite to us with your order number.`
+* **Never displayed:** the two job declarations and the e-mail-hash decision only switch sentences; their text is not printed.
+* The pages are **English only** on purpose (legal text is not machine-translated; `LAUNCH_CHECKLIST.md` §1.7).
 
 **Choosing `CLIENT_IP_HEADER` (Next.js):** it must be a header the platform **overwrites**, so a client
 cannot forge it. The right-most valid address is used.
@@ -601,7 +632,7 @@ can be re-delivered from the dashboard).
 
 ## 11. Handling a deletion or data request by hand
 
-Use this when someone e-mails `SITE_OWNER.contactEmail` instead of using the profile page, or until the self-service path
+Use this when someone e-mails `SITE_OWNER_CONTACT_EMAIL` (or `SITE_OWNER_PRIVACY_EMAIL`) instead of using the profile page, or until the self-service path
 (`Delete my account` / `Download my data`) has been proven end to end. Deadlines and legal grounds are for your lawyer; as I understand
 them GDPR allows one month to answer (Art. 12(3)) and KVKK 30 days (Art. 13) **(unverified: not read in this project)**. Keep a private log:
 date received, how identity was checked, what you did where, date answered.

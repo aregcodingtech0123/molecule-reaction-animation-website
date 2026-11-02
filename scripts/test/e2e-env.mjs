@@ -67,9 +67,23 @@ export function apiEnv() {
   };
 }
 
+/**
+ * Every SITE_OWNER_* variable, set empty: Next.js loads the developer's root .env, and an owner detail in it must not change what
+ * the E2E pages show (the specs assert the draft state). tests/unit/legal/site-owner.test.ts checks this list against the real one.
+ */
+export const OWNER_ENV_NAMES = [
+  "SITE_OWNER_LEGAL_NAME", "SITE_OWNER_COUNTRY", "SITE_OWNER_REGISTRATION_NUMBER", "SITE_OWNER_POSTAL_ADDRESS",
+  "SITE_OWNER_CONTACT_EMAIL", "SITE_OWNER_SUPPORT_EMAIL", "SITE_OWNER_PRIVACY_EMAIL", "SITE_OWNER_PHONE",
+  "SITE_OWNER_GOVERNING_LAW", "SITE_OWNER_REFUND_POLICY", "SITE_OWNER_HOSTING_PROVIDERS", "SITE_OWNER_LOG_RETENTION",
+  "SITE_OWNER_GEMINI_DATA_USE", "SITE_OWNER_ACCOUNT_DELETION", "SITE_OWNER_SIGNUP_IP_PURGE_JOB",
+  "SITE_OWNER_ACCOUNT_DELETION_JOB", "SITE_OWNER_EMAIL_TOMBSTONE_GUARD", "SITE_OWNER_EFFECTIVE_DATE",
+  "SITE_OWNER_LAST_UPDATED", "SITE_OWNER_LEGAL_REVIEWED",
+];
+
 export function webEnv() {
   return {
     ...shared,
+    ...Object.fromEntries(OWNER_ENV_NAMES.map((name) => [name, ""])),
     AUTH_SERVICE_URL: `${API_ORIGIN}/api/auth`,
     BILLING_SERVICE_URL: `${API_ORIGIN}/api/billing`,
     USERS_SERVICE_URL: `${API_ORIGIN}/api/users`,

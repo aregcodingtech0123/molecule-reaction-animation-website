@@ -7,7 +7,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { INDEXABLE_ROUTES } from "@/lib/seo/routes";
+import { REQUIRED_FIELDS } from "@/lib/legal/site-owner";
+import { indexableRoutes } from "@/lib/seo/routes";
 import { parseArgs } from "../../scripts/seo/verify-live.mjs";
 
 const root = path.resolve(__dirname, "../..");
@@ -114,7 +115,7 @@ describe("SEO_LAUNCH_CHECKLIST.md names real scripts, variables and numbers", ()
   });
 
   it("states the real sitemap sizes (20 with draft trust pages, 24 with the four trust pages) and LAUNCH_CHECKLIST agrees", () => {
-    const urls = INDEXABLE_ROUTES.flatMap((r) => (r.dynamic ? r.dynamic.ids : [r.path]));
+    const urls = indexableRoutes({}).flatMap((r) => (r.dynamic ? r.dynamic.ids : [r.path]));
     const trust = ["/about", "/contact", "/privacy", "/terms"];
     const withoutTrust = urls.filter((u) => !trust.includes(u)).length; // the draft state: trust pages are noindex
     const withTrust = withoutTrust + trust.length;
@@ -124,10 +125,9 @@ describe("SEO_LAUNCH_CHECKLIST.md names real scripts, variables and numbers", ()
     expect(LAUNCH).toContain(`**${withTrust}** once`);
   });
 
-  it("the placeholder count it quotes is the real one", () => {
-    const owner = read("src/lib/legal/site-owner.ts");
-    const fields = [...owner.matchAll(/^\s+(\w+): `\$\{PLACEHOLDER_PREFIX\}/gm)].length;
-    expect(SEO).toContain(`**${fields} placeholders**`);
+  it("the number of required owner variables it quotes is the real one, and the variables it names exist", () => {
+    expect(SEO).toContain(`**${REQUIRED_FIELDS.length} required variables**`);
+    for (const f of REQUIRED_FIELDS) expect(SEO + LAUNCH, f.env).toContain(f.env);
   });
 
   it("every check:live-seo command line it shows is accepted by the script's own argument parser", () => {

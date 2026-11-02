@@ -52,7 +52,7 @@ Prints counts only – never an address or hash. Exit 0 / 1 failure / 2 heartbea
   (rotating it makes existing tombstones useless – fail-open, no grace – so rotate only on suspected exposure).
 * `EMAIL_TOMBSTONE_GUARD` – `true` (default) / `false`. `false` disables the lookup, the bonus skip and the tombstone creation (the secret is then not required),
   for the case that legal review rejects the guard. Existing tombstones stay until `purge_email_tombstones` removes them.
-* Privacy/legal: `/privacy` carries a clearly marked draft paragraph (conditional on `SITE_OWNER.emailTombstoneGuard`), and the launch checklist has a legal-review item (§1.6).
+* Privacy/legal: `/privacy` carries a paragraph about the hash (conditional on `SITE_OWNER_EMAIL_TOMBSTONE_GUARD` starting with `enabled`; the draft notice is the page-wide `SITE_OWNER_LEGAL_REVIEWED` switch), and the launch checklist has a legal-review item (§1.6).
 
 ## 6. UI (profile page)
 

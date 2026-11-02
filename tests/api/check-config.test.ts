@@ -10,6 +10,7 @@ import path from "node:path";
 import { parseEnv } from "node:util";
 import { afterAll, describe, expect, it } from "vitest";
 import { checkConfig, TTL_MARGIN } from "../../scripts/check-config.mjs";
+import { FULL_OWNER_ENV } from "../support/site-owner-env";
 
 const root = path.resolve(__dirname, "../..");
 const secret = () => randomBytes(36).toString("base64url");
@@ -48,6 +49,8 @@ function webEnv(over: Record<string, string | undefined> = {}) {
     GEMINI_API_KEY: `AIza${secret()}`,
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: "123-abc.apps.googleusercontent.com",
     CLIENT_IP_HEADER: "x-forwarded-for",
+    // The trust-page owner details (fictional): a complete web configuration has them.
+    ...FULL_OWNER_ENV,
     ...over,
   };
 }
@@ -64,7 +67,7 @@ describe("checkConfig", () => {
       /EMAIL_TOMBSTONE_SECRET must not be the same value as JWT_SECRET/,
     );
     expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_SECRET: "a".repeat(40) }), webEnv()).problems.join("\n")).toMatch(/EMAIL_TOMBSTONE_SECRET has too little variety/);
-    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_GUARD: "false", EMAIL_TOMBSTONE_SECRET: undefined }), webEnv())).toMatchObject({ problems: [], warnings: [] });
+    expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_GUARD: "false", EMAIL_TOMBSTONE_SECRET: undefined }), webEnv({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "disabled (counsel said no)" }))).toMatchObject({ problems: [], warnings: [] });
     expect(checkConfig(serviceEnv({ EMAIL_TOMBSTONE_GUARD: "perhaps" }), webEnv()).problems.join("\n")).toMatch(/EMAIL_TOMBSTONE_GUARD must be/);
   });
 
@@ -306,5 +309,41 @@ describe("npm run check:config (CLI)", () => {
     const res = run(args as string[]);
     expect(res.code).toBe(64);
     expect(res.out).toMatch(message);
+  });
+});
+
+describe("checkConfig: trust-page owner details (SITE_OWNER_*)", () => {
+  const problemsOf = (over: Record<string, string | undefined>, svc = serviceEnv()) => checkConfig(svc, webEnv(over)).problems.join("\n");
+
+  it("a malformed value is a problem naming the variable and the rule, never the value", () => {
+    const bad = {
+      SITE_OWNER_CONTACT_EMAIL: "not-an-email-secret-marker",
+      SITE_OWNER_EFFECTIVE_DATE: "01/02/2026",
+      SITE_OWNER_PHONE: "call me maybe",
+      SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "perhaps",
+      SITE_OWNER_LAST_UPDATED: "2026-02-31",
+    };
+    const text = problemsOf(bad);
+    for (const name of Object.keys(bad)) expect(text, name).toContain(name);
+    for (const value of Object.values(bad)) expect(text).not.toContain(value);
+    expect(text).toContain("YYYY-MM-DD");
+  });
+
+  it("an over-long value is a problem (it would not be shown)", () => {
+    expect(problemsOf({ SITE_OWNER_LEGAL_NAME: "x".repeat(201) })).toContain("SITE_OWNER_LEGAL_NAME is longer than 200 characters");
+  });
+
+  it("missing required variables are only a warning here (check:launch-content is the gate), without names of values", () => {
+    const empty = Object.fromEntries(Object.keys(FULL_OWNER_ENV).map((k) => [k, undefined]));
+    const result = checkConfig(serviceEnv(), webEnv(empty));
+    expect(result.problems).toEqual([]);
+    expect(result.warnings.join("\n")).toMatch(/14 required SITE_OWNER_\* variable\(s\) are empty .*check:launch-content/);
+  });
+
+  it("the privacy statement about the 12-month e-mail hash must agree with EMAIL_TOMBSTONE_GUARD on the service", () => {
+    expect(problemsOf({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "enabled (12 months)" }, serviceEnv({ EMAIL_TOMBSTONE_GUARD: "false" }))).toContain("says enabled but the service has EMAIL_TOMBSTONE_GUARD off");
+    expect(problemsOf({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "disabled (counsel said no)" }, serviceEnv())).toContain("says disabled but the service has EMAIL_TOMBSTONE_GUARD on");
+    expect(problemsOf({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "disabled (counsel said no)" }, serviceEnv({ EMAIL_TOMBSTONE_GUARD: "false", EMAIL_TOMBSTONE_SECRET: undefined }))).not.toMatch(/EMAIL_TOMBSTONE_GUARD/);
+    expect(problemsOf({ SITE_OWNER_EMAIL_TOMBSTONE_GUARD: "enabled (12 months)" })).not.toMatch(/SITE_OWNER_EMAIL_TOMBSTONE_GUARD/);
   });
 });

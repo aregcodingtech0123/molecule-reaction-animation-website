@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { LegalPage, Owner } from "@/components/legal/LegalPage";
-import { SITE_OWNER } from "@/lib/legal/site-owner";
+import { LegalPage, OwnerEmail } from "@/components/legal/LegalPage";
+import { getSiteOwner } from "@/lib/legal/site-owner";
 import { JsonLd, organizationJsonLd } from "@/lib/seo/json-ld";
 import { routeMetadata } from "@/lib/seo/metadata";
 
 export const generateMetadata = routeMetadata("/about");
+// The operator's details come from SITE_OWNER_* variables, read on every request.
+export const dynamic = "force-dynamic";
 
-/** DRAFT About page (D6): what the site is (from the code), who runs it (owner placeholders). */
+/** About page (D6): what the site is (from the code) and, when the owner has given them, who runs it. */
 export default function AboutPage() {
-  const o = SITE_OWNER;
+  const o = getSiteOwner();
+  const operator = [o.legalName, o.country].filter(Boolean).join(", ");
   return (
     <LegalPage title="About Molecule Architecture Studio">
-      {/* Organization JSON-LD appears only once every owner detail is real (src/lib/seo/json-ld.tsx). */}
+      {/* Organization JSON-LD appears only once every required owner variable is set (src/lib/seo/json-ld.tsx). */}
       <JsonLd data={[organizationJsonLd()]} />
       <p>
         Molecule Architecture Studio is an interactive chemistry site. You can rotate molecules in 3D in the{" "}
@@ -22,11 +25,22 @@ export default function AboutPage() {
         uses Google&apos;s Gemini model and runs on <Link href="/pricing" className="underline">credits</Link>.
       </p>
 
-      <h2>Who runs it</h2>
-      <p>
-        <Owner value={o.legalName} />, <Owner value={o.country} />. Contact: <Owner value={o.contactEmail} /> (more on the{" "}
-        <Link href="/contact" className="underline">contact page</Link>).
-      </p>
+      {(operator || o.contactEmail) && (
+        <>
+          <h2>Who runs it</h2>
+          <p>
+            {operator}
+            {operator && o.registrationNumber ? ` (registration number ${o.registrationNumber})` : ""}
+            {operator && o.contactEmail ? ". " : ""}
+            {o.contactEmail && (
+              <>
+                Contact: <OwnerEmail value={o.contactEmail} /> (more on the{" "}
+                <Link href="/contact" className="underline">contact page</Link>).
+              </>
+            )}
+          </p>
+        </>
+      )}
 
       <h2>Where the facts come from</h2>
       <ul>

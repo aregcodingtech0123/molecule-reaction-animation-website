@@ -1,13 +1,13 @@
 /** SEO-16 (Part 2): JSON-LD is truthful, fail-closed, and cannot break out of its script element. */
 import { describe, expect, it } from "vitest";
 import { CREDIT_PACKAGES } from "@/lib/billing/checkout";
-import { PLACEHOLDER_PREFIX, SITE_OWNER, type SiteOwner } from "@/lib/legal/site-owner";
+import { FULL_OWNER_ENV, ownerEnvWithout } from "../../support/site-owner-env";
 import { breadcrumbJsonLd, organizationJsonLd, serializeJsonLd, webApplicationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
 const ON = { SITE_URL: "https://studio.example" };
 const OFF_CASES = [{}, { SITE_URL: "http://studio.example" }, { SITE_URL: "https://studio.example", VERCEL_ENV: "preview" }];
 
-const FILLED: SiteOwner = Object.fromEntries(Object.keys(SITE_OWNER).map((k) => [k, `real ${k}`])) as unknown as SiteOwner;
+const FILLED = FULL_OWNER_ENV;
 
 describe("JSON-LD builders", () => {
   it("WebSite: name + canonical home URL (Google's two required properties)", () => {
@@ -21,11 +21,25 @@ describe("JSON-LD builders", () => {
     expect(breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "X" }], env)).toBeNull();
   });
 
-  it("Organization: never while any owner detail is a placeholder (today), only once all are real", () => {
-    expect(Object.values(SITE_OWNER).some((v) => v.startsWith(PLACEHOLDER_PREFIX))).toBe(true);
-    expect(organizationJsonLd(ON)).toBeNull();
-    expect(organizationJsonLd(ON, { ...FILLED, legalName: `${PLACEHOLDER_PREFIX} x` })).toBeNull();
-    expect(organizationJsonLd(ON, FILLED)).toMatchObject({ "@type": "Organization", name: "real legalName", url: "https://studio.example/" });
+  it("Organization: never while a required owner variable is missing or invalid (today), only once all are set", () => {
+    expect(organizationJsonLd(ON, {})).toBeNull();
+    expect(organizationJsonLd(ON, ownerEnvWithout("SITE_OWNER_LEGAL_NAME"))).toBeNull();
+    expect(organizationJsonLd(ON, { ...FILLED, SITE_OWNER_CONTACT_EMAIL: "not an email" })).toBeNull();
+    expect(organizationJsonLd(ON, FILLED)).toEqual({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Example Studio Ltd",
+      url: "https://studio.example/",
+      email: "hello@studio.example",
+      address: "1 Example Street, Example City 00000",
+      telephone: "+00 000 000 0000",
+    });
+  });
+
+  it("Organization: the optional telephone is left out when not given, and a value cannot close the script element", () => {
+    expect(organizationJsonLd(ON, ownerEnvWithout("SITE_OWNER_PHONE"))).not.toHaveProperty("telephone");
+    const out = serializeJsonLd(organizationJsonLd(ON, { ...FILLED, SITE_OWNER_LEGAL_NAME: "</script><script>alert(1)</script>" })!);
+    expect(out).not.toContain("<");
   });
 
   it("WebApplication: exactly the credit packs /pricing renders, USD, and no rating or review (none exist)", () => {

@@ -2,7 +2,7 @@
 import type { ResolvingMetadata } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { rootMetadata, routeMetadata } from "@/lib/seo/metadata";
-import { SEO_ROUTES } from "@/lib/seo/routes";
+import { seoRoutes } from "@/lib/seo/routes";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -55,7 +55,7 @@ describe("routeMetadata", () => {
     expect(m.openGraph).not.toHaveProperty("url");
   });
 
-  it.each(SEO_ROUTES.filter((r) => r.robots !== "index"))("$path is noindex and has no canonical", async (route) => {
+  it.each(seoRoutes({}).filter((r) => r.robots !== "index"))("$path is noindex and has no canonical", async (route) => {
     indexable();
     const m = await meta(route.path);
     expect(m.robots).toMatchObject({ index: false });
