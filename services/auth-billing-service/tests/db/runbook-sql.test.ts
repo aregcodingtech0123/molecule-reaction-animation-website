@@ -71,7 +71,7 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect(rows[1]).toMatchObject({ consumptions: "6", refunds: "4", late_refunds: "0", refund_pct: "67" });
     }));
 
-  it("§10.1 rollback of 008–017 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
+  it("§10.1 rollback of 008–018 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
     withRunnerDb(async (db) => {
       await db.pool.query(rollback0809!);
       const status = await db.pool.query(`SELECT filename FROM schema_migrations ORDER BY 1`);
@@ -83,6 +83,8 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect((await db.pool.query(`SELECT to_regclass('public.lemon_webhook_events') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('purge_signup_ips(interval)') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('anonymise_user(uuid,text,bytea,interval)') IS NULL AS gone`)).rows[0].gone).toBe(true);
+      expect((await db.pool.query(`SELECT to_regprocedure('webhook_missing_user_to_review()') IS NULL AS gone`)).rows[0].gone).toBe(true);
+      expect((await db.pool.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'lemon_webhook_events' AND column_name = 'reviewed_at'`)).rows[0].n).toBe(0);
       expect((await db.pool.query(`SELECT to_regprocedure('purge_email_tombstones(interval)') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regclass('public.deleted_email_tombstones') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'users' AND column_name IN ('deletion_requested_at','anonymised_at')`)).rows[0].n).toBe(0);
@@ -111,9 +113,11 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
         "015_lemon_webhook_inbox.sql",
         "016_signup_ip_retention.sql",
         "017_account_deletion.sql",
+        "018_webhook_missing_user_review.sql",
       ]);
       expect((await db.pool.query(`SELECT to_regprocedure('purge_signup_ips(interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('anonymise_user(uuid,text,bytea,interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
+      expect((await db.pool.query(`SELECT to_regprocedure('webhook_missing_user_to_review()') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('expire_stale_checkout_orders(interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT prosecdef FROM pg_proc WHERE proname = 'post_credit_transaction'`)).rows[0].prosecdef).toBe(true);
     }));

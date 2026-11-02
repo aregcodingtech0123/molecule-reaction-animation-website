@@ -300,9 +300,9 @@ same settings:
 cd services/auth-billing-service
 export MIGRATION_DATABASE_URL='postgresql://…<rehearsal branch, direct, no -pooler>…?sslmode=require'
 npm run db:migrate:status      # every file "pending", 15 files (001 … 015)
-npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=17
+npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=18
 npm run db:migrate             # again → mode=tracked baselined=0 applied=0   (the runner is idempotent)
-npm run db:migrate:status      # all 17 "applied"
+npm run db:migrate:status      # all 18 "applied"
 npm run db:reconcile           # exit 0: two "OK" lines
 ```
 
@@ -322,7 +322,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
   -- pending_checkout_orders, revoked_tokens, schema_migrations, user_balances, users, verification_tokens
 ```
 
-- [ ] All of the above match, including `mode=fresh … applied=17` and `SELECT version()` = PostgreSQL 18.
+- [ ] All of the above match, including `mode=fresh … applied=18` and `SELECT version()` = PostgreSQL 18.
 - [ ] You did **not** run `db:setup` (it is for local databases: it connects to the `postgres` maintenance database to
       `CREATE DATABASE`) and did **not** run `--baseline` (that is only for a database created before the runner
       existed; on an empty database the runner picks `mode=fresh` by itself).
@@ -337,7 +337,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
 
 - [ ] Create a Neon branch of production named `pre-launch-<date>` (instant, costs nothing — a restore point).
 - [ ] Same commands as §2.2 with the **production** direct URL in `MIGRATION_DATABASE_URL` (`--dry-run` is available
-      if you want the plan first). Expected: `mode=fresh baselined=0 applied=17`, then the SQL checks, then
+      if you want the plan first). Expected: `mode=fresh baselined=0 applied=18`, then the SQL checks, then
       `npm run db:reconcile` → exit 0.
 - [ ] `unset MIGRATION_DATABASE_URL` in that shell afterwards.
 
@@ -555,7 +555,7 @@ Runbook §7.0 in short: open the site exactly as users reach it, sign in.
 ### 4.6 Logout and the closing checks
 
 - [ ] Sign out; `/dashboard` redirects to `/login`.
-- [ ] `npm run db:migrate:status` (all 17 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
+- [ ] `npm run db:migrate:status` (all 18 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
       not reviewed yet).
 - [ ] The client-IP test from §A passed (two networks → two different `signup_ip` values).
 
@@ -587,7 +587,7 @@ Nothing in this repository pages you; wire these up before announcing the launch
 
 | Job | Command | Cadence | Alert on |
 | --- | --- | --- | --- |
-| Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`), **1** = the job itself failed — never treat as green |
+| Reconciliation | `npm run db:reconcile` (service folder, `MIGRATION_DATABASE_URL` = owner direct URL) | daily | any non-zero exit: **2** = findings (`balance_mismatch`, `missing_balance_row`, `capture_failed`, `hold_expired_unsettled`, `refunded_order_credited`, `webhook_unprocessed`, `webhook_missing_user`), **1** = the job itself failed — never treat as green |
 | Stale checkouts | `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT expire_stale_checkout_orders();"` | hourly | job failure (bookkeeping only: never touches credits) |
 | **MANDATORY** — Signup address retention (privacy, migration 016) | `npm run db:purge-signup-ips` (service folder, owner URL; `-- --days N` to change the 90), with `PURGE_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit of the job (`1` = it failed or migration 016 is missing, `2` = it purged but the heartbeat ping failed, `64` = bad argument); (2) **no ping from the heartbeat monitor within 26 hours** (e.g. healthchecks.io-style "period 1 day, grace 2 h", email/SMS) — this is what catches a job that **never ran** (a scheduler that is disabled, deleted or out of credit sends no exit code at all). The job prints a count, never an address, and sends the ping only after a successful purge; the ping URL is a secret (only its host is ever printed). Clears `users.signup_ip` only; touches no ledger, balance or billing row. **The privacy policy states "cleared automatically once the account is 90 days old" only after you fill `SITE_OWNER.signupIpPurgeJob` (`src/lib/legal/site-owner.ts`); until then it says the clearing is planned. Fill it only when both alerts exist and a test run showed the ping arriving** |
 | **MANDATORY** — Account deletion (migration 017) | `npm run db:process-deletions` (service folder, owner URL; `-- --dry-run` lists what is due), with `EMAIL_TOMBSTONE_SECRET` set (or `EMAIL_TOMBSTONE_GUARD=false`) and `DELETION_HEARTBEAT_URL` set to a heartbeat monitor's ping URL | daily | **two alerts, both required:** (1) any non-zero exit (`1` = a failure, a missing migration 017, or a missing/short `EMAIL_TOMBSTONE_SECRET` — it refuses to run rather than store an unkeyed hash; `2` = it worked but the heartbeat ping failed; `64` = bad argument); (2) **no ping within 26 hours** (catches a job that never ran — without it nobody is ever deleted although the site promises it). It anonymises accounts whose request is ≥ 14 days old, postpones (and counts) accounts with an open AI reservation or pending checkout, removes e-mail tombstones older than 12 months, and prints counts only. Never touches the ledger or balances. **`/privacy` describes self-service deletion as active only after you fill `SITE_OWNER.accountDeletionJob` — fill it only when both alerts exist and a dry run showed the job working** |
@@ -608,7 +608,7 @@ tell me if you want one written.
 | Express | `[Webhook] FAILED background credit allocation` | a stored delivery still failed after the service's 10 automatic attempts (≈ 10 min) — its credits are missing. Fix the cause (`last_error` in `db:reconcile`), then run **`npm run webhooks:replay`** on the Express host (idempotent per order). **Page on it** |
 | Express | `[Webhook] NOT STORED — answered 503 so Lemon retries the delivery` | the database could not take the delivery within 3 s; Lemon retries after 5 s, 25 s, 125 s. Alert when it repeats for more than ~2 min: after Lemon's last retry the delivery shows as failed in Lemon's webhook log → **resend** it there |
 | Express | `[Webhook] Processing failed — the event is stored and will be retried` | transient (database slow or down); retried every minute. No action unless it ends in the `FAILED` line above |
-| Express | `Unable to resolve package`, `Amount mismatch`, `Unexpected currency`, `Missing user identity` (also what a purchase for an already-deleted account produces — it is **not credited**; refund the buyer in Lemon), `Order from another store`, `Ignoring test-mode order` | a signed order was **not** credited by design — usually mis-set variant ids, prices, store id or a test-mode order; compare with the Lemon order, fix, then resend |
+| Express | `Unable to resolve package`, `Amount mismatch`, `Unexpected currency`, `Missing user identity` (also what a purchase for an already-deleted account produces — it is **not credited**; `db:reconcile` now lists it as `webhook_missing_user`: refund the buyer in the Lemon dashboard, then mark it reviewed — runbook §9), `Order from another store`, `Ignoring test-mode order` | a signed order was **not** credited by design — usually mis-set variant ids, prices, store id or a test-mode order; compare with the Lemon order, fix, then resend |
 | Express | `[Webhook] Recorded refund` | a refund arrived — expect `refunded_order_credited` in the next reconcile |
 | Express | `[credits] AI_CAPACITY_REACHED` | the **global** daily AI cap was hit (users get `503 AI_CAPACITY_REACHED`) — raise `AI_DAILY_TURNS_GLOBAL` or investigate |
 | Express | `[credits] CAPTURE_FAILED` | a debit could not be posted (not charged) |
@@ -764,7 +764,7 @@ None of these is a hidden defect; each is a decision with a trigger. Details liv
 Launch only when all of these are true:
 
 - [ ] §1.5 `check:config` passes (including `SITE_URL`); the hosts hold the same values.
-- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=17`, SQL checks match, reconcile exit 0.
+- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=18`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
 - [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.

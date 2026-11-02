@@ -41,7 +41,7 @@ Prints counts only – never an address or hash. Exit 0 / 1 failure / 2 heartbea
 ## 4. Guards in existing code (reads only)
 
 * `webhook.service`: `userExists()` and `findUserIdByEmail()` ignore `anonymised_at IS NOT NULL` → a late `order_created` for an anonymised user ends in the existing
-  `missing_user` outcome (200 to Lemon, no ledger row; stored as `processed`/`missing_user` and logged as `Missing user identity`). **Correction:** `db:reconcile` does not list it; the log line (launch checklist §5.2) is the signal. A late `order_refunded` is unchanged (it never reads `users`).
+  `missing_user` outcome (200 to Lemon, no ledger row; stored as `processed`/`missing_user` and logged as `Missing user identity`). **Correction:** the existing `db:reconcile` did not list it; after the owner's decision it has a new section `webhook_missing_user` (migration 018, runbook §9) in addition to the log line (launch checklist §5.2). A late `order_refunded` is unchanged (it never reads `users`).
 * `loadReceiptRecipient()` ignores anonymised users → "Skipping purchase receipt — user not found", no e-mail to `deleted-…@invalid`.
 * The bonus guard sits **inside `grantSignupBonus`**, which all four bonus routes use (verify e-mail, verified upgrade, Google takeover link, new Google user). **Correction:** the bonus is granted at e-mail verification, not at registration, so the guard is there. With an unexpired tombstone the account is created and verified normally but no bonus is posted; the registration answer is identical, and the verify-email message reads "Email verified." (without the credits sentence).
 

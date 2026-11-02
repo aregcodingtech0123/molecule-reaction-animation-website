@@ -353,6 +353,13 @@ describe("late webhooks for an anonymised account", () => {
     expect(await money(u.id)).toEqual(before);
     expect(logs.lines().some((l) => l.includes("Missing user identity"))).toBe(true);
     expect(logs.lines().some((l) => l.includes("Credited user") && l.includes(orderId))).toBe(false);
+
+    // db:reconcile lists it (section webhook_missing_user) until the owner has refunded the buyer and marked it reviewed.
+    const listed = async () => (await db.query(`SELECT provider_order_id FROM webhook_missing_user_to_review()`)).rows.map((r) => r.provider_order_id);
+    expect(await listed()).toContain(orderId);
+    await db.query(`UPDATE lemon_webhook_events SET reviewed_at = NOW() WHERE provider_order_id = $1 AND outcome = 'missing_user' AND reviewed_at IS NULL`, [orderId]);
+    expect(await listed()).not.toContain(orderId);
+    expect(await money(u.id)).toEqual(before);
   });
 
   it("the same order for a normal account is credited exactly as before (regression)", async () => {

@@ -3,7 +3,8 @@
  * Prints every row of ledger_reconciliation(), every refunded Lemon order whose
  * credits are still in the ledger and not reviewed yet (refunded_orders_to_review(),
  * migration 013), and every stored webhook event not processed after 15 minutes
- * (webhook_events_to_review(), migration 015); exit code 2 when any lists anything,
+ * (webhook_events_to_review(), migration 015), and every purchase that credited nobody because no account matched
+ * (webhook_missing_user_to_review(), migration 018); exit code 2 when any lists anything,
  * so it can gate a cron/CI job.
  *
  * Usage: node scripts/reconcile.mjs
@@ -66,6 +67,26 @@ try {
           "Fix the cause (last_error), then run `npm run webhooks:replay`.",
       );
       console.table(events);
+      process.exitCode = 2;
+    }
+  }
+
+  // Migration 018: a signed purchase that credited nobody because no account matched (including an account that was
+  // deleted/anonymised). The buyer has paid and received nothing; Lemon got a 200, so it will not resend it.
+  const { rows: missing } = await client.query(`SELECT to_regprocedure('webhook_missing_user_to_review()') IS NOT NULL AS present`);
+  if (missing[0].present) {
+    const { rows: orders } = await client.query(
+      `SELECT id::text, event_name, provider_order_id, received_at::text, processed_at::text
+       FROM webhook_missing_user_to_review()`,
+    );
+    if (orders.length === 0) {
+      console.log("[reconcile] OK — no purchase is waiting because its buyer matched no account.");
+    } else {
+      console.log(
+        `[reconcile] ${orders.length} purchase(s) credited nobody because no account matched (webhook_missing_user). ` +
+          "The buyer paid and received nothing: refund the order in the Lemon dashboard, then set lemon_webhook_events.reviewed_at (runbook §9).",
+      );
+      console.table(orders);
       process.exitCode = 2;
     }
   }
