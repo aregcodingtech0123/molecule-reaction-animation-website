@@ -16,6 +16,7 @@
     "lint": "eslint",
     "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
     "check:config": "node services/auth-billing-service/node_modules/tsx/dist/cli.mjs scripts/check-config.mts",
+    "check:live-seo": "node scripts/seo/verify-live.mjs",
     "check:launch-content": "node services/auth-billing-service/node_modules/tsx/dist/cli.mjs scripts/check-launch-content.mts",
     "perf:bundle-budget": "node scripts/perf/bundle-budget.mjs",
     "docker:up": "docker compose up -d",

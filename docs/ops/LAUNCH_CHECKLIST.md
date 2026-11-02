@@ -193,7 +193,7 @@ first log line after a deploy must say `0.0.0.0`.
 **FRONTEND_URL exactness.** Browsers send `Origin: https://<site>`; every POST/PUT/PATCH/DELETE is compared with
 `FRONTEND_URL` and refused with `403 CSRF_REJECTED` on a mismatch. `www.` vs apex, `http` vs `https`, a path, a port or
 upper case are all different origins — table in [runbook §7.0](PRODUCTION_RUNBOOK.md#70-first-a-real-sign-in-on-the-public-origin-do-this-before-anything-else).
-If users can reach the site on several hostnames, redirect all of them to `<site>` at the platform/DNS level.
+If users can reach the site on several hostnames, redirect all of them to `<site>` at the platform/DNS level — how, and how to check it is a *permanent* redirect: [`SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md) §2.
 
 ### 1.5 `npm run check:config`
 
@@ -483,11 +483,11 @@ curl -sI https://<site>/ | grep -iE '^(content-security-policy|strict-transport-
 - [ ] No `FATAL:` line in either service's startup log.
 - [ ] **Search signals (SEO-20)** — on the live origin, with no `VERCEL_ENV` surprises:
       `curl -s https://<site>/robots.txt` shows `Allow: /`, `Disallow: /api/` and `Sitemap: https://<site>/sitemap.xml`
-      (**not** `Disallow: /`); `curl -s https://<site>/sitemap.xml` lists the five public pages; `curl -sI https://<site>/`
+      (**not** `Disallow: /`); `curl -s https://<site>/sitemap.xml` lists **20 URLs** (home, explore, atom-models, periodic-table, pricing, molecules and the 14 molecule pages; **24** once the four trust pages are no longer drafts, §1.6); `curl -sI https://<site>/`
       has **no** `x-robots-tag`; `curl -s https://<site>/ | grep -o '<meta name="robots"[^>]*>'` prints nothing and
-      `grep -o '<link rel="canonical"[^>]*>'` prints `https://<site>`. A `noindex` here means `SITE_URL` is wrong or
+      `grep -o '<link rel="canonical"[^>]*>'` prints `https://<site>`. (`npm run check:live-seo -- https://<site>` does all of this for every sitemap URL — [`SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md) §3.) A `noindex` here means `SITE_URL` is wrong or
       the deployment is not Vercel's production one. (Rehearse the opposite on a preview URL: robots.txt must say
-      `Disallow: /`.) More in `docs/seo/SEO_FINDINGS.md`; Search Console / Bing setup is Part 3.
+      `Disallow: /`.) More in `docs/seo/SEO_FINDINGS.md`; the canonical host, Search Console, Bing, link previews and the weeks after launch are in [`docs/seo/SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md).
 
 ### 4.1 Register and verify the email (also proves Resend)
 
@@ -767,6 +767,7 @@ Launch only when all of these are true:
 - [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=18`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
+- [ ] [`SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md) Go / no-go (SEO) is ticked (canonical host and redirects, `npm run check:live-seo`, Search Console).
 - [ ] §4 all green, including the search-signals check (robots.txt / sitemap / no `noindex`), Google sign-in under the enforced CSP and SPF/DKIM `PASS`.
 - [ ] §5 the daily reconcile job exists and alerts on a non-zero exit; an uptime monitor is watching `/health`.
 - [ ] §5.1 **the daily `db:purge-signup-ips` job is scheduled, has run at least once on production (its log shows "cleared N signup address(es)" and "heartbeat sent"), and BOTH alerts exist (non-zero exit; no heartbeat within 26 h).** Only then fill `SITE_OWNER.signupIpPurgeJob` so the privacy policy may say the address is cleared after 90 days.
