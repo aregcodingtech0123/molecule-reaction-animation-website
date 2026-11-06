@@ -131,21 +131,53 @@ export async function closePool(): Promise<void> {
   lastDbErrorCode = null;
 }
 
-/** Run queries inside a single transaction with automatic ROLLBACK on failure. */
+/** PostgreSQL closes the session after these, so the connection is gone even if the socket has not closed yet. */
+function endedTheSession(err: unknown): boolean {
+  const severity = err && typeof err === "object" && "severity" in err ? err.severity : null;
+  return severity === "FATAL" || severity === "PANIC";
+}
+
+/**
+ * Run queries inside a single transaction with automatic ROLLBACK on failure.
+ *
+ * pg-pool removes its idle-client 'error' listener at checkout and adds it back at release. A connection that dies in
+ * between would emit 'error' with no listener, which ends the Node process, so this function listens for that window.
+ * The listener only records the failure: a query on a dead client rejects, so the caller still gets an error and a
+ * lost connection cannot pass for a COMMIT. Releasing with an error makes the pool destroy the client.
+ */
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await getPool().connect();
+  let brokenBy: Error | undefined;
+  // `on`, not `once`: a connection terminated while idle emits twice (the server's message, then the socket's end).
+  const onClientError = (err: Error) => {
+    if (brokenBy) return;
+    brokenBy = err;
+    logFullDbError("transaction client", err);
+  };
+  client.on("error", onClientError);
   try {
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (!brokenBy && endedTheSession(err)) brokenBy = err as Error;
+    if (!brokenBy) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        // The transaction state is unknown: never reuse this connection. The caller still gets the original error.
+        logFullDbError("transaction rollback", rollbackErr);
+        brokenBy = rollbackErr as Error;
+      }
+    }
     throw err;
   } finally {
-    client.release();
+    // Same tick as release, which restores the pool's listener: the client is never without one.
+    client.removeListener("error", onClientError);
+    client.release(brokenBy);
   }
 }
 
