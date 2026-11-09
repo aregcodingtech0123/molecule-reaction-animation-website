@@ -42,7 +42,8 @@ export function perfDatabaseUrl() {
 /** Fresh random secrets for one stack (both servers and the token minter must share them). */
 export function makeSecrets() {
   const s = () => randomBytes(48).toString("base64url");
-  return { jwt: s(), internal: s(), webhook: randomBytes(20).toString("hex") };
+  // `settlement` is for the Express service only (it refuses to start without one); the Next.js env never receives it.
+  return { jwt: s(), internal: s(), settlement: s(), webhook: randomBytes(20).toString("hex") };
 }
 
 const preload = pathToFileURL(path.join(repoRoot, "scripts/perf/preload.mjs")).href;
@@ -78,6 +79,7 @@ export function apiEnv(secrets, files = {}, overrides = {}) {
     ...shared(secrets, { procLog: files.apiProcLog, cpuProfDir: process.env.PERF_CPU_PROF === "api" ? files.runDir : "", heapSnapDir: process.env.PERF_HEAP_SNAP === "api" ? files.runDir : "" }),
     NODE_OPTIONS: `--import ${noDotenv} --import ${preload}`,
     PERF_PROC_NAME: "api",
+    SETTLEMENT_CAPABILITY_SECRET: secrets.settlement,
     NODE_ENV: "production",
     PORT: String(API_PORT),
     HOST: "127.0.0.1",
