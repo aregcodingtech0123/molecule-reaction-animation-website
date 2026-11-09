@@ -1,9 +1,11 @@
 import "./config/loadEnv.js";
 import { assertEnv, env, lemonVariantConfigProblem } from "./config/env.js";
 import { createApp } from "./app.js";
+import { safeErrorLogFields } from "./db/diagnostics.js";
 import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
 import { weakSecretReason } from "./config/secretStrength.js";
 import { productionConfigProblems } from "./config/productionConfig.js";
+import { enforceSettlementSecret } from "./config/settlementStartupGuard.js";
 import { releaseExpiredHolds } from "./services/aiCredits.service.js";
 import { clearOldWebhookPayloads, retryStoredWebhookEvents } from "./services/webhookInbox.service.js";
 
@@ -17,6 +19,9 @@ function enforceProductionSecurityGuards(): void {
       process.exit(1);
     }
   }
+
+  // Every mode too: without this key no AI reservation can be made or settled.
+  enforceSettlementSecret();
 
   // Production rules apply unless NODE_ENV is explicitly development/test (SEC-08): every secret
   // and URL is validated up front and the whole list is reported, so a misconfigured deploy fails
@@ -51,7 +56,7 @@ function startExpiredHoldSweeper(): void {
       .then((n) => {
         if (n > 0) console.warn(`[credits] Settled ${n} expired AI reservation(s) as not charged (see db:reconcile).`);
       })
-      .catch((err) => console.error("[credits] Expired-hold sweep failed:", err instanceof Error ? err.message : err));
+      .catch((err) => console.error("[credits] Expired-hold sweep failed:", safeErrorLogFields(err)));
   }, intervalMs);
   timer.unref();
 }
@@ -79,7 +84,7 @@ function startWebhookRetryWorker(): void {
         }
         await clearOldWebhookPayloads();
       })
-      .catch((err) => console.error("[Webhook] Stored-event retry failed:", err instanceof Error ? err.message : err))
+      .catch((err) => console.error("[Webhook] Stored-event retry failed:", safeErrorLogFields(err)))
       .finally(() => {
         running = false;
       });

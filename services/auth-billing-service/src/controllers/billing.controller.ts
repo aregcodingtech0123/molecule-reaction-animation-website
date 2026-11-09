@@ -1,11 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import * as billingService from "../services/billing.service.js";
-import { captureOperation, releaseOperation, reserveCreditsForOperation } from "../services/aiCredits.service.js";
+import { captureOperation, releaseOperation, reserveCreditsForOperation, settlementNotAuthorized } from "../services/aiCredits.service.js";
+import { recordDeliveryAttempt } from "../services/deliveryAttempt.service.js";
 import { AI_OPERATION_COSTS, isAiOperationType } from "../config/aiOperations.js";
 import { createUnifiedCheckout } from "../services/checkout.service.js";
 import { verifyAndParseLemonEvent } from "../services/webhook.service.js";
 import { processStoredWebhookEvent, storeWebhookEvent } from "../services/webhookInbox.service.js";
 import { env } from "../config/env.js";
+import { safeErrorLogFields } from "../db/diagnostics.js";
 import { AppError } from "../types/index.js";
 
 export async function getBalance(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -107,7 +109,11 @@ export function getOperationCosts(_req: Request, res: Response): void {
 /**
  * POST /api/billing/consume — internal only (BFF). Reserves the price of one AI
  * operation; nothing is debited until /capture.
- * Body: { operationType, referenceId }
+ * Body: { operationType, referenceId, trackDelivery? }
+ *
+ * The response carries captureCapabilityToken and refundCapabilityToken for the BFF's own use, and deliveryAckCapabilityToken
+ * too when (and only when) the body has `trackDelivery: true` (the boolean; anything else is no opt-in). They must never be
+ * forwarded to a browser, written to a log or passed to the AI layer.
  *
  * 402 `{ success:false, code:"INSUFFICIENT_CREDITS", requiredCredits, balance }`
  * 409 `OPERATION_ALREADY_EXISTS` when the reference was already used.
@@ -118,9 +124,28 @@ export async function consumeCredits(req: Request, res: Response, next: NextFunc
     if (!userId) {
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
-    const { operationType, referenceId } = req.body ?? {};
-    const result = await reserveCreditsForOperation(userId, operationType, referenceId);
+    const { operationType, referenceId, trackDelivery } = req.body ?? {};
+    const result = await reserveCreditsForOperation(userId, operationType, referenceId, { trackDelivery: trackDelivery === true });
     res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/billing/delivery-attempt — internal only (BFF). Records, once, that the BFF reached the point of returning the
+ * answer of a CAPTURED reservation. Body: { referenceId, settlementCapability } with a delivery_ack capability.
+ *
+ * Authorised by the internal key AND a delivery_ack capability; the user and reference come from its verified claims only.
+ * It never changes a credit, a ledger row or a settlement state, and a repeat reports the original record.
+ *
+ * 200 `{ success:true, data:{ recorded:true, alreadyRecorded } }`
+ */
+export async function acknowledgeDelivery(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const claims = req.settlement;
+    if (!claims) throw settlementNotAuthorized();
+    res.json({ success: true, data: await recordDeliveryAttempt(claims) });
   } catch (err) {
     next(err);
   }
@@ -129,15 +154,19 @@ export async function consumeCredits(req: Request, res: Response, next: NextFunc
 /**
  * POST /api/billing/capture — internal only (BFF). Charges a held reservation
  * exactly once after the AI operation succeeded.
- * Body: { referenceId }
+ * Body: { referenceId, settlementCapability? }
+ *
+ * With a capability (req.settlement), the user and reference come from its verified claims only. Without one, this is
+ * the legacy session path, with the user from the JWT.
  */
 export async function captureCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = req.user?.sub;
+    const claims = req.settlement;
+    const userId = claims?.sub ?? req.user?.sub;
     if (!userId) {
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
-    const result = await captureOperation(userId, req.body?.referenceId);
+    const result = await captureOperation(userId, claims ? claims.ref : req.body?.referenceId, claims);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -147,22 +176,34 @@ export async function captureCredits(req: Request, res: Response, next: NextFunc
 /**
  * POST /api/billing/refund — internal only (BFF). Releases a held reservation
  * after the AI operation failed. Never refunds a captured (successful) charge.
- * Body: { referenceId, reason? }
+ * Body: { referenceId, reason?, settlementCapability? }
  *
- * Always 200: "nothing charged", "already released" and "not refundable" are
- * normal outcomes reported in the body.
+ * Always 200 once authorized: "nothing charged", "already released" and "not refundable" are normal outcomes
+ * reported in the body, and `outcome` names the hold's state as read under the lock.
+ *
+ * With a capability (req.settlement), the user and reference come from its verified claims only. Without one, this is
+ * the legacy session path, with the user from the JWT.
  */
 export async function refundCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = req.user?.sub;
+    const claims = req.settlement;
+    const userId = claims?.sub ?? req.user?.sub;
     if (!userId) {
       throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
     }
     const { referenceId, reason } = req.body ?? {};
-    const result = await releaseOperation(userId, referenceId, String(reason ?? "ai_operation_failed"));
+    const result = await releaseOperation(userId, claims ? claims.ref : referenceId, String(reason ?? "ai_operation_failed"), claims);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
+  }
+}
+
+/** Told apart from a database error by its name, which is what the log line shows. */
+class WebhookStoreTimeoutError extends Error {
+  constructor(ms: number) {
+    super(`not stored within ${ms} ms`);
+    this.name = "WebhookStoreTimeoutError";
   }
 }
 
@@ -170,7 +211,7 @@ export async function refundCredits(req: Request, res: Response, next: NextFunct
 function withTimeout<T>(ms: number, work: Promise<T>): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`not stored within ${ms} ms`)), ms);
+    timer = setTimeout(() => reject(new WebhookStoreTimeoutError(ms)), ms);
   });
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
@@ -224,7 +265,7 @@ export async function lemonSqueezyWebhook(req: Request, res: Response): Promise<
     console.error("[Webhook] NOT STORED — answered 503 so Lemon retries the delivery", {
       event: eventName,
       orderId,
-      error: err instanceof Error ? err.message : String(err),
+      ...safeErrorLogFields(err),
     });
     res.setHeader("Retry-After", "5");
     res.status(503).json({ error: "Webhook temporarily unavailable" });
@@ -248,7 +289,7 @@ export async function lemonSqueezyWebhook(req: Request, res: Response): Promise<
       console.warn("[Webhook] Processing deferred — the event is stored and will be retried", {
         storedEventId: id,
         orderId,
-        error: err instanceof Error ? err.message : String(err),
+        ...safeErrorLogFields(err),
       }),
     );
   });

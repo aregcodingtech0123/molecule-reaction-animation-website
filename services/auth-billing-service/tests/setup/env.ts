@@ -17,6 +17,8 @@ export const TEST_ENV = {
   INTERNAL_SERVICE_SECRET: "test-only-internal-key-3d8f1b6a9c2e4f7a0b5d",
   // Its own secret (never JWT_SECRET / INTERNAL_SERVICE_SECRET): keys the e-mail hash of the re-registration guard.
   EMAIL_TOMBSTONE_SECRET: "test-only-tombstone-key-91c4e7a2b8d05f63e1a9",
+  // Its own secret too: signs the reservation-bound settlement capabilities minted by /consume.
+  SETTLEMENT_CAPABILITY_SECRET: "test-only-settlement-key-5e2a8c1f7b3d9e60a4c7",
   AI_HOLD_TTL_SECONDS: "600",
   // Emulates one trusted proxy hop so suites can vary the client IP via X-Forwarded-For.
   // The default (0 = ignore X-Forwarded-For) is asserted separately in client-ip.test.ts.

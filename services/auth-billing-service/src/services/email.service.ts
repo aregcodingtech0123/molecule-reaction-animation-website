@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { env } from "../config/env.js";
+import { sendEmail } from "../lib/email.js";
 
 export interface PurchaseReceiptParams {
   userEmail: string;
@@ -10,17 +10,6 @@ export interface PurchaseReceiptParams {
   /** Current balance after the purchase was applied. */
   newBalance: number;
   currency?: string;
-}
-
-let resendClient: Resend | null = null;
-
-function getResendClient(): Resend | null {
-  const apiKey = env.resendApiKey;
-  if (!apiKey) return null;
-  if (!resendClient) {
-    resendClient = new Resend(apiKey);
-  }
-  return resendClient;
 }
 
 function escapeHtml(value: string): string {
@@ -169,10 +158,8 @@ export async function sendPurchaseReceiptEmail(
   const subject = `MoleculeStudio receipt — +${creditsAdded} credits`;
   const html = buildPurchaseReceiptHtml(params);
   const text = buildPurchaseReceiptText(params);
-  const from = env.senderEmail;
 
-  const client = getResendClient();
-  if (!client) {
+  if (!env.resendApiKey) {
     if (env.isProduction) {
       throw new Error("RESEND_API_KEY is required in production to send email.");
     }
@@ -184,16 +171,7 @@ export async function sendPurchaseReceiptEmail(
     return;
   }
 
-  const { error } = await client.emails.send({
-    from,
-    to: [userEmail],
-    subject,
-    html,
-    text,
-  });
-
-  if (error) {
-    console.error("[email] Resend purchase receipt failed:", error);
-    throw new Error(error.message || "Failed to send purchase receipt email.");
-  }
+  // Not the Resend SDK: it prints the provider's whole error response to the console whenever NODE_ENV is not exactly "production",
+  // which includes an unset NODE_ENV, and that response can echo the recipient and the message.
+  await sendEmail({ to: userEmail, subject, html, text });
 }

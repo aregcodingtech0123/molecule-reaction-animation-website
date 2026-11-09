@@ -11,8 +11,10 @@
  * crediting idempotent per order), so processing an event twice can never credit twice.
  */
 import { createHash } from "node:crypto";
+import { safeErrorDescription, safeErrorLogFields, safeStackFrames } from "../db/diagnostics.js";
 import { pool } from "../db/index.js";
 import { parseLemonSqueezyEvent, type LemonOrderCreatedEvent } from "../lib/lemonsqueezy.js";
+import { AppError } from "../types/index.js";
 import { processLemonSqueezyEvent, type ProcessOutcome } from "./webhook.service.js";
 
 /** Automatic attempts per event (≈ 10 min at the default 60 s interval); `webhooks:replay` ignores it. */
@@ -46,6 +48,15 @@ export async function storeWebhookEvent(rawBody: Buffer, event: LemonOrderCreate
   return rows[0]!;
 }
 
+/**
+ * What `last_error` and the log say about a failed attempt. An AppError's message was written by this service; anything else may
+ * carry the database's text (DETAIL quotes row values) and gets a fixed description. People read this column (db:reconcile, the
+ * runbook); no code compares it.
+ */
+function failureText(err: unknown): string {
+  return err instanceof AppError ? err.message : safeErrorDescription(err);
+}
+
 function outcomeLabel(outcome: ProcessOutcome): string {
   return (outcome.reason ?? (outcome.processed ? "credited" : "not_processed")).slice(0, 64);
 }
@@ -70,7 +81,7 @@ export async function processStoredWebhookEvent(id: string): Promise<ProcessResu
   if (!claimed) return "skipped";
 
   try {
-    if (claimed.payload == null) throw new Error("stored payload is missing");
+    if (claimed.payload == null) throw new AppError(500, "stored payload is missing", "WEBHOOK_PAYLOAD_MISSING");
     const outcome = await processLemonSqueezyEvent(parseLemonSqueezyEvent(Buffer.from(claimed.payload, "utf8")));
     await pool.query(
       `UPDATE lemon_webhook_events
@@ -80,12 +91,20 @@ export async function processStoredWebhookEvent(id: string): Promise<ProcessResu
     );
     return "processed";
   } catch (err) {
-    const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+    const message = failureText(err);
     // If this update fails too (database gone), the row stays 'processing' and is claimed again later.
     await pool
       .query(`UPDATE lemon_webhook_events SET status = 'failed', last_error = $2 WHERE id = $1`, [id, message])
       .catch(() => undefined);
-    const details = { storedEventId: id, orderId: claimed.provider_order_id, attempt: claimed.attempts, error: message };
+    const stack = safeStackFrames(err);
+    const details = {
+      storedEventId: id,
+      orderId: claimed.provider_order_id,
+      attempt: claimed.attempts,
+      error: message,
+      ...safeErrorLogFields(err),
+      ...(stack ? { stack } : {}),
+    };
     if (claimed.attempts >= MAX_AUTOMATIC_ATTEMPTS) {
       console.error(
         `[Webhook] FAILED background credit allocation — stored event gave up after ${claimed.attempts} attempts; run \`npm run webhooks:replay\``,

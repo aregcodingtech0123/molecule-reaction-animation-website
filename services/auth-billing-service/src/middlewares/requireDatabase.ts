@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { logDbError } from "../db/diagnostics.js";
 import {
   getDatabaseError,
   getDatabaseErrorCode,
@@ -6,7 +7,7 @@ import {
   verifyDatabaseConnection,
 } from "../db/index.js";
 
-/** Return 503 when PostgreSQL is unreachable; retries probe in dev with full error logs. */
+/** Return 503 when PostgreSQL is unreachable; retries the probe, which logs what went wrong. */
 export function requireDatabase(_req: Request, res: Response, next: NextFunction): void {
   if (isDatabaseReady()) {
     next();
@@ -24,7 +25,6 @@ export function requireDatabase(_req: Request, res: Response, next: NextFunction
         console.error(
           "[db] Request blocked — database unavailable.",
           getDatabaseErrorCode() ? `code=${getDatabaseErrorCode()}` : "",
-          getDatabaseError() ?? "",
         );
       }
 
@@ -41,7 +41,7 @@ export function requireDatabase(_req: Request, res: Response, next: NextFunction
       });
     })
     .catch((err) => {
-      console.error("❌ FULL DB ERROR [requireDatabase middleware]:", err);
+      logDbError("requireDatabase middleware", err);
       res.status(503).json({
         success: false,
         error: "Database is temporarily unavailable.",

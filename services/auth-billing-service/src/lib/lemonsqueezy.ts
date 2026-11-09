@@ -174,6 +174,32 @@ export function assertLemonCheckoutConfigured(packageId: string): void {
   requireLemonCheckoutConfig(packageId);
 }
 
+/** A JSON:API source pointer that can only be a path of field names, such as /data/attributes/checkout_data/email. */
+const FIELD_POINTER = /^(\/[a-z0-9_]{1,32}){1,8}$/;
+
+function checkoutFailureCategory(status: number): string {
+  if (status === 400 || status === 422) return "validation";
+  if (status === 401 || status === 403) return "auth";
+  if (status === 404) return "not_found";
+  if (status === 429) return "rate_limited";
+  return status >= 500 ? "provider_error" : "other";
+}
+
+/**
+ * What to log about a refused checkout. Never Lemon's `detail` or `title`: they are the provider's free text, answering a request
+ * that holds the customer's e-mail, the user id, the order id and the redirect URL. The status, category and field say what to look at.
+ */
+function safeCheckoutFailureFields(status: number, errors: unknown) {
+  const list: unknown[] = Array.isArray(errors) ? errors : [];
+  const pointer = (list[0] as { source?: { pointer?: unknown } } | null | undefined)?.source?.pointer;
+  return {
+    providerStatus: status,
+    category: checkoutFailureCategory(status),
+    providerErrorCount: list.length,
+    field: typeof pointer === "string" && FIELD_POINTER.test(pointer) ? pointer : null,
+  };
+}
+
 export async function createLemonSqueezyCheckoutUrl(
   params: LemonCheckoutParams & { pendingOrderId?: string },
 ): Promise<string> {
@@ -230,12 +256,11 @@ export async function createLemonSqueezyCheckoutUrl(
 
   const json = (await res.json()) as {
     data?: { attributes?: { url?: string } };
-    errors?: Array<{ detail?: string; title?: string }>;
+    errors?: unknown;
   };
 
   if (!res.ok) {
-    const detail = json.errors?.[0]?.detail ?? json.errors?.[0]?.title ?? `HTTP ${res.status}`;
-    console.error("[lemonsqueezy] checkout create failed:", detail);
+    console.error("[lemonsqueezy] checkout create failed:", safeCheckoutFailureFields(res.status, json.errors));
     throw new AppError(502, "Unable to create Lemon Squeezy checkout.", "LEMONSQUEEZY_CHECKOUT_FAILED");
   }
 

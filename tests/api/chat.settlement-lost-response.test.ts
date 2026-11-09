@@ -1,11 +1,8 @@
 /**
  * Capture commits in the billing service, but the BFF never receives the answer, then retries (Phase 2B.1).
  * The real BFF talks over real HTTP to a loopback proxy in front of the real Express service and test DB; only
- * @google/genai is mocked. The proxy forwards everything unchanged, so these stay valid whichever way Phase 2C
- * authenticates settlement.
- *
- * In the known-defect tests the money is already right (one debit), but the retry is refused with a 401 once the
- * session is gone, so the BFF logs a false CAPTURE_FAILED and answers `balance: null`.
+ * @google/genai is mocked. The proxy forwards everything unchanged. Settlement is authorised by the reservation's
+ * capability, so a retry still reports the original capture after the session is gone.
  */
 import type http from "node:http";
 import type pg from "pg";
@@ -15,7 +12,6 @@ import { balanceOf, createTestPool, createUser, ledgerOf, ledgerSum } from "../.
 import { interceptClientQueries, sqlStateFault } from "../../services/auth-billing-service/tests/support/pg-fault";
 import { callGateway, sessionCookie } from "../support/bff";
 import { startAuthBillingService, startFakeUpstream, type RunningService } from "../support/express-server";
-import { itKnownDefect } from "../support/known-defect";
 
 const gemini = vi.hoisted(() => ({ generateContent: vi.fn() }));
 vi.mock("@google/genai", () => ({
@@ -185,8 +181,7 @@ describe("capture committed, session revoked, response lost", () => {
     await expectChargedOnce(u.id);
   });
 
-  // Phase 2C must make these pass.
-  itKnownDefect.each(REVOCATIONS)("%s: a revoked session does not invalidate the settlement retry, which reports the original capture", async (_name, revoke) => {
+  it.each(REVOCATIONS)("%s: a revoked session does not invalidate the settlement retry, which reports the original capture", async (_name, revoke) => {
     const { res, captures } = await scenario(revoke);
 
     expect(captures[1]).toMatchObject({ status: 200, body: { data: { captured: true, alreadyProcessed: true, ledgerId: captures[0]!.body.data!.ledgerId } } });
@@ -225,8 +220,7 @@ describe("a transient database failure during capture, seen end to end", () => {
     await expectChargedOnce(u.id);
   });
 
-  // Today: 409 CAPTURE_FAILED is not retried, so a transient error turns a good answer into a permanently free one.
-  itKnownDefect("inside the debit: the turn is still charged once, not lost to a terminal capture_failed", async () => {
+  it("inside the debit: the turn is still charged once, not lost to a terminal capture_failed", async () => {
     const u = await funded();
     let fault: { fired: boolean } | undefined;
     gemini.generateContent.mockImplementation(async () => {

@@ -5,9 +5,7 @@
  * Approved rules (Phase 2A/2B): benign text is not withheld; a withheld answer is never charged; a model refusal
  * that reaches the user is a completed, chargeable response; a provider block with no usable output is not charged.
  *
- * `itKnownDefect` cases assert those rules and fail today. Note that chat.route.test.ts ("output blocked by the
- * content policy → 422 and deliberately NOT refunded") pins the superseded behaviour; the phase that fixes these
- * must update it too.
+ * `itKnownDefect` cases assert those rules and fail today, because the filter itself still withholds benign text.
  */
 import type pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,7 +74,7 @@ describe("benign answers are delivered and charged", () => {
     await expectDeliveredAndCharged(u, res, text);
   });
 
-  // Today: 422, the answer is withheld and the user is charged anyway. Fixed in Phase 2F.
+  // Today: 422 and the answer is withheld (uncharged). Fixed in Phase 2F.
   itKnownDefect.each(["You are now looking at benzene.", "You are now studying chemical bonding."])("%s", async (text) => {
     const { u, res } = await turnAnswering({ text });
     await expectDeliveredAndCharged(u, res, text);
@@ -107,8 +105,7 @@ describe("an answer withheld by the filter is not charged", () => {
     expect(await res.text()).not.toContain(INJECTED);
   });
 
-  // Today: captured. Must change together with chat.route.test.ts (see the header).
-  itKnownDefect("the reservation is released and nothing is debited", async () => {
+  it("the reservation is released and nothing is debited", async () => {
     const { u } = await turnAnswering({ text: INJECTED });
     expect(await holdsOf(u.id)).toEqual([expect.objectContaining({ status: "released" })]);
     expect(await debitsOf(u.id)).toEqual([]);

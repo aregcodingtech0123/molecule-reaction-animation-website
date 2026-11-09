@@ -1,7 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import { AppError } from "../types/index.js";
+import { AppError, PaymentProviderError } from "../types/index.js";
 import { ValidationError } from "../utils/validation.js";
-import { DATABASE_RETRY_AFTER_SECONDS, isDatabaseUnavailableError } from "../db/unavailable.js";
+import { safeDbErrorFields, safeErrorName, safeStackFrames } from "../db/diagnostics.js";
+import { isConnectionLossError } from "../db/index.js";
+import { DATABASE_RETRY_AFTER_SECONDS, databaseUnavailableReason, isTransientDatabaseError } from "../db/unavailable.js";
 
 export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({ success: false, error: "Route not found." });
@@ -49,6 +51,10 @@ export function errorHandler(
   }
 
   if (err instanceof AppError) {
+    // The one refusal that asks to be retried: the BFF retries by status, and a retry reads the outcome from the database.
+    if (err.statusCode === 503 && err.code === "CAPTURE_INDETERMINATE") {
+      res.setHeader("Retry-After", String(DATABASE_RETRY_AFTER_SECONDS));
+    }
     res.status(err.statusCode).json({
       success: false,
       error: err.message,
@@ -67,12 +73,9 @@ export function errorHandler(
     return;
   }
 
-  if (
-    err instanceof Error &&
-    (err.message.includes("Lemon") || err.message.includes("LEMONSQUEEZY"))
-  ) {
+  if (err instanceof PaymentProviderError) {
     console.error("[auth-billing-service] Payment provider error:", {
-      message: err.message,
+      code: err.code,
       requestId: req.headers["x-request-id"] ?? null,
     });
     res.status(400).json({
@@ -83,11 +86,43 @@ export function errorHandler(
     return;
   }
 
+  // Deadlock or serialization failure: the transaction rolled back and running it again is the right reaction.
+  if (isTransientDatabaseError(err)) {
+    console.warn("[db] Request failed: transient database error", {
+      event: "TRANSIENT_DATABASE_ERROR",
+      ...safeDbErrorFields(err),
+      method: req.method,
+      path: req.path,
+    });
+    res.setHeader("Retry-After", String(DATABASE_RETRY_AFTER_SECONDS));
+    res.status(503).json({ success: false, error: "The database is temporarily busy.", code: "TRANSIENT_DATABASE_ERROR" });
+    return;
+  }
+
+  // withTransaction saw the connection die. Follow-up errors on a dead client have no SQLSTATE, so this is by client state.
+  if (isConnectionLossError(err)) {
+    console.warn("[db] Request failed: connection lost during a transaction", {
+      event: "DATABASE_CONNECTION_LOST",
+      ...safeDbErrorFields(err),
+      method: req.method,
+      path: req.path,
+    });
+    res.setHeader("Retry-After", String(DATABASE_RETRY_AFTER_SECONDS));
+    res.status(503).json({ success: false, error: "Database is temporarily unavailable.", code: "DATABASE_UNAVAILABLE" });
+    return;
+  }
+
   // The database could not serve the request (unreachable, or every pool connection busy): a temporary
   // condition, answered like requireDatabase does, plus Retry-After (PERF-29). Was a 500 INTERNAL_ERROR.
-  if (isDatabaseUnavailableError(err)) {
-    const e = err as { message?: string; code?: string };
-    console.warn("[db] Request failed: database unavailable", { code: e.code ?? null, message: e.message ?? null, path: req.path });
+  const unavailableReason = databaseUnavailableReason(err);
+  if (unavailableReason) {
+    console.warn("[db] Request failed: database unavailable", {
+      event: "DATABASE_UNAVAILABLE",
+      reason: unavailableReason,
+      ...safeDbErrorFields(err),
+      method: req.method,
+      path: req.path,
+    });
     res.setHeader("Retry-After", String(DATABASE_RETRY_AFTER_SECONDS));
     res.status(503).json({
       success: false,
@@ -116,7 +151,17 @@ export function errorHandler(
     }
   }
 
-  console.error("[auth-billing-service]", err);
+  // Allowlisted fields, never the error object: this is the path every unclassified database error ends up on, and its
+  // message and detail can carry row data. The frames still locate a programming error.
+  const stack = safeStackFrames(err);
+  console.error("[auth-billing-service] Unhandled error", {
+    event: "UNHANDLED_ERROR",
+    errorName: safeErrorName(err),
+    ...safeDbErrorFields(err),
+    method: req.method,
+    path: req.path,
+    ...(stack ? { stack } : {}),
+  });
   res.status(500).json({
     success: false,
     error: "Internal server error.",

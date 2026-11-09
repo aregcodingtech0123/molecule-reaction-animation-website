@@ -1,4 +1,5 @@
 import type { DatabaseEnvConfig } from "../config/database.js";
+import { databaseUnavailableReason, knownDriverMessage } from "./unavailable.js";
 
 /** Known PostgreSQL / Node network error codes for quick terminal diagnosis. */
 const PG_ERROR_HINTS: Record<string, string> = {
@@ -46,12 +47,86 @@ export function parseDbError(err: unknown): ParsedDbError {
   };
 }
 
-/** Prints the full internal error object plus parsed PG / network fields. */
-export function logFullDbError(context: string, err: unknown): ParsedDbError {
+/** Identifiers only: a value with spaces, punctuation or a line break is free text, whatever field it arrived in. */
+const IDENTIFIER = /^[\w$.:-]{1,128}$/;
+
+function identifier(value: unknown): string | null {
+  return typeof value === "string" && IDENTIFIER.test(value) ? value : null;
+}
+
+/**
+ * The fields of a database error that may be logged. An allowlist, because the rest can carry data: PostgreSQL's DETAIL quotes
+ * row values, its message can name users and hosts, and `where` holds statement context. Never log the error object itself:
+ * logging prints every property it has.
+ */
+export function safeDbErrorFields(err: unknown): { sqlstate: string | null; severity: string | null; constraint: string | null; routine: string | null } {
+  const e = (err && typeof err === "object" ? err : {}) as Record<string, unknown>;
+  return { sqlstate: identifier(e.code), severity: identifier(e.severity), constraint: identifier(e.constraint), routine: identifier(e.routine) };
+}
+
+/** What kind of thing was thrown, for a log line. Never its content. */
+export function safeErrorName(err: unknown): string {
+  if (err instanceof Error) return identifier(err.name) ?? "Error";
+  return typeof err;
+}
+
+/**
+ * What to log for any error that may have come from the database or the connection to it: the allowlisted fields and a fixed
+ * reason, so a log line can say what happened without repeating the server's text.
+ */
+export function safeErrorLogFields(err: unknown) {
+  return {
+    errorName: safeErrorName(err),
+    ...safeDbErrorFields(err),
+    syscall: identifier((err as { syscall?: unknown } | null | undefined)?.syscall),
+    reason: databaseUnavailableReason(err),
+  };
+}
+
+/**
+ * One line that says what went wrong, safe to log, store or send: every word comes from this file or from a value shaped like an
+ * identifier, never from the error's own text. For a person reading it; no code should compare it.
+ */
+export function safeErrorDescription(err: unknown): string {
+  const driverMessage = knownDriverMessage(err);
+  if (driverMessage) return driverMessage;
+  const { sqlstate, constraint } = safeDbErrorFields(err);
+  if (sqlstate && Object.hasOwn(PG_ERROR_HINTS, sqlstate)) return PG_ERROR_HINTS[sqlstate]!;
+  if (sqlstate) return `Database error (SQLSTATE ${sqlstate}${constraint ? `, constraint ${constraint}` : ""})`;
+  return `Unexpected error (${safeErrorName(err)})`;
+}
+
+const MAX_STACK_FRAMES = 15;
+
+/**
+ * The call frames of a programming error, so a 500 can still be located, without the name and message at the top of the stack.
+ * Removed by position, so a message that spans lines or imitates a frame goes with it. If the stack no longer starts with the
+ * message, there are no frames rather than a guess. A database error has none: its frames are the driver's, and locate nothing.
+ */
+export function safeStackFrames(err: unknown): string[] | undefined {
+  if (!(err instanceof Error) || typeof err.stack !== "string" || "severity" in err) return undefined;
+  let rest = err.stack;
+  if (err.message) {
+    const at = rest.indexOf(err.message);
+    if (at < 0 || !/^[\w$.]*(: )?$/.test(rest.slice(0, at))) return undefined;
+    rest = rest.slice(at + err.message.length);
+  }
+  const frames = rest
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("at "))
+    .slice(0, MAX_STACK_FRAMES);
+  return frames.length > 0 ? frames : undefined;
+}
+
+/**
+ * Log a database error with allowlisted fields only, plus a fixed hint for known configuration mistakes.
+ * Returns the parsed error; it holds the raw message, so it must not be logged, stored or sent either.
+ */
+export function logDbError(context: string, err: unknown): ParsedDbError {
   const parsed = parseDbError(err);
 
-  console.error(`❌ FULL DB ERROR [${context}]:`, err);
-  console.error("[db:diagnostics] parsed:", JSON.stringify(parsed, null, 2));
+  console.error(`DB ERROR [${context}]`, safeErrorLogFields(err));
 
   if (parsed.hintText) {
     console.error(`[db:diagnostics] likely cause: ${parsed.hintText}`);
@@ -60,11 +135,17 @@ export function logFullDbError(context: string, err: unknown): ParsedDbError {
   return parsed;
 }
 
+/** Query parameters that are known to hold no secret. pg also reads credentials from the query string (`?password=`, `?sslpassword=`), so anything else is masked. */
+const SAFE_CONNECTION_PARAMS: ReadonlySet<string> = new Set(["sslmode", "channel_binding", "connect_timeout", "application_name"]);
+
 export function maskConnectionString(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.password) {
       parsed.password = "****";
+    }
+    for (const name of new Set(parsed.searchParams.keys())) {
+      if (!SAFE_CONNECTION_PARAMS.has(name.toLowerCase())) parsed.searchParams.set(name, "****");
     }
     return parsed.toString();
   } catch {

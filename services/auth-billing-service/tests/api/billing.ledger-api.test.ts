@@ -369,6 +369,8 @@ describe("POST /api/billing/consume (reserve)", () => {
       expiresAt: expect.any(String),
       ledgerId: null,
       alreadyProcessed: false,
+      captureCapabilityToken: expect.any(String),
+      refundCapabilityToken: expect.any(String),
     });
     // Reserved, not yet charged.
     expect(await balanceOf(db, u.id)).toBe(20);
@@ -546,7 +548,7 @@ describe("POST /api/billing/refund (release)", () => {
     const u = await fundedUser(3);
     const res = await refund(u, { referenceId: "never-charged" });
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ refunded: false, amount: 0, balance: 3, ledgerId: null, reason: "nothing_charged" });
+    expect(res.body.data).toEqual({ refunded: false, amount: 0, balance: 3, ledgerId: null, outcome: "not_found", reason: "nothing_charged" });
   });
 
   it("releases a held reservation once (no ledger write ever); repeat → already_refunded", async () => {
@@ -554,8 +556,8 @@ describe("POST /api/billing/refund (release)", () => {
     await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "job" });
     const first = await refund(u, { referenceId: "job", reason: "ai_generation_error" });
     const second = await refund(u, { referenceId: "job" });
-    expect(first.body.data).toEqual({ refunded: true, amount: 5, balance: 10, ledgerId: null });
-    expect(second.body.data).toMatchObject({ refunded: false, amount: 5, reason: "already_refunded" });
+    expect(first.body.data).toEqual({ refunded: true, amount: 5, balance: 10, ledgerId: null, outcome: "released" });
+    expect(second.body.data).toMatchObject({ refunded: false, amount: 5, reason: "already_refunded", alreadyProcessed: true, outcome: "already_released" });
     expect(await balanceOf(db, u.id)).toBe(10);
     expect(await ledgerOf(db, u.id)).toHaveLength(1); // the signup bonus only
     expect(await holdOf(u, "job")).toMatchObject({ status: "released", settle_reason: "ai_generation_error" });

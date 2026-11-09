@@ -351,6 +351,17 @@ describe("internal-only billing routes are never proxied (FINDING-03 / FINDING-0
     ["consume?x=1"],
     ["history/../refund"],
     ["%2E%2E/billing/refund"],
+    // The delivery-attempt route is internal-only too: the gateway adds the real internal key to anything it proxies, so
+    // a route missing from this list would be reachable from a browser with that key attached.
+    ["delivery-attempt"],
+    ["DELIVERY-ATTEMPT"],
+    ["Delivery-Attempt"],
+    ["delivery-attempt/"],
+    ["delivery-attempt."],
+    ["delivery-attempt?x=1"],
+    ["history/../delivery-attempt"],
+    ["%2E%2E/billing/delivery-attempt"],
+    ["delivery-attempt/%2e%2e/delivery-attempt"],
   ])("POST /api/billing/%s → 404 from the BFF, upstream never contacted", async (path) => {
     const { res, seen } = await upstreamHits(() =>
       callGateway("billing", path, { ...json({ referenceId: "r", operationType: "AI_CHAT_QUERY" }), cookie: sessionCookie("tok") }),

@@ -143,12 +143,20 @@ describe("real service boot in production (SEC-08)", () => {
     ["a low bcrypt cost", { BCRYPT_ROUNDS: "4" }, /FATAL: BCRYPT_ROUNDS/],
     ["a placeholder JWT_SECRET", { JWT_SECRET: "replace-with-at-least-32-characters-secret-key" }, /FATAL: JWT_SECRET is a documented placeholder/],
     ["no INTERNAL_SERVICE_SECRET", { INTERNAL_SERVICE_SECRET: undefined }, /FATAL: INTERNAL_SERVICE_SECRET is not set/],
+    ["no SETTLEMENT_CAPABILITY_SECRET", { SETTLEMENT_CAPABILITY_SECRET: undefined }, /FATAL: SETTLEMENT_CAPABILITY_SECRET is not set/],
+    ["a placeholder SETTLEMENT_CAPABILITY_SECRET", { SETTLEMENT_CAPABILITY_SECRET: "replace-with-another-32-characters-settlement-key" }, /FATAL: SETTLEMENT_CAPABILITY_SECRET is a documented placeholder/],
+    ["SETTLEMENT_CAPABILITY_SECRET equal to EMAIL_TOMBSTONE_SECRET", { SETTLEMENT_CAPABILITY_SECRET: VALID_PRODUCTION_ENV.EMAIL_TOMBSTONE_SECRET }, /FATAL: SETTLEMENT_CAPABILITY_SECRET must not be the same value as EMAIL_TOMBSTONE_SECRET/],
   ])("refuses to start with %s", async (_label, overrides, fatal) => {
     await expectRefusal({ ...PRODUCTION, ...overrides }, fatal);
   }, 60_000);
 
   it("development still starts with a minimal configuration (dev rules only when NODE_ENV says so)", async () => {
-    const svc = await boot({ NODE_ENV: "development", JWT_SECRET: TEST_ENV.JWT_SECRET, INTERNAL_SERVICE_SECRET: TEST_ENV.INTERNAL_SERVICE_SECRET });
+    const svc = await boot({
+      NODE_ENV: "development",
+      JWT_SECRET: TEST_ENV.JWT_SECRET,
+      INTERNAL_SERVICE_SECRET: TEST_ENV.INTERNAL_SERVICE_SECRET,
+      SETTLEMENT_CAPABILITY_SECRET: TEST_ENV.SETTLEMENT_CAPABILITY_SECRET,
+    });
     try {
       expect((await waitForHealth(svc)).status).toBe(200);
       expect(svc.output()).not.toMatch(/FATAL/);

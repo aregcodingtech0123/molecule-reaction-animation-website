@@ -1,4 +1,42 @@
 import { env } from "../config/env.js";
+import { safeErrorLogFields } from "../db/diagnostics.js";
+
+/** Resend's error codes are snake_case words (`validation_error`). Anything else is free text and is dropped. */
+const PROVIDER_CODE = /^[a-z][a-z_]{1,63}$/;
+
+/**
+ * The mail provider refused a message. Holds only its HTTP status and its error code: the provider's message and response can echo
+ * the recipient, the subject or the link being sent, so they are never kept, and the message here is fixed.
+ */
+export class EmailProviderError extends Error {
+  readonly providerStatus: number | null;
+  readonly providerCode: string | null;
+
+  constructor(status: unknown, code: unknown) {
+    super("Failed to send email.");
+    this.name = "EmailProviderError";
+    this.providerStatus = typeof status === "number" && Number.isInteger(status) ? status : null;
+    this.providerCode = typeof code === "string" && PROVIDER_CODE.test(code) ? code : null;
+  }
+}
+
+/** What to log for a failed mail, whichever step it failed at: the provider's refusal, the network, or the database before it. */
+export function safeEmailErrorFields(err: unknown) {
+  return {
+    ...safeErrorLogFields(err),
+    providerStatus: err instanceof EmailProviderError ? err.providerStatus : null,
+    providerCode: err instanceof EmailProviderError ? err.providerCode : null,
+  };
+}
+
+/** The `name` field of a Resend error body, or null for a body of any other shape. */
+function providerCodeOf(body: string): unknown {
+  try {
+    return (JSON.parse(body) as { name?: unknown } | null)?.name ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export interface SendEmailParams {
   to: string;
@@ -44,10 +82,10 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    // Status and Resend's short message only: the raw body can echo request fields (SEC-19).
-    console.error("[email] Resend API error:", res.status, body.slice(0, 200).replace(/[^\s@<>"]+@[^\s@<>"]+/g, "<email>"));
-    throw new Error("Failed to send email.");
+    const failure = new EmailProviderError(res.status, providerCodeOf(await res.text().catch(() => "")));
+    // Status and code only: the body can echo request fields, including the link being mailed (SEC-19).
+    console.error("[email] Resend API error:", { providerStatus: failure.providerStatus, providerCode: failure.providerCode });
+    throw failure;
   }
 }
 

@@ -5,10 +5,12 @@ import {
   resolveDatabaseEnv,
 } from "../config/database.js";
 import {
+  logDbError,
   logEnvPresence,
-  logFullDbError,
   logResolvedConfig,
   parseDbError,
+  safeDbErrorFields,
+  safeErrorDescription,
 } from "./diagnostics.js";
 
 const { Pool } = pg;
@@ -22,6 +24,12 @@ let poolInstance: pg.Pool | null = null;
 let databaseReady = false;
 let databaseError: string | null = null;
 let lastDbErrorCode: string | null = null;
+
+/** What the development-only responses show: a fixed description and an identifier, never the error's text. */
+function rememberDatabaseError(err: unknown): void {
+  databaseError = safeErrorDescription(err);
+  lastDbErrorCode = safeDbErrorFields(err).sqlstate;
+}
 
 function resetPool(): void {
   if (poolInstance) {
@@ -37,10 +45,9 @@ function getPool(): pg.Pool {
 
     poolInstance = new Pool(createPoolConfig(databaseEnv));
     poolInstance.on("error", (err) => {
-      const parsed = logFullDbError("pool idle client", err);
+      logDbError("pool idle client", err);
       databaseReady = false;
-      databaseError = parsed.message;
-      lastDbErrorCode = parsed.code ?? null;
+      rememberDatabaseError(err);
     });
   }
   return poolInstance;
@@ -106,13 +113,12 @@ async function probeDatabase(): Promise<boolean> {
   } catch (err) {
     databaseReady = false;
 
-    const parsed = logFullDbError("verifyDatabaseConnection", err);
-    databaseError = parsed.message;
-    lastDbErrorCode = parsed.code ?? null;
+    logDbError("verifyDatabaseConnection", err);
+    rememberDatabaseError(err);
 
-    console.warn(`Database connection failed: ${parsed.message}`);
-    if (parsed.code) {
-      console.warn(`[db:diagnostics] error code: ${parsed.code}`);
+    console.warn("Database connection failed.");
+    if (lastDbErrorCode) {
+      console.warn(`[db:diagnostics] error code: ${lastDbErrorCode}`);
     }
     console.warn("[db] HTTP server will stay up — auth/billing routes return 503 until PostgreSQL is reachable.");
     return false;
@@ -137,6 +143,37 @@ function endedTheSession(err: unknown): boolean {
   return severity === "FATAL" || severity === "PANIC";
 }
 
+/** A PostgreSQL error carries a severity: the server answered. Errors from the driver or the socket have none. */
+function serverAnswered(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && "severity" in err && err.severity);
+}
+
+// What withTransaction learned about an error it rethrew. Kept beside the error, so the error object itself is unchanged.
+const connectionLossErrors = new WeakSet<object>();
+const ambiguousCommitErrors = new WeakSet<object>();
+
+function mark(set: WeakSet<object>, err: unknown): void {
+  if (err && typeof err === "object") set.add(err);
+}
+
+/**
+ * Did this error from withTransaction come with a lost connection? Decided from the client's state at the time, never from
+ * the message: after a backend dies, later statements fail with a text that has no SQLSTATE, while an error that merely
+ * says the same words on a healthy client is not a connection loss.
+ */
+export function isConnectionLossError(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && connectionLossErrors.has(err));
+}
+
+/**
+ * Was this error raised by a COMMIT with no usable answer from the server? Then the transaction may have committed or may
+ * not have, and the only way to know is to read the data again. Not ambiguous: a COMMIT the server refused (it rolled back),
+ * and a connection already known dead before COMMIT (it could not be sent).
+ */
+export function isAmbiguousCommitError(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && ambiguousCommitErrors.has(err));
+}
+
 /**
  * Run queries inside a single transaction with automatic ROLLBACK on failure.
  *
@@ -144,32 +181,42 @@ function endedTheSession(err: unknown): boolean {
  * between would emit 'error' with no listener, which ends the Node process, so this function listens for that window.
  * The listener only records the failure: a query on a dead client rejects, so the caller still gets an error and a
  * lost connection cannot pass for a COMMIT. Releasing with an error makes the pool destroy the client.
+ *
+ * The caller always gets the original error object. isConnectionLossError and isAmbiguousCommitError tell it what happened.
  */
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await getPool().connect();
   let brokenBy: Error | undefined;
+  let committing = false;
+  let deadBeforeCommit = false;
   // `on`, not `once`: a connection terminated while idle emits twice (the server's message, then the socket's end).
   const onClientError = (err: Error) => {
     if (brokenBy) return;
     brokenBy = err;
-    logFullDbError("transaction client", err);
+    logDbError("transaction client", err);
   };
   client.on("error", onClientError);
   try {
     await client.query("BEGIN");
     const result = await fn(client);
+    deadBeforeCommit = brokenBy !== undefined;
+    committing = true;
     await client.query("COMMIT");
     return result;
   } catch (err) {
     if (!brokenBy && endedTheSession(err)) brokenBy = err as Error;
+    // Read before the ROLLBACK below: its failure says nothing about the error being reported.
+    const noAnswerToCommit = committing && !serverAnswered(err);
+    if (brokenBy || noAnswerToCommit) mark(connectionLossErrors, err);
+    if (committing && !deadBeforeCommit && (brokenBy || noAnswerToCommit)) mark(ambiguousCommitErrors, err);
     if (!brokenBy) {
       try {
         await client.query("ROLLBACK");
       } catch (rollbackErr) {
         // The transaction state is unknown: never reuse this connection. The caller still gets the original error.
-        logFullDbError("transaction rollback", rollbackErr);
+        logDbError("transaction rollback", rollbackErr);
         brokenBy = rollbackErr as Error;
       }
     }
