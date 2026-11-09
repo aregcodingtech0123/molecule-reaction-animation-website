@@ -11,7 +11,6 @@ import { tokenFor } from "../../services/auth-billing-service/tests/support/auth
 import { balanceOf, createTestPool, createUser, ledgerOf, ledgerSum } from "../../services/auth-billing-service/tests/support/db";
 import { callGateway, sessionCookie } from "../support/bff";
 import { startAuthBillingService, type RunningService } from "../support/express-server";
-import { itKnownDefect } from "../support/known-defect";
 
 const gemini = vi.hoisted(() => ({ generateContent: vi.fn() }));
 vi.mock("@google/genai", () => ({
@@ -115,8 +114,7 @@ describe("harness: the scenario really reaches 'reserved, then revoked, before s
 });
 
 describe("a reservation authorised before revocation can still be settled", () => {
-  // Phase 2C must make these pass.
-  itKnownDefect.each(REVOCATIONS)("%s during generation: the valid answer is delivered and charged exactly once", async (_name, revoke) => {
+  it.each(REVOCATIONS)("%s during generation: the valid answer is delivered and charged exactly once", async (_name, revoke) => {
     const u = await funded(2);
     const token = tokenFor(u);
     revokeThenAnswer(() => revoke(u, token));
@@ -135,8 +133,7 @@ describe("a reservation authorised before revocation can still be settled", () =
     expect(errorLines().filter((l) => l.includes("CAPTURE_FAILED"))).toEqual([]);
   });
 
-  // Today this path fails safe (the hold expires uncharged) but keeps the credit reserved until the TTL.
-  itKnownDefect.each(REVOCATIONS)("%s, then the model fails: the reservation is released at once, never charged", async (_name, revoke) => {
+  it.each(REVOCATIONS)("%s, then the model fails: the reservation is released at once, never charged", async (_name, revoke) => {
     const u = await funded(2);
     const token = tokenFor(u);
     gemini.generateContent.mockImplementation(async () => {

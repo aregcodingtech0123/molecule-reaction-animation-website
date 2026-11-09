@@ -9,11 +9,12 @@ import { BodyTooLargeError, GATEWAY_MAX_BODY_BYTES, readBodyWithLimit } from "@/
 /**
  * Upstream routes the browser must never reach through the gateway. The AI
  * credit metering endpoints are internal-only (the BFF calls them server-side
- * with the internal service key); /deduct was retired. Matching is done on the
+ * with the internal service key); /deduct was retired. This is a denylist: the gateway adds the real internal key to
+ * everything it proxies, so every new internal billing route (delivery-attempt, most recently) MUST be listed here. Matching is done on the
  * normalised upstream path and is case-insensitive, because Express routing is.
  */
 const INTERNAL_ONLY_ROUTES: Partial<Record<ProxyOptions["service"], ReadonlySet<string>>> = {
-  billing: new Set(["consume", "capture", "refund", "deduct", "webhooks"]),
+  billing: new Set(["consume", "capture", "refund", "deduct", "webhooks", "delivery-attempt"]),
 };
 
 /** First path segment below the service base, after URL normalisation (`..`, `.`), lower-cased. */

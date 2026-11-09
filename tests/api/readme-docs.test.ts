@@ -212,7 +212,7 @@ describe("README.md paths, links and routes resolve", () => {
       stack[depth] = names[0].replace(/\/$/, "");
     }
     expect(missing).toEqual([]);
-    expect(block).toContain("migrations 001-018");
+    expect(block).toContain("migrations 001-020");
   });
 
   it("every page route in the Features table has a page, and every /api route a handler", () => {
@@ -303,7 +303,7 @@ describe("README.md states the real numbers", () => {
     const files = fs.readdirSync(path.join(root, "database/init")).filter((f) => /^\d{3}_.*\.sql$/.test(f)).sort();
     const nums = files.map((f) => f.slice(0, 3));
     expect(nums[0]).toBe("001");
-    expect(nums.at(-1)).toBe("018");
+    expect(nums.at(-1)).toBe("020");
     expect(nums).toEqual(nums.map((_, i) => String(i + 1).padStart(3, "0")));
     const table = README.slice(README.indexOf("| # | Adds |"));
     const listed = [...table.matchAll(/^\| (\d[\d, ]*) \|/gm)].flatMap((m) => m[1].split(",").map((s) => s.trim()));

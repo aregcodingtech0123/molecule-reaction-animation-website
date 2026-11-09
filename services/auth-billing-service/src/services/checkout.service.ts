@@ -1,3 +1,4 @@
+import { safeErrorLogFields } from "../db/diagnostics.js";
 import type { PoolClient } from "../db/index.js";
 import { pool, withTransaction } from "../db/index.js";
 import type { PaymentProvider } from "../config/packages.js";
@@ -65,7 +66,7 @@ async function markPendingOrderFailed(orderId: string): Promise<void> {
     // Never mask the checkout error; expire_stale_checkout_orders() covers this row later.
     console.error("[billing] Could not mark checkout order failed", {
       orderId,
-      error: err instanceof Error ? err.message : String(err),
+      ...safeErrorLogFields(err),
     });
   }
 }

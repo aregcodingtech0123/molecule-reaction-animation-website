@@ -61,4 +61,39 @@ export async function killConnection(admin: pg.Pool, client: pg.Client): Promise
   return { errorListenersBefore };
 }
 
+/**
+ * Real COMMIT outcomes. Each helper is called on the transaction's own client just before its COMMIT, and works only with
+ * temporary objects, so no schema changes. PostgreSQL runs deferred constraints and triggers inside COMMIT, which makes these
+ * real behaviour of a real COMMIT statement, unlike a failing statement sent in its place.
+ */
+
+/** COMMIT will be really refused (23503, severity ERROR) and the transaction really rolled back. `value` ends up in the error's DETAIL. */
+export async function armRealCommitRejection(client: pg.Client, value = "no-such-parent"): Promise<void> {
+  await client.query(`CREATE TEMP TABLE commit_fault (id text PRIMARY KEY, parent text REFERENCES commit_fault (id) DEFERRABLE INITIALLY DEFERRED) ON COMMIT DROP`);
+  await client.query(`INSERT INTO commit_fault VALUES ('child', '${value}')`);
+}
+
+/** COMMIT will spend `seconds` inside the server, before its commit point, so it can be observed and interrupted in flight. */
+export async function armSlowCommit(client: pg.Client, seconds: number): Promise<void> {
+  await client.query(`CREATE TEMP TABLE commit_delay (id int) ON COMMIT DROP`);
+  await client.query(`CREATE OR REPLACE FUNCTION pg_temp.commit_delay_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(${seconds}); RETURN NULL; END $$`);
+  await client.query(`CREATE CONSTRAINT TRIGGER commit_delay_t AFTER INSERT ON commit_delay DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pg_temp.commit_delay_fn()`);
+  await client.query(`INSERT INTO commit_delay VALUES (1)`);
+}
+
+/** Wait until armSlowCommit's COMMIT is running inside the server. */
+export async function waitUntilCommitInFlight(admin: pg.Pool, client: pg.Client): Promise<void> {
+  const pid = backendPid(client);
+  for (;;) {
+    const { rows } = await admin.query(`SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event = 'PgSleep'`, [pid]);
+    if (rows.length > 0) return;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+/** A real transport loss: the client's socket is gone, while the server knows nothing about it yet. */
+export function destroySocket(client: pg.Client): void {
+  (client as unknown as { connection: { stream: { destroy(): void } } }).connection.stream.destroy();
+}
+
 export { backendPid };

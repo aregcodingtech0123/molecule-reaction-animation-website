@@ -18,6 +18,7 @@ import { generateSecureToken, hashToken, hoursFromNow } from "../utils/secureTok
 import {
   buildPasswordResetEmail,
   buildVerificationEmail,
+  safeEmailErrorFields,
   sendEmail,
 } from "../lib/email.js";
 import { revokeJti } from "./tokenRevocation.service.js";
@@ -55,7 +56,7 @@ export function dummyPasswordHash(): Promise<string> {
  */
 function sendInBackground(kind: string, send: () => Promise<void>): void {
   void send().catch((err: unknown) => {
-    console.error(`[auth] Failed to send ${kind} email:`, err instanceof Error ? err.message : err);
+    console.error(`[auth] Failed to send ${kind} email:`, safeEmailErrorFields(err));
   });
 }
 

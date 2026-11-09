@@ -333,9 +333,9 @@ same settings:
 cd services/auth-billing-service
 export MIGRATION_DATABASE_URL='postgresql://…<rehearsal branch, direct, no -pooler>…?sslmode=require'
 npm run db:migrate:status      # every file "pending", 15 files (001 … 015)
-npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=18
+npm run db:migrate             # expected last line: [migrate] <host>: mode=fresh baselined=0 applied=20
 npm run db:migrate             # again → mode=tracked baselined=0 applied=0   (the runner is idempotent)
-npm run db:migrate:status      # all 18 "applied"
+npm run db:migrate:status      # all 20 "applied"
 npm run db:reconcile           # exit 0: two "OK" lines
 ```
 
@@ -355,7 +355,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
   -- pending_checkout_orders, revoked_tokens, schema_migrations, user_balances, users, verification_tokens
 ```
 
-- [ ] All of the above match, including `mode=fresh … applied=18` and `SELECT version()` = PostgreSQL 18.
+- [ ] All of the above match, including `mode=fresh … applied=20` and `SELECT version()` = PostgreSQL 18.
 - [ ] You did **not** run `db:setup` (it is for local databases: it connects to the `postgres` maintenance database to
       `CREATE DATABASE`) and did **not** run `--baseline` (that is only for a database created before the runner
       existed; on an empty database the runner picks `mode=fresh` by itself).
@@ -370,7 +370,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
 
 - [ ] Create a Neon branch of production named `pre-launch-<date>` (instant, costs nothing — a restore point).
 - [ ] Same commands as §2.2 with the **production** direct URL in `MIGRATION_DATABASE_URL` (`--dry-run` is available
-      if you want the plan first). Expected: `mode=fresh baselined=0 applied=18`, then the SQL checks, then
+      if you want the plan first). Expected: `mode=fresh baselined=0 applied=20`, then the SQL checks, then
       `npm run db:reconcile` → exit 0.
 - [ ] `unset MIGRATION_DATABASE_URL` in that shell afterwards.
 
@@ -588,7 +588,7 @@ Runbook §7.0 in short: open the site exactly as users reach it, sign in.
 ### 4.6 Logout and the closing checks
 
 - [ ] Sign out; `/dashboard` redirects to `/login`.
-- [ ] `npm run db:migrate:status` (all 18 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
+- [ ] `npm run db:migrate:status` (all 20 applied) and `npm run db:reconcile` (exit 0 — or the refund rows you have
       not reviewed yet).
 - [ ] The client-IP test from §A passed (two networks → two different `signup_ip` values).
 
@@ -649,6 +649,7 @@ tell me if you want one written.
 | Express | `/health` → `503`, `DATABASE_UNAVAILABLE` | database unreachable |
 | Express | `[db] Request failed: database unavailable` (often with `timeout exceeded when trying to connect`) | the database could not serve requests — usually the pool's 20 connections all busy (slow or saturated database): requests wait 2 s and answer **503 `DATABASE_UNAVAILABLE`** with `Retry-After` (R18); webhooks answer 503 and Lemon retries (R19). Check Neon latency and load (performance Part 3) |
 | Next.js | `[billing] CAPTURE_FAILED`, `[billing] RELEASE_FAILED` | a turn went uncharged / a hold will expire uncharged (revenue loss, not customer harm) |
+| Next.js | `[billing] SETTLEMENT_PROBE_UNRESOLVED` | an answer was withheld and the BFF could not establish whether the user was charged. It is not a capture failure. **Alert on it as it happens**: the charged case appears nowhere else. Read-only steps: `SETTLEMENT_INVESTIGATION.md` |
 | Next.js | `[billing] INTERNAL_AUTH_REJECTED` | `INTERNAL_SERVICE_SECRET` differs between the services — AI Lab is down |
 | Next.js | `[billing] BILLING_NOT_CONFIGURED` | `BILLING_SERVICE_URL` / `INTERNAL_SERVICE_SECRET` missing |
 | both | `FATAL:` | refused to start (configuration) |
@@ -797,7 +798,7 @@ None of these is a hidden defect; each is a decision with a trigger. Details liv
 Launch only when all of these are true:
 
 - [ ] §1.5 `check:config` passes (including `SITE_URL`); the hosts hold the same values.
-- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=18`, SQL checks match, reconcile exit 0.
+- [ ] §2.2 rehearsal and §2.3 production migration: `mode=fresh … applied=20`, SQL checks match, reconcile exit 0.
 - [ ] §3 Lemon live: webhook subscribed to both events, `LEMONSQUEEZY_ALLOW_TEST_MODE` unset, no discounts, one real
       purchase credited **and** its refund reviewed.
 - [ ] [`SEO_LAUNCH_CHECKLIST.md`](../seo/SEO_LAUNCH_CHECKLIST.md) Go / no-go (SEO) is ticked (canonical host and redirects, `npm run check:live-seo`, Search Console).

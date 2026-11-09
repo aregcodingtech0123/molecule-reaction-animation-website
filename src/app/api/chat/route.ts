@@ -10,9 +10,11 @@ import { resolveSessionTokenFromRequest } from "@/lib/auth/resolve-session-token
 import { isJwtConfigured, verifyJwtToken } from "@/lib/auth/verify-jwt";
 import {
   AI_OPERATION_COSTS,
-  captureOperationCredits,
   consumeCreditsForOperation,
+  deliveryTrackingEnabled,
+  recordDeliveryAttempt,
   refundOperationCredits,
+  settleOperation,
 } from "@/lib/billing/server-billing";
 import { checkChatRateLimit } from "@/lib/rateLimit/chatLimiter";
 import { BodyTooLargeError, CHAT_MAX_BODY_BYTES, readBodyWithLimit } from "@/lib/http/limited-body";
@@ -134,16 +136,14 @@ export async function POST(request: Request) {
   // client never sees or chooses it.
   const chatTurnId = randomUUID();
 
-  /** Release the reservation for a failure that is ours, not the user's (never charged). */
-  const refund = (reason: string) =>
-    refundOperationCredits({ bearerToken: bearer, referenceId: chatTurnId, reason });
-  /** Charge the reservation: the model produced a response. */
-  const capture = () => captureOperationCredits({ bearerToken: bearer, referenceId: chatTurnId });
+  // Off unless BILLING_DELIVERY_TRACKING says so. Read once per turn, so one turn is tracked or not from start to finish.
+  const trackDelivery = deliveryTrackingEnabled();
 
   const charge = await consumeCreditsForOperation({
     bearerToken: bearer,
     operationType: "AI_CHAT_QUERY",
     referenceId: chatTurnId,
+    trackDelivery,
   });
 
   if (!charge.ok) {
@@ -191,6 +191,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "BILLING_UNAVAILABLE" }, { status: 503 });
   }
 
+  // Reservation-bound credentials for this turn: they stay in this function's scope, out of responses and logs.
+  const { capabilities } = charge;
+
+  /** Release the reservation: this turn delivers nothing chargeable. */
+  const refund = (reason: string) =>
+    refundOperationCredits({ referenceId: chatTurnId, refundCapabilityToken: capabilities.refundCapabilityToken, reason });
+
+  /** The client left before the charge boundary, so the turn is released. Nobody reads this response. */
+  const releaseCancelledTurn = async () => {
+    console.warn("[api/chat] Client cancelled before the answer was validated — releasing the reservation", {
+      userId: session.sub,
+      referenceId: chatTurnId,
+    });
+    await refund("client_cancelled");
+    return Response.json({ error: "CLIENT_CLOSED_REQUEST" }, { status: 499 });
+  };
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.error("[api/chat] GEMINI_API_KEY is not configured.");
@@ -206,6 +223,8 @@ export async function POST(request: Request) {
 
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
 
+  if (request.signal.aborted) return releaseCancelledTurn();
+
   let response;
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -219,11 +238,12 @@ export async function POST(request: Request) {
           systemInstruction: LAB_ASSISTANT_SYSTEM_INSTRUCTION,
           temperature: 0.7,
           maxOutputTokens: geminiMaxOutputTokens(),
-          abortSignal,
+          abortSignal: AbortSignal.any([abortSignal, request.signal]),
         },
       }),
     );
   } catch (err) {
+    if (request.signal.aborted) return releaseCancelledTurn();
     if (isAbortError(err)) {
       console.error("[api/chat] Gemini timed out — releasing the reservation", {
         userId: session.sub,
@@ -242,6 +262,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });
   }
 
+  if (request.signal.aborted) return releaseCancelledTurn();
+
   const text = response.text?.trim();
   if (!text) {
     console.error("[api/chat] Gemini returned an empty response — releasing the reservation", {
@@ -254,23 +276,27 @@ export async function POST(request: Request) {
 
   const validation = validateAiOutput(text);
   if (!validation.safe) {
-    // Deliberately charged (captured), as before. The model ran and we paid
-    // for it; the response was withheld because of what the exchange
-    // contained, which is not a server fault. Releasing here would also make
-    // probing the content filter free.
+    // A withheld answer is never charged (Phase 2A).
     console.warn("[api/chat] Output policy violation:", validation.reason, {
       userId: session.sub,
       referenceId: chatTurnId,
     });
-    await capture();
+    await refund("output_filter_blocked");
     return Response.json(
       { error: "Response blocked by content policy." },
       { status: 422 },
     );
   }
 
-  // The answer is delivered either way; if capture fails after its retries the
-  // turn goes uncharged and is reported by db:reconcile (CAPTURE_FAILED log).
-  const captured = await capture();
-  return Response.json({ message: text, balance: captured.captured ? (captured.balance ?? null) : null });
+  // The charge boundary: a complete, validated answer. From here on a client disconnect changes nothing, because
+  // settlement does not use request.signal, so leaving cannot turn a chargeable answer into a free one. No answer byte
+  // leaves before settlement says so. A withheld answer is not regenerated.
+  const settlement = await settleOperation({ referenceId: chatTurnId, capabilities });
+  if (!settlement.deliver) {
+    return Response.json({ error: "BILLING_UNAVAILABLE" }, { status: 503 });
+  }
+  // Only here: the answer passed validation, its capture is confirmed, and it WILL be returned. One bounded attempt to record
+  // that. It cannot throw and cannot change anything above: the charge, the answer and the model call are final.
+  if (trackDelivery) await recordDeliveryAttempt({ referenceId: chatTurnId, capabilities });
+  return Response.json({ message: text, balance: settlement.balance });
 }

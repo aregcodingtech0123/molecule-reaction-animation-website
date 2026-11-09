@@ -50,6 +50,7 @@ PostgreSQL 18  (users, ledger, balances, AI reservations, webhook inbox)
 * The browser only talks to the Next.js origin. The route handlers under `src/app/api/` are a gateway (BFF) to Express; `/api/chat` calls Gemini from the Next.js server.
 * The Next.js app never connects to PostgreSQL. Only Express does.
 * Lemon Squeezy posts webhooks to Express directly because the HMAC check needs the raw body.
+* Capture and refund of an AI turn are authorised by capability tokens that only Express can sign. The BFF carries them for the length of one request and never holds the signing key ([Money flow](#money-flow)).
 * In tests, Lemon Squeezy, Gemini, Google and Resend are never called: a network guard rejects non-loopback requests and each suite stubs what it needs. See [Testing](#testing).
 
 ## Tech stack
@@ -95,6 +96,7 @@ cp services/auth-billing-service/.env.example services/auth-billing-service/.env
 Edit both files before the first start:
 
 * Replace `JWT_SECRET` and `INTERNAL_SERVICE_SECRET` with random values (`openssl rand -base64 48`). **Each must be identical in both files.** The service refuses to start on the placeholder values from `.env.example` or on weak ones.
+* Replace `SETTLEMENT_CAPABILITY_SECRET` in the **service file only** with its own random value (`openssl rand -base64 48`; at least 32 characters, different from `JWT_SECRET`, `INTERNAL_SERVICE_SECRET` and `EMAIL_TOMBSTONE_SECRET`). The service checks it at every start, in every mode, and refuses to start on the template placeholder. The Next.js side must never have it.
 * Leave `DATABASE_URL` in the service file pointing at the local Docker database.
 * Optional: the `SITE_OWNER_*` lines in the root file are commented out. Locally you can leave them; the four trust pages then show only what is set, and they are `noindex` anyway while `SITE_URL` is unset. They matter for a deployment ([Owner details](#owner-details-for-the-trust-pages)).
 * Add `GEMINI_API_KEY` (root file) to use the AI Lab, `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_GOOGLE_CLIENT_ID` for Google sign-in, and the `LEMONSQUEEZY_*` values to create real checkouts.
@@ -144,6 +146,8 @@ Migrations in `database/init/` (all idempotent; the runner applies them in order
 | 016 | Retention of `users.signup_ip` |
 | 017 | Account deletion by anonymisation and the e-mail tombstone guard |
 | 018 | Review flag for purchases that matched no account |
+| 019 | Delivery-attempt tracking fields on `ai_credit_holds` |
+| 020 | Owner-only review records for delivery-attempt gaps |
 
 ## Environment variables
 
@@ -151,15 +155,16 @@ Names only. Never commit values. The complete table with defaults and the reason
 
 | Where | Variables |
 | --- | --- |
-| Next.js (root `.env`) | `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`, `FRONTEND_URL`, `SITE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CLIENT_IP_HEADER`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`; optional `GEMINI_MODEL`, `GEMINI_TIMEOUT_MS`, `GEMINI_MAX_OUTPUT_TOKENS`, `BILLING_RETRY_DELAYS_MS`, `BILLING_CALL_TIMEOUT_MS`, `CSP_MODE`, `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` |
+| Next.js (root `.env`) | `AUTH_SERVICE_URL`, `BILLING_SERVICE_URL`, `USERS_SERVICE_URL`, `FRONTEND_URL`, `SITE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CLIENT_IP_HEADER`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`; optional `GEMINI_MODEL`, `GEMINI_TIMEOUT_MS`, `GEMINI_MAX_OUTPUT_TOKENS`, `BILLING_RETRY_DELAYS_MS`, `BILLING_CALL_TIMEOUT_MS`, `BILLING_DELIVERY_TRACKING`, `CSP_MODE`, `NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE` |
 | Next.js, trust pages (root `.env`) | 14 required and 6 optional `SITE_OWNER_*` variables, listed under [Owner details](#owner-details-for-the-trust-pages) |
-| Express (`services/auth-billing-service/.env`) | `PORT`, `HOST`, `NODE_ENV`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `EMAIL_TOMBSTONE_SECRET`, `EMAIL_TOMBSTONE_GUARD`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE`, `RESEND_API_KEY`, `SENDER_EMAIL`, `TRUST_PROXY_HOPS`, `AI_HOLD_TTL_SECONDS`, `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL`, `PURGE_HEARTBEAT_URL`, `DELETION_HEARTBEAT_URL` |
+| Express (`services/auth-billing-service/.env`) | `PORT`, `HOST`, `NODE_ENV`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `EMAIL_TOMBSTONE_SECRET`, `EMAIL_TOMBSTONE_GUARD`, `SETTLEMENT_CAPABILITY_SECRET`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_STARTER` / `_PRO` / `_ENTERPRISE`, `RESEND_API_KEY`, `SENDER_EMAIL`, `TRUST_PROXY_HOPS`, `AI_HOLD_TTL_SECONDS`, `AI_DAILY_TURNS_PER_USER`, `AI_DAILY_TURNS_GLOBAL`, `PURGE_HEARTBEAT_URL`, `DELETION_HEARTBEAT_URL`; optional `SETTLEMENT_CAPABILITY_SECRET_PREVIOUS` (key rotation only) |
 
 Points worth knowing:
 
 * `SITE_URL` (Next.js, server-only, read per request) is the public https origin that search engines may index. Unset, not https, or a non-production Vercel deployment means `noindex` everywhere and `Disallow: /` in `robots.txt`. In production it must equal `FRONTEND_URL`.
 * `FRONTEND_URL` must be the exact public origin; the BFF rejects every state-changing request whose `Origin` differs (403 `CSRF_REJECTED`).
-* `INTERNAL_SERVICE_SECRET` authenticates the BFF to Express's `/consume`, `/capture` and `/refund`. It must be identical on both services.
+* `INTERNAL_SERVICE_SECRET` authenticates the BFF to Express's `/consume`, `/capture`, `/refund` and `/delivery-attempt`. It must be identical on both services.
+* `SETTLEMENT_CAPABILITY_SECRET` (Express only) signs the reservation-bound capability tokens that authorise capturing or refunding one AI reservation ([Money flow](#money-flow)). It must be its own random value, never shared with another secret, and must never be set on the Next.js host: whoever holds it can mint tokens. To rotate it, put the old value in `SETTLEMENT_CAPABILITY_SECRET_PREVIOUS` for at least `AI_HOLD_TTL_SECONDS` plus 60 seconds, then remove it. The template comments in [`services/auth-billing-service/.env.example`](services/auth-billing-service/.env.example) describe the rules.
 * `EMAIL_TOMBSTONE_SECRET` is the key for the 12-month hash of deleted accounts' e-mail addresses. It must be its own random value (not `JWT_SECRET`, not `INTERNAL_SERVICE_SECRET`). Production start-up requires it while `EMAIL_TOMBSTONE_GUARD` is on (the default), and so does `db:process-deletions`.
 * The operator's legal details are `SITE_OWNER_*` variables of the **Next.js** host (not Express), read on every request: a change takes effect without a rebuild. See below.
 * **`npm run check:config`** validates the configuration of both hosts before a deploy without printing any value: `npm run check:config -- --service ./.env.launch-express.local --web ./.env.launch-next.local` (exit `0` ready, `1` problems, `64` usage error). Details: [`docs/ops/LAUNCH_CHECKLIST.md` §1.5](docs/ops/LAUNCH_CHECKLIST.md).
@@ -196,10 +201,13 @@ Credits are the only thing the app sells, and every change to a balance is a row
 **Spending credits (an AI Lab turn)**
 
 1. `/api/chat` checks the session, the CSRF origin guard, the per-user limit (10 per minute) and the body size.
-2. **Reserve:** the BFF calls Express `POST /api/billing/consume` (internal key). Express checks the balance and the daily caps and records a reservation in `ai_credit_holds`; nothing is charged yet.
-3. The BFF calls Gemini (30 s timeout by default).
-4. **Capture** on success (`/capture`: the debit is posted to the ledger) or **release** on failure or timeout (`/refund`: nothing is charged). Both calls are retried with backoff.
-5. A reservation that is neither captured nor released expires after `AI_HOLD_TTL_SECONDS` (600 by default) and is never charged; Express settles expired reservations every 5 minutes.
+2. **Reserve:** the BFF calls Express `POST /api/billing/consume` (internal key and the user's session). Express checks the balance and the daily caps and records a reservation in `ai_credit_holds`; nothing is charged yet. In the same transaction it signs two short-lived capability tokens bound to that one reservation (user, reference, amount, operation, creation and expiry time), one for capture and one for refund; with `BILLING_DELIVERY_TRACKING` on, also a third, delivery-only one. If a token cannot be signed the reservation rolls back. The tokens stay in the BFF's request scope and appear in no response or log.
+3. The BFF calls Gemini (30 s timeout by default). A client that leaves before the answer is validated, a Gemini error, timeout or empty answer, and an answer blocked by the output filter all **release** the reservation (`/refund` with the refund token): nothing is charged.
+4. **Capture** a validated answer (`/capture` with the capture token: the debit is posted to the ledger). The call needs the internal key and the token; it does not need the user's live session, so logging out during the model call cannot turn a charged answer into a free one. A token authorises one purpose on one reservation, and the reservation row, read under the per-user lock, still decides everything else (status, expiry, amount). Capture is retried with backoff (`BILLING_RETRY_DELAYS_MS`, default 250 ms to 15 s).
+5. **The answer leaves the BFF only after capture is confirmed.** If every capture attempt ends without an authoritative result, the BFF sends one refund call as a probe and delivers the answer only when Express answers `outcome: "already_captured"`. Any other result withholds the answer: the BFF returns `503 BILLING_UNAVAILABLE` and never regenerates it; the user can resend, which starts a new turn with a new reservation.
+6. Capture is safe to retry: a repeat finds the committed debit and returns the original ledger id. A deadlock or serialization failure, or a lost connection, is a retryable `503`. An unknown database error rolls the capture back completely (`409 CAPTURE_INDETERMINATE`, the reservation stays `held`). When the `COMMIT` itself gets no answer, Express reads the reservation again under the same locks to learn whether it committed. Logs carry the SQLSTATE and identifiers, never a token, a secret or the database's message text.
+7. Optional delivery tracking: when it is on, after a confirmed capture the BFF makes one bounded, never-retried `POST /delivery-attempt` call with the delivery-only token. It records `answer_delivery_attempted_at` once on that reservation; it moves no credit and cannot change the answer or the settlement.
+8. A reservation that is neither captured nor released expires after `AI_HOLD_TTL_SECONDS` (600 by default) and is never charged; Express settles expired reservations every 5 minutes.
 
 **Ledger rules (enforced in PostgreSQL)**: ledger rows cannot be updated, deleted or truncated; balances change only through `post_credit_transaction()`; `npm run db:reconcile` compares every cached balance with the sum of its ledger. See [`docs/security/THREAT_MODEL.md`](docs/security/THREAT_MODEL.md) and [`docs/security/DB_ROLES.md`](docs/security/DB_ROLES.md).
 
@@ -256,11 +264,11 @@ Summary of the controls; the evidence and every decision are in the documents.
 * **Sessions**: a JWT in an httpOnly, `SameSite=Strict` (and `Secure` in production) `session_token` cookie; it never appears in a response body or page script. Sessions are revocable through `token_version`.
 * **CSRF**: state-changing BFF requests, including `/api/chat`, are rejected when `Origin` does not match `FRONTEND_URL`.
 * **Headers**: a strict per-request nonce CSP, HSTS and no `X-Powered-By`, set in `src/proxy.ts`.
-* **Service-to-service**: the metering endpoints require `X-Internal-Service-Key`; the BFF forwards the end user's IP so rate limits are per user.
+* **Service-to-service**: the metering endpoints require `X-Internal-Service-Key`; the BFF forwards the end user's IP so rate limits are per user. Capture, refund and delivery acknowledgement are authorised by HMAC-signed capability tokens bound to one purpose and one reservation, signed only by Express (`SETTLEMENT_CAPABILITY_SECRET`); `/delivery-attempt` has no session fallback, and the Next.js gateway lists it as internal-only.
 * **Abuse limits**: login, registration and mail endpoints are rate limited; `/api/chat` allows 10 turns per minute per user; daily AI turn caps per user and for the whole service are database-backed.
 * **Payments**: HMAC over the raw body, store, currency and test-mode checks, durable inbox, idempotent credits, refunds reviewed by hand.
 * **Ledger**: append-only and guarded by triggers; an optional least-privilege application role is prepared (`database/roles/app-role.sql`).
-* **Start-up checks**: weak or placeholder secrets and bad production configuration stop the service; `npm run check:config` runs the same checks before deploying.
+* **Start-up checks**: weak or placeholder secrets and bad production configuration stop the service; `npm run check:config` runs the same checks before deploying. The settlement capability key is checked by the service at every start, in every mode; `check:config` does not cover it yet.
 * **AI output** is rendered through a sanitiser with no remote images; the output filter is a weak quality check, not a security control.
 * **Not done**: no external penetration test and no authenticated active scan (see known limitations).
 
@@ -320,18 +328,20 @@ The repository has no `Dockerfile`, `render.yaml` or `vercel.json`; hosts are co
 |-- src/
 |   |-- app/                    # routes; app/api/ holds the BFF gateway and /api/chat
 |   |-- components/             # ai, atom-models, auth, billing, canvas, explore, home, layout,
-|   |                           # legal, onboarding, periodic-table, profile, reactions, seo, ui
+|   |                           # legal, onboarding, periodic-table, profile, providers, reactions, seo, ui
 |   |-- context/  hooks/        # auth, theme and language providers; hooks
-|   |-- lib/                    # ai, auth, billing, gateway, i18n (12 locales), molecules, periodic-table,
-|   |                           # atom-models, reactions, security (CSP, CSRF), seo, legal (SITE_OWNER_* reader), rateLimit, theme
+|   |-- lib/                    # ai, api, auth, billing, gateway, http, i18n (12 locales), molecules, navigation,
+|   |                           # onboarding, periodic-table, atom-models, reactions, security (CSP, CSRF), seo,
+|   |                           # legal (SITE_OWNER_* reader), rateLimit, theme, three
 |   |-- proxy.ts                # page gating, per-request CSP nonce, noindex rules
 |   `-- instrumentation.ts
 |-- services/auth-billing-service/
-|   |-- src/                    # Express app: routes, controllers, services, middlewares, config, db
+|   |-- src/                    # Express app: routes, controllers, services, middlewares, config, db, lib, utils
+|   |                           # (utils/settlementCapability.ts: capability tokens), types
 |   |-- scripts/                # migrate, setup-db, reset-db, reconcile, purge-signup-ips, process-deletions
-|   `-- tests/                  # unit, api, db suites
+|   `-- tests/                  # unit, api, db suites, plus setup, stubs and support helpers
 |-- database/
-|   |-- init/                   # migrations 001-018
+|   |-- init/                   # migrations 001-020
 |   `-- roles/app-role.sql      # optional least-privilege role
 |-- scripts/
 |   |-- perf/                   # performance harness
@@ -352,6 +362,7 @@ The repository has no `Dockerfile`, `render.yaml` or `vercel.json`; hosts are co
 | --- | --- | --- |
 | `docs/ops/` | [`LAUNCH_CHECKLIST.md`](docs/ops/LAUNCH_CHECKLIST.md) | First deployment, step by step, monitoring, incidents, known limitations (§7), go / no-go |
 | | [`PRODUCTION_RUNBOOK.md`](docs/ops/PRODUCTION_RUNBOOK.md) | Environment variable table, upgrading an existing database, scheduled jobs, rollback, manual deletion and data requests |
+| | [`SETTLEMENT_INVESTIGATION.md`](docs/ops/SETTLEMENT_INVESTIGATION.md) | Read-only investigation of an unresolved AI settlement (`SETTLEMENT_PROBE_UNRESOLVED`) |
 | | [`LAUNCH_NOTES.md`](docs/ops/LAUNCH_NOTES.md) | Constraints accepted for launch (no discount codes, one Express instance, ...) |
 | | [`BEHAVIOUR_CHANGES.md`](docs/ops/BEHAVIOUR_CHANGES.md) | Breaking and behaviour changes of the remediation phase |
 | `docs/security/` | [`THREAT_MODEL.md`](docs/security/THREAT_MODEL.md), [`SECURITY_FINDINGS.md`](docs/security/SECURITY_FINDINGS.md), [`DEPENDENCY_TRIAGE.md`](docs/security/DEPENDENCY_TRIAGE.md), [`DB_ROLES.md`](docs/security/DB_ROLES.md) | Assets and trust boundaries, every finding with its fix, dependency advisories, the database role split |
@@ -367,6 +378,8 @@ The accepted limitations and what would trigger revisiting each are in [`docs/op
 * One Express instance only: its rate limiters and expired-reservation sweeper are in-process.
 * Lemon Squeezy discount codes must not be created until the webhook validates the amount paid ([`LAUNCH_NOTES.md`](docs/ops/LAUNCH_NOTES.md)).
 * Refunds are reviewed by hand; credits are never clawed back automatically.
+* `/capture` and `/refund` still accept the older session-authenticated request when the body carries no capability token; removing that path is planned, not done.
+* The service still writes reservations, settlements and the webhook inbox with direct statements and calls `post_credit_transaction()` itself. Narrower database operations and separate webhook and acknowledgement database roles have been designed but are **not** part of this repository (migrations stop at 020), and `database/roles/app-role.sql` remains the optional role.
 * The non-English UI text is machine-translated and awaits native review.
 * The trust pages are English-only drafts: the 14 required `SITE_OWNER_*` variables must be set and a lawyer must review them (`SITE_OWNER_LEGAL_REVIEWED`). The drafts have no liability clause and no age statement; see `LEGAL_REVIEW_QUESTIONS.md`.
 * No admin UI and no account-disable flag; the levers are SQL.

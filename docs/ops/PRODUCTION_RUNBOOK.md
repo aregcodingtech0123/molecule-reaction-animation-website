@@ -183,7 +183,7 @@ the services connect as keeps it, so nothing changes while one role owns the sch
 `014` (SEC-16) only adds two indexes on `ai_credit_holds`.
 
 > **Empty database (first deployment)?** Skip `--baseline`: run `node scripts/migrate.mjs` and expect
-> `mode=fresh baselined=0 applied=18` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
+> `mode=fresh baselined=0 applied=20` (see `LAUNCH_CHECKLIST.md` §2). `--baseline` is only for a database that existed
 > before the runner did.
 
 ```bash
@@ -250,6 +250,7 @@ base64 above.)
 | `GEMINI_MODEL`, `GEMINI_API_KEY` | key **required**, model optional | — | the key is server-side only (never `NEXT_PUBLIC_`); `check:config` reports a missing key |
 | `CSP_MODE` | optional (enforce) | — | SEC-18: `report-only` sends the strict nonce CSP as `Content-Security-Policy-Report-Only` — only as a temporary escape hatch if a third party (e.g. Google sign-in) breaks; anything else enforces |
 | `BILLING_CALL_TIMEOUT_MS` | optional (`10000`) | — | SEC-17: upper bound of one BFF → billing call; a timed-out reservation answers `503 BILLING_UNAVAILABLE`, a timed-out capture/release is retried |
+| `BILLING_DELIVERY_TRACKING` | optional (unset = **off**) | — | Phase 2C 5.2.2: `true` or `1` (any case) makes new reservations *tracked*: the billing service issues a third, delivery-only capability (`delivery_ack`), and the BFF makes **one** call (≤ 2 s, never retried) just before it returns a settled answer, recording that it attempted to. Anything else, a typo included, is **off**. It never changes a charge or an answer, and an acknowledgement that fails only logs `[billing] DELIVERY_ATTEMPT_UNRECORDED`. Reservations made while it is off, or by an older BFF, are never tracked and never look like gaps. **Turn it on only after migrations 019/020 are applied and the new Express is deployed**: on a database without 019 every tracked reservation fails. Turning it off takes effect on the next turn. "Recorded" means the BFF attempted to return the answer, not that the browser received it |
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment; `check:config` fails on a truthy value. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
 | `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
@@ -541,10 +542,33 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
-### 10.1 Migrations 008–018 (only if they cause a problem)
+### 10.1 Migrations 008–020 (only if they cause a problem)
+
+**Read this first.** Dropping a table or column deletes what is in it, and nothing here can be undone:
+
+* **020** deletes every delivery-gap review record (`ai_delivery_gap_reviews`). Export it first if you need the decisions.
+* **019** deletes every delivery-attempt timestamp and tracking marker. Afterwards a captured reservation can no longer be
+  told apart from a delivered one. A goodwill credit already posted stays in the ledger, but the record of why disappears.
+* **Order.** If any code that writes these columns is deployed, roll it back first (and switch its tracking flag off), or its
+  reservations will fail the moment the columns are gone. Leaving 019 and 020 in place is harmless to older code and is the
+  safer rollback; run the SQL only if the migrations themselves are the problem.
+* **020 must go before 009.** The review table has a foreign key to `ai_credit_holds`, so dropping the holds first fails.
+  The block below already orders this correctly.
+* To roll back **only 019 and 020**, run everything down to the marked line, then `COMMIT;`. Reservations and the ledger are
+  untouched, and a later `node scripts/migrate.mjs` applies 019 and 020 again.
 
 ```sql
 BEGIN;
+SET LOCAL lock_timeout = '3s';
+-- 020 (delivery-gap review records; PERMANENTLY DELETES every review decision, export first)
+DROP TABLE IF EXISTS ai_delivery_gap_reviews;
+-- 019 (PERMANENTLY DELETES every delivery-attempt timestamp and tracking marker)
+ALTER TABLE ai_credit_holds DROP CONSTRAINT IF EXISTS ai_credit_holds_delivery_attempt_consistent;
+ALTER TABLE ai_credit_holds DROP COLUMN IF EXISTS answer_delivery_attempted_at;
+ALTER TABLE ai_credit_holds DROP COLUMN IF EXISTS delivery_tracking_enabled;
+DELETE FROM schema_migrations
+WHERE filename IN ('019_ai_delivery_attempt_tracking.sql', '020_ai_delivery_gap_review.sql');
+-- ===== To roll back ONLY 019 and 020: stop above this line and COMMIT. Everything below also rolls back 008-018. =====
 -- 018 (the webhook_missing_user list of db:reconcile; the column only records that you reviewed an order)
 DROP FUNCTION IF EXISTS webhook_missing_user_to_review();
 DROP INDEX IF EXISTS idx_lemon_webhook_events_missing_user;

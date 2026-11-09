@@ -71,11 +71,15 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
       expect(rows[1]).toMatchObject({ consumptions: "6", refunds: "4", late_refunds: "0", refund_pct: "67" });
     }));
 
-  it("§10.1 rollback of 008–018 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
+  it("§10.1 rollback of 008–020 leaves a working pre-008 database, and migrating again rolls forward cleanly", () =>
     withRunnerDb(async (db) => {
       await db.pool.query(rollback0809!);
       const status = await db.pool.query(`SELECT filename FROM schema_migrations ORDER BY 1`);
       expect(status.rows.map((r) => r.filename)).not.toContain("008_ledger_hardening.sql");
+      expect(status.rows.map((r) => r.filename)).not.toContain("019_ai_delivery_attempt_tracking.sql");
+      expect(status.rows.map((r) => r.filename)).not.toContain("020_ai_delivery_gap_review.sql");
+      // 020 goes before 009: the review table's foreign key would otherwise stop the holds table being dropped.
+      expect((await db.pool.query(`SELECT to_regclass('public.ai_delivery_gap_reviews') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regclass('public.ai_credit_holds') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('expire_stale_checkout_orders(interval)') IS NULL AS gone`)).rows[0].gone).toBe(true);
       expect((await db.pool.query(`SELECT to_regclass('public.lemon_order_refunds') IS NULL AS gone`)).rows[0].gone).toBe(true);
@@ -114,11 +118,52 @@ describe("PRODUCTION_RUNBOOK.md SQL", () => {
         "016_signup_ip_retention.sql",
         "017_account_deletion.sql",
         "018_webhook_missing_user_review.sql",
+        "019_ai_delivery_attempt_tracking.sql",
+        "020_ai_delivery_gap_review.sql",
       ]);
+      expect((await db.pool.query(`SELECT to_regclass('public.ai_delivery_gap_reviews') IS NOT NULL AS back`)).rows[0].back).toBe(true);
+      expect(
+        (await db.pool.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'ai_credit_holds' AND column_name IN ('answer_delivery_attempted_at', 'delivery_tracking_enabled')`)).rows[0].n,
+      ).toBe(2);
       expect((await db.pool.query(`SELECT to_regprocedure('purge_signup_ips(interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('anonymise_user(uuid,text,bytea,interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('webhook_missing_user_to_review()') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT to_regprocedure('expire_stale_checkout_orders(interval)') IS NOT NULL AS back`)).rows[0].back).toBe(true);
       expect((await db.pool.query(`SELECT prosecdef FROM pg_proc WHERE proname = 'post_credit_transaction'`)).rows[0].prosecdef).toBe(true);
+    }));
+
+  it("§10.1 rolling back only 019 and 020 keeps reservations, the ledger and 008–018, and migrating again restores them", () =>
+    withRunnerDb(async (db) => {
+      const u = await createUser(db.pool, { balance: 0 });
+      await db.pool.query(`SELECT post_credit_transaction($1, 5, 'SIGNUP_BONUS', 'signup')`, [u.id]);
+      await db.pool.query(
+        `INSERT INTO ai_credit_holds (user_id, reference_id, operation_type, amount, expires_at)
+         VALUES ($1, 'ref-partial', 'AI_CHAT_QUERY', 1, NOW() + interval '10 minutes')`,
+        [u.id],
+      );
+
+      // What the runbook says to run: everything above the marked line, then COMMIT.
+      const marker = /^-- ===== To roll back ONLY.*$/m;
+      expect(rollback0809).toMatch(marker);
+      await db.pool.query(`${rollback0809!.split(marker)[0]}COMMIT;`);
+
+      const applied = (await db.pool.query(`SELECT filename FROM schema_migrations ORDER BY 1`)).rows.map((r) => r.filename);
+      expect(applied).toContain("018_webhook_missing_user_review.sql");
+      expect(applied).not.toContain("019_ai_delivery_attempt_tracking.sql");
+      expect(applied).not.toContain("020_ai_delivery_gap_review.sql");
+      expect((await db.pool.query(`SELECT to_regclass('public.ai_delivery_gap_reviews') IS NULL AS gone`)).rows[0].gone).toBe(true);
+      expect(
+        (await db.pool.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'ai_credit_holds' AND column_name IN ('answer_delivery_attempted_at', 'delivery_tracking_enabled')`)).rows[0].n,
+      ).toBe(0);
+      // Nothing financial was touched.
+      expect((await db.pool.query(`SELECT status FROM ai_credit_holds WHERE reference_id = 'ref-partial'`)).rows).toEqual([{ status: "held" }]);
+      expect((await db.pool.query(`SELECT balance FROM user_balances WHERE user_id = $1`, [u.id])).rows).toEqual([{ balance: 5 }]);
+      expect((await db.pool.query(`SELECT prosecdef FROM pg_proc WHERE proname = 'post_credit_transaction'`)).rows[0].prosecdef).toBe(true);
+
+      const forward = await migrate({ connectionString: db.url });
+      expect(forward.applied).toEqual(["019_ai_delivery_attempt_tracking.sql", "020_ai_delivery_gap_review.sql"]);
+      expect((await db.pool.query(`SELECT status, delivery_tracking_enabled, answer_delivery_attempted_at FROM ai_credit_holds WHERE reference_id = 'ref-partial'`)).rows).toEqual([
+        { status: "held", delivery_tracking_enabled: false, answer_delivery_attempted_at: null },
+      ]);
     }));
 });

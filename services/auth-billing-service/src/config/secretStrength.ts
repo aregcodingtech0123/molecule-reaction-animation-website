@@ -15,6 +15,7 @@ const PLACEHOLDER_SECRETS = new Set(
     "replace-with-at-least-32-characters-secret-key",
     "replace-with-at-least-32-characters-internal-key",
     "replace-with-another-32-characters-email-tombstone-key",
+    "replace-with-another-32-characters-settlement-key",
     "changeme",
     "secret",
     "your-secret-here",

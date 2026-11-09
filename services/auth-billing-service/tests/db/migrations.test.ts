@@ -63,6 +63,8 @@ describe("migrations 001→007 on an empty database", () => {
       "016_signup_ip_retention.sql",
       "017_account_deletion.sql",
       "018_webhook_missing_user_review.sql",
+      "019_ai_delivery_attempt_tracking.sql",
+      "020_ai_delivery_gap_review.sql",
     ]);
   });
 
@@ -76,6 +78,7 @@ describe("migrations 001→007 on an empty database", () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       "ai_credit_holds",
+      "ai_delivery_gap_reviews",
       "credit_ledger_transactions",
       "deleted_email_tombstones",
       "lemon_order_refunds",

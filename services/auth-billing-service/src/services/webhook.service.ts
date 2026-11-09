@@ -10,6 +10,7 @@ import {
 import { fulfillVerifiedPurchase } from "./checkout.service.js";
 import { sendPurchaseReceiptEmail } from "./email.service.js";
 import { pool } from "../db/index.js";
+import { safeEmailErrorFields } from "../lib/email.js";
 import { maskEmail } from "../utils/logRedaction.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -100,7 +101,7 @@ function queuePurchaseReceipt(params: {
       console.error("[email] Purchase receipt failed (credits already allocated)", {
         orderId: params.orderId,
         userId: params.userId,
-        error: error instanceof Error ? error.message : String(error),
+        ...safeEmailErrorFields(error),
       });
     }
   })();

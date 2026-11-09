@@ -1,3 +1,4 @@
+import { safeErrorLogFields } from "../db/diagnostics.js";
 import { pool } from "../db/index.js";
 
 /**
@@ -81,6 +82,6 @@ function maybeSchedulePurge(): void {
   if (checksSincePurge < PURGE_EVERY_N_CHECKS) return;
   checksSincePurge = 0;
   void purgeExpiredRevokedTokens().catch((err) => {
-    console.warn("[tokenRevocation] purge failed:", err);
+    console.warn("[tokenRevocation] purge failed:", safeErrorLogFields(err));
   });
 }

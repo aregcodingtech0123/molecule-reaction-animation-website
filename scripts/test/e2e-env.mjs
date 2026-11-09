@@ -19,6 +19,8 @@ export const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;
 export const E2E_JWT_SECRET = "e2e-only-signing-key-4b9d2f7a1c3e5a7b9d0f";
 export const E2E_WEBHOOK_SECRET = "e2e_webhook_secret_not_real";
 export const E2E_INTERNAL_KEY = "e2e-only-internal-key-8c1f4a7d2b9e6c3a0f5d";
+/** Express only (never in `shared` or `webEnv`): the service refuses to start without a valid settlement capability key, and the BFF must not hold it. */
+export const E2E_SETTLEMENT_KEY = "e2e-only-settlement-key-3d7a9c1e5b8f2a6d4c0e";
 export const E2E_VARIANTS = { starter: "910001", pro: "910002", enterprise: "910003" };
 
 export function e2eDatabaseUrl() {
@@ -45,6 +47,7 @@ export function apiEnv() {
     NODE_ENV: "test",
     PORT: String(API_PORT),
     HOST: "127.0.0.1",
+    SETTLEMENT_CAPABILITY_SECRET: E2E_SETTLEMENT_KEY,
     DATABASE_URL: e2eDatabaseUrl(),
     TEST_DATABASE_URL: e2eDatabaseUrl(),
     DB_HOST: "",
