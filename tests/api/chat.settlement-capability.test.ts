@@ -548,20 +548,46 @@ describe("unknown or transient capture: bounded retries with the same reservatio
   });
 
   describe("failures of the transport count as failed attempts", () => {
+    /**
+     * A short per-call bound for the capture attempts only (CI-01). The BFF reads BILLING_CALL_TIMEOUT_MS when each call
+     * starts, so the bound is shortened once the reservation has reached the stand-in and restored once the last capture
+     * attempt has: every capture attempt runs under it, while the reservation and the probe, which reach the real service
+     * and database, keep the normal bound. Stubbed for the whole turn, it also cut off a reservation or a probe that took
+     * longer than the capture's bound (CI run 42623069899: three probes, each retried as lost, instead of one).
+     */
+    function captureOnlyBound(timeoutMs: string | undefined) {
+      if (!timeoutMs) return { reservationArrived() {}, lastCaptureArrived() {} };
+      const normal = process.env.BILLING_CALL_TIMEOUT_MS;
+      return {
+        reservationArrived: () => vi.stubEnv("BILLING_CALL_TIMEOUT_MS", timeoutMs),
+        lastCaptureArrived: () => vi.stubEnv("BILLING_CALL_TIMEOUT_MS", normal),
+      };
+    }
+
     it.each<[string, Reply, string?]>([
       ["connection dropped", { kind: "drop" }],
       ["call timed out", { kind: "hang" }, "100"],
       ["a 200 whose body is cut off", { kind: "cut-body", status: 200 }],
       ["a 200 whose body stalls past the timeout", { kind: "stall-body", status: 200 }, "100"],
     ])("%s: retried, then the probe, never a delivery", async (_name, reply, timeoutMs) => {
-      if (timeoutMs) vi.stubEnv("BILLING_CALL_TIMEOUT_MS", timeoutMs);
-      const proxy = await billing({ capture: () => reply });
+      const bound = captureOnlyBound(timeoutMs);
+      const proxy = await billing({
+        consume: (n) => {
+          bound.reservationArrived();
+          return FORWARD(n);
+        },
+        capture: (n) => {
+          if (n === ATTEMPTS) bound.lastCaptureArrived();
+          return reply;
+        },
+      });
       const u = await funded();
 
       await expectWithheld(await chat(u));
 
       expect(proxy.of("capture")).toHaveLength(ATTEMPTS);
       expect(proxy.of("refund")).toHaveLength(1);
+      expect(proxy.of("refund")[0]!.answered).toMatchObject({ status: 200, body: { data: { outcome: "released" } } });
       await expectNotCharged(u.id, "released");
     });
   });
