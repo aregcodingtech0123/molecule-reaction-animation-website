@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "corpus": "phase-2c-v7",
+  "status": "staged-not-applied; conditional SQL-level contract for disposable environments only; not production-approved",
+  "normalisation": {
+    "lineEndings": "CRLF is normalised to LF before hashing",
+    "stripper": "services/auth-billing-service/tests/support/sql-comment-stripper.ts: narrow, for this fixed corpus only, not a general-purpose PostgreSQL SQL parser; comments inside dollar-quoted bodies are frozen with the body"
+  },
+  "evidenceWording": "About 1,200 result IDs: 1,233 by the recorded counting rule, 1,223 distinct names, roughly 1,150 PASS assertions. Never described as completely verified.",
+  "deploymentDocument": {
+    "file": "phase-2c-step-5-2-2-deployment-order-and-rollback-v6.md (the file name says v6; the content is the V7-corrected document)",
+    "sha256": "aacbbf72d6722e6296129e0c84dacd75a7496725e9b1c95a020c451972c55a00"
+  },
+  "entries": [
+    {
+      "file": "021_v4_delivery_guard_and_reconciliation.sql",
+      "kind": "migration",
+      "step": "S2",
+      "originalSource": "phase-2c-step-5-2-2-migration-021-draft-v4.sql",
+      "originalSha256": "3f1d0879230172f3548e19dc599de9d755497738bb99b2efc94cd32cfa297167",
+      "sha256": "3f1d0879230172f3548e19dc599de9d755497738bb99b2efc94cd32cfa297167",
+      "strippedSha256": "873b9580c41da23af2f30dc513578b36f4e1f9cf1951092649a04b9b61534e1c"
+    },
+    {
+      "file": "022_v4_ledger_and_settlement_security.sql",
+      "kind": "migration",
+      "step": "S4",
+      "originalSource": "phase-2c-step-5-2-2-migration-022-ledger-security-draft-v4.sql",
+      "originalSha256": "6c185a3608226814c6e20ca5315a5acd0764f7fad822025f7b6c5450be92558c",
+      "sha256": "6c185a3608226814c6e20ca5315a5acd0764f7fad822025f7b6c5450be92558c",
+      "strippedSha256": "233a5f1d2040841548a60408ad86fc8cfaab7df1351e53983d63212b68a70daa"
+    },
+    {
+      "file": "S3-ack-role-creation.sql",
+      "kind": "role-creation",
+      "step": "S3",
+      "originalSource": "phase-2c-step-5-2-2-ack-role-creation-draft-v4.sql",
+      "originalSha256": "faba1da5b8ab72e94cb893e703650452e871c71de4fa7c586a649aba29f56d04",
+      "sha256": "faba1da5b8ab72e94cb893e703650452e871c71de4fa7c586a649aba29f56d04",
+      "strippedSha256": "876e7203ad0966bec83b76021efabf65005ae126151b5fb5a8f06123f137d7c7"
+    },
+    {
+      "file": "S3-webhook-role-creation.sql",
+      "kind": "role-creation",
+      "step": "S3",
+      "originalSource": "phase-2c-step-5-2-2-webhook-role-creation-draft-v6.sql",
+      "originalSha256": "96a8c14ce0b07b63e9b930d350f865b419f20af9dde35c720d5aaec8ba4ac66c",
+      "sha256": "96a8c14ce0b07b63e9b930d350f865b419f20af9dde35c720d5aaec8ba4ac66c",
+      "strippedSha256": "6e3ec7b484d746ffcbf793e015f84ed3a84f444fd7d6a91bc6114953aed5c32e"
+    },
+    {
+      "file": "S6-webhook-role-privileges.sql",
+      "kind": "role-grants",
+      "step": "S6",
+      "originalSource": "phase-2c-step-5-2-2-webhook-role-privileges-draft-v4.sql",
+      "originalSha256": "3918aa236a844fb4b4c04fd8b19241160fbbec45637b8c45d248cca50b0add85",
+      "sha256": "3918aa236a844fb4b4c04fd8b19241160fbbec45637b8c45d248cca50b0add85",
+      "strippedSha256": "643d0c6a6c47a1e9d51dc0fef20d1dfe33fd6a0def257e92ddee4ac08a55fc89"
+    },
+    {
+      "file": "S6-ack-role-deployment.sql",
+      "kind": "role-grants",
+      "step": "S6",
+      "originalSource": "phase-2c-step-5-2-2-ack-role-deployment-draft-v4.sql",
+      "originalSha256": "72607d8b207744f59400267d8eb36d110c53de8ca8b816c0f3bc7bc1388f4747",
+      "sha256": "72607d8b207744f59400267d8eb36d110c53de8ca8b816c0f3bc7bc1388f4747",
+      "strippedSha256": "bde947515e4a87eabcf150b2583c099daf61aa8bea7463868a47eb80f5b335ab"
+    },
+    {
+      "file": "S7-R0-app-role-additive-grants.sql",
+      "kind": "role-grants",
+      "step": "S7",
+      "originalSource": "phase-2c-step-5-2-2-app-role-additive-grants-draft-v5.sql",
+      "originalSha256": "b3dc400e6e29d0a5322d8a71b4c247058a5e52fae797ea2d4cdecb58e7e67204",
+      "sha256": "b3dc400e6e29d0a5322d8a71b4c247058a5e52fae797ea2d4cdecb58e7e67204",
+      "strippedSha256": "1efd65ebee420b024ce8ec951f8b89273e0d483c031048388aa7db44af9c81cb"
+    },
+    {
+      "file": "S10-R-app-role-transition.sql",
+      "kind": "role-transition",
+      "step": "S10",
+      "originalSource": "phase-2c-step-5-2-2-app-role-sql-correction-draft-v7.sql",
+      "originalSha256": "23c26808253da60b7fee50bdb1c21916b5da88d87087877b26a2fadb97a70dd2",
+      "sha256": "23c26808253da60b7fee50bdb1c21916b5da88d87087877b26a2fadb97a70dd2",
+      "strippedSha256": "48e027eb79e867043bc00ace052f1ab744269e2c14165659c68a9ea9365098c1",
+      "pointOfNoReturn": true
+    },
+    {
+      "file": "verify-roles-and-final.sql",
+      "kind": "verification",
+      "step": "verify",
+      "originalSource": "phase-2c-step-5-2-2-migration-021-deployment-role-draft-v7.sql",
+      "originalSha256": "a88de6de1299c86a45242a9dc0d5a2fba76179cda9e19588b8cd88f488d37b7a",
+      "sha256": "a88de6de1299c86a45242a9dc0d5a2fba76179cda9e19588b8cd88f488d37b7a",
+      "strippedSha256": "e4a9856ccb4de213c7611946e38b9a1eec9fd5bf1d637cdec4efcb0e144f853a"
+    }
+  ]
+}
