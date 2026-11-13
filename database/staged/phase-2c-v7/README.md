@@ -38,6 +38,11 @@ reversible migration.
   application instance running.
 - From that point the old application build is retired. **A rollback to the old build is not possible**, and the generic
   ledger writer (`post_credit_transaction`) must never be granted back, for any reason.
+- **The legacy build is not compatible with the post-R permission model.** R removes `EXECUTE` on `post_credit_transaction`
+  and the table-level writes on holds, the webhook inbox and `user_balances`, and grants `EXECUTE` on only the six narrow operations (the ordinary table grants are unchanged).
+  The legacy build's direct `post_credit_transaction` calls and direct hold and inbox writes are not substitutes for them.
+  Applying R while that build still serves the database makes capture, release, signup bonus, purchase crediting and
+  webhook inbox handling fail with PostgreSQL `42501` (an outage). The legacy build is not a valid rollback target after R.
 - Exactly one manifest entry may carry the flag, and it must be that file.
 - It is kept separate from `database/roles/app-role.sql`, which stays unchanged until S10. **Never re-run
   `database/roles/app-role.sql` after R**: it grants back the privileges R removes. Neutralising or replacing that script
@@ -45,7 +50,8 @@ reversible migration.
 
 ## Deployment order
 
-The approved deployment document named in the manifest defines the order. In outline:
+The approved deployment document named in the manifest defines the order. In outline (S0, a read-only pre-flight with a
+restorable snapshot, and S1, an optional out-of-band index pre-build, come first):
 
 - **S2:** migration 021.
 - **S3:** role creation (the acknowledgement and webhook roles), followed by the read-only verification at stage
@@ -53,9 +59,11 @@ The approved deployment document named in the manifest defines the order. In out
 - **S4:** migration 022.
 - **S5:** the owner fills the policy tables.
 - **S6:** the webhook and acknowledgement privileges.
-- **S7:** the additive grants (R0).
-- **S8:** the new service build is deployed. **S9:** the soak.
-- **S10:** the R transition, immediately followed by the final verification.
+- **S7:** the additive grants (R0): exactly seven privileges added, none removed.
+- **S8:** the new service build is deployed next to the old one. **S9:** the pre-R soak, at least 24 hours and every
+  listed criterion met; old and new builds may coexist until R.
+- **S10:** the R transition, only when the soak criterion is met and no old instance is running, immediately followed by
+  the final verification. **Point of no return.**
 
 This outline does not replace that document, and listing a step here does not approve it for any environment. The
 migration runner has no stop-at option, so it cannot by itself pause between S2 and S4. That is a question for the later

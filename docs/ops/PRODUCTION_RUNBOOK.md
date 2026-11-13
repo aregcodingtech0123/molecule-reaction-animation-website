@@ -196,7 +196,10 @@ Each pending file runs in its own transaction; a failure stops the run with noth
 for that file. Re-running **the runner** is safe (applied files are skipped).
 
 > **Never re-run an already-applied migration file by hand** (`psql -f database/init/00x_….sql`, a SQL
-> console paste, a "fix-up" script). Only `node scripts/migrate.mjs` applies migrations. The old files are
+> console paste, a "fix-up" script). Only `node scripts/migrate.mjs` applies migrations; it reads `database/init` by
+> default. The migration library can be given another directory, but that is a verification method, not an operator
+> procedure, and files under `database/staged/` (the Phase 2C V7 contract, not applied) are never applied by the command.
+> The old files are
 > frozen (checksummed) and recreate functions with `CREATE OR REPLACE`, which silently undoes later
 > hardening: re-running `003_dual_payment_providers.sql` rebuilds `post_credit_transaction()` **without**
 > 012's `SECURITY DEFINER` and pinned `search_path` (EXECUTE stays revoked from PUBLIC, so with the SEC-12
@@ -253,7 +256,7 @@ base64 above.)
 | `BILLING_DELIVERY_TRACKING` | optional (unset = **off**) | — | Phase 2C 5.2.2: `true` or `1` (any case) makes new reservations *tracked*: the billing service issues a third, delivery-only capability (`delivery_ack`), and the BFF makes **one** call (≤ 2 s, never retried) just before it returns a settled answer, recording that it attempted to. Anything else, a typo included, is **off**. It never changes a charge or an answer, and an acknowledgement that fails only logs `[billing] DELIVERY_ATTEMPT_UNRECORDED`. Reservations made while it is off, or by an older BFF, are never tracked and never look like gaps. **Turn it on only after migrations 019/020 are applied and the new Express is deployed**: on a database without 019 every tracked reservation fails. Turning it off takes effect on the next turn. "Recorded" means the BFF attempted to return the answer, not that the browser received it |
 | `GEMINI_MAX_OUTPUT_TOKENS` | optional (`2048`) | — | SEC-16: upper bound of one answer. The prompt is also capped at the newest 32 000 characters of the conversation |
 | `LEMONSQUEEZY_ALLOW_TEST_MODE` | — | optional (unset) | SEC-13: production ignores Lemon **test-mode** orders unless `true`. Set only while testing purchases with test cards on a non-live deployment; `check:config` fails on a truthy value. Orders must also carry `store_id` = `LEMONSQUEEZY_STORE_ID` and currency USD |
-| `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL |
+| `DATABASE_URL` (app role) | — | optional (SEC-12) | may point at the least-privilege role from `database/roles/app-role.sql` (see `docs/security/DB_ROLES.md`); migrations keep the owner URL. After the staged Phase 2C R transition (S10, a point of no return, not applied and not production-approved) that role is defined by `database/staged/phase-2c-v7/S10-R-app-role-transition.sql`, the build in this repository no longer works against it, and `app-role.sql` must not be re-run |
 | `SITE_OWNER_LEGAL_NAME` | **required for launch**, one line, ≤ 200 chars | — | trust pages (SEO Part 2, D6): who operates the site (About, Contact, Privacy, Terms; Organization JSON-LD). Server-side, read on every request, **never `NEXT_PUBLIC_*`**, web host only. Empty = not shown. See *Owner details* below |
 | `SITE_OWNER_COUNTRY` | **required**, one line, ≤ 100 | — | country of the operator |
 | `SITE_OWNER_POSTAL_ADDRESS` | **required**, text ≤ 500 (line breaks kept) | — | postal address for legal notices (Contact, Privacy, Terms, JSON-LD) |
@@ -542,6 +545,11 @@ Where to run them, which log lines to alert on and how long logs survive on each
 
 ## 10. Rollback reference
 
+> **Not covered here: the Phase 2C V7 R transition (staged, not applied).** Its step S10 is a point of no return. After it
+> the old build is not a valid rollback target, and nothing below (or `database/roles/app-role.sql`) may be used to restore
+> the privileges it removes; a problem after S10 is fixed forward or rolled back only to a release that already uses the
+> narrow operations. See [`../security/DB_ROLES.md`](../security/DB_ROLES.md).
+
 ### 10.1 Migrations 008–020 (only if they cause a problem)
 
 **Read this first.** Dropping a table or column deletes what is in it, and nothing here can be undone:
@@ -767,6 +775,13 @@ boundary — an application role that cannot `UPDATE`/`DELETE`/`TRUNCATE` the mo
 through the `SECURITY DEFINER` `post_credit_transaction()` — is implemented (SEC-12): migration `012`,
 `database/roles/app-role.sql`, [`../security/DB_ROLES.md`](../security/DB_ROLES.md). It is **not** switched on by
 default; rehearse it on a Neon branch first (`LAUNCH_CHECKLIST.md` §2.4), then change only the Express `DATABASE_URL`.
+
+Phase 2C stages a replacement contract (V7) in `database/staged/phase-2c-v7/`. It is not applied, it is verified only as
+role-substituted copies in a disposable database, and it is not production-approved. Its R transition (step S10) is a point
+of no return: it removes the privileges the build in this repository relies on (`post_credit_transaction()`, direct writes
+to holds and the webhook inbox), so capture, release, signup bonus, purchase crediting and webhook inbox handling would fail
+with PostgreSQL `42501`. Do not apply it to a database that serves this build. See
+[`../security/DB_ROLES.md`](../security/DB_ROLES.md).
 
 ---
 
