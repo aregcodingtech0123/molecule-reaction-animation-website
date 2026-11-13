@@ -1,7 +1,15 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL          (STEP A2: acknowledgement-role PRIVILEGES — GRANTS ONLY)
+-- STAGED V7 CONTRACT ARTIFACT — step S6 (A2) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S6-ack-role-deployment.sql; source draft phase-2c-step-5-2-2-ack-role-deployment-draft-v4.sql (sha256 72607d8b207744f5…, MANIFEST.json).
+-- Purpose: A2: acknowledgement-role PRIVILEGES, GRANTS ONLY.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
--- Never executed. Run by hand as the owner of ai_credit_holds, after ack-role-creation-draft-v4.sql. Creates no role, sets no
+-- Run by hand as the owner of ai_credit_holds, after S3-ack-role-creation.sql (A1). Creates no role, sets no
 -- password.
 --
 -- Precondition  : the role exists with the A1 attributes; migration 019 columns exist (and, for the role-aware trigger to let the
@@ -10,7 +18,7 @@
 --                 answer_delivery_attempted_at; nothing else; no table-level privilege; no function.
 -- Idempotent    : REVOKE ALL first, GRANT, assert.
 -- Source of the column list: deliveryAttempt.service.ts (the exact SELECT ... FOR UPDATE and UPDATE statements).
--- Verified before (disposable database, V2 run): P-ack-* tests. This V4 text is unexecuted.
+-- History: P-ack-* tests passed in the V2 disposable run; this V4 text was later executed by V7 as a role-substituted copy (see the banner above).
 -- =============================================================================
 
 BEGIN;

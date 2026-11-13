@@ -1,9 +1,17 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — NOT APPROVED — REQUIRES EXPLICIT APPROVAL      (Migration 022 v4: ledger and settlement security)
+-- STAGED V7 CONTRACT ARTIFACT — step S4 — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/022_v4_ledger_and_settlement_security.sql; source draft phase-2c-step-5-2-2-migration-022-ledger-security-draft-v4.sql (sha256 6c185a3608226814…, MANIFEST.json).
+-- Purpose: migration 022 v4: ledger and settlement security.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
 -- Supersedes migration-022-ledger-security-draft.sql (V3, unchanged). V3 was executed in a disposable database (341 results);
--- THIS V4 TEXT HAS NEVER BEEN PARSED OR EXECUTED BY POSTGRESQL (this task authorised no SQL execution). Treat every statement
--- as unverified until the V4 verification matrix has been run on a disposable database.
+-- when written, this V4 text had not been executed; V7 later executed a role-substituted copy of it (see the execution status
+-- above). It has not been re-verified under the original role names.
 --
 -- WHAT V4 CHANGES, AND WHY (every item comes from the adversarial review, V4 review document, findings A-xx)
 --   A-01  user_balances INSERT guard. The application role could INSERT a user_balances row with an arbitrary balance
@@ -28,14 +36,14 @@
 --         run inside the migration runner's transaction) and REFUSE an invalid leftover index.
 --   D-6   Goodwill is NOT in this migration (023 or later).
 --
--- NOT DONE HERE: no grant to any role (app-role v4 and the webhook privileges file do that, in the order of the deployment
+-- NOT DONE HERE: no grant to any role (the S6 and S7 files and the S10 R transition do that, in the order of the deployment
 -- document); post_credit_transaction() is unchanged; no ADMIN_ADJUSTMENT / REFUND / CREDIT_REFUND / goodwill operation for the
 -- application.
 --
 -- SECURITY DEFINER ANALYSIS (every definer function below)
 --   Owner: the migration (schema-owner) role. It must not be a superuser in production if avoidable (definer functions run
 --   with its rights). search_path = public, pg_temp on every function (pg_catalog implicitly first). REVOKE ALL FROM PUBLIC;
---   EXECUTE is granted only by app-role v4. No dynamic SQL. No argument chooses a ledger type, sign, amount, provider,
+--   EXECUTE is granted only by R0 (S7) and R (S10). No dynamic SQL. No argument chooses a ledger type, sign, amount, provider,
 --   reference or (for purchases) user or package.
 -- =============================================================================
 
@@ -66,7 +74,7 @@ BEGIN
 END
 $$;
 
--- B. Policy tables: the authoritative source (D-5). Owner-only writes; the application role gets SELECT (app-role v4). ------
+-- B. Policy tables: the authoritative source (D-5). Owner-only writes; the application role gets SELECT (R0 at S7, R at S10). ------
 CREATE TABLE IF NOT EXISTS ledger_policy (
   singleton            BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),
   signup_bonus_credits INTEGER     NOT NULL CHECK (signup_bonus_credits > 0),

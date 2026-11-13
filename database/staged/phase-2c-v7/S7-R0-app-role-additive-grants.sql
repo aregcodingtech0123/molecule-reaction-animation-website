@@ -1,5 +1,13 @@
 -- =============================================================================
--- DRAFT V5 — NOT APPLIED, NOT EXECUTED, NOT VERIFIED — REQUIRES EXPLICIT APPROVAL      (STEP R0: ADDITIVE grants for the new service build)
+-- STAGED V7 CONTRACT ARTIFACT — step S7 (R0) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S7-R0-app-role-additive-grants.sql; source draft phase-2c-step-5-2-2-app-role-additive-grants-draft-v5.sql (sha256 b3dc400e6e29d0a5…, MANIFEST.json).
+-- Purpose: R0 (draft V5): ADDITIVE grants for the new service build.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
 -- Why this file exists (failure DEP-1 of the V4 disposable verification):
 --   In the V4 deployment order the new service build (step S8) calls the six narrow operations and reads the two policy tables, but
@@ -10,13 +18,16 @@
 --
 -- The change: grant the additive privileges EARLIER, in their own step, and keep R (restrictive) as the LAST step.
 --     S6  W2 / A2
---     S6b THIS FILE (R0)  — additive only; the old build is unaffected (it ignores functions and tables it does not call)
---     S8  deploy the new build (old and new instances may run together; mixed-fleet capture was verified, MV-7 / MV-8b)
---     S9  R (V5) — removes the old privileges, only after NO old instance is running
+--     S7  THIS FILE (R0)  — additive only; the old build is unaffected (it ignores functions and tables it does not call)
+--     S8  deploy the new build (old and new instances may run together before R; see the mixed-fleet note below)
+--     S9  pre-R soak
+--     S10 R (V7, S10-R-app-role-transition.sql) — removes the old privileges, only after NO old instance is running
+-- Mixed-fleet note: V7 reclassified the timer-based mixed-build checks MV-7 / MV-8b as NOT TESTED for concurrency. Its gated
+-- MIX-* rounds kept the data consistent but showed a pre-R deadlock hazard (the old path aborted with 40P01 in 6 of 12 new-first rounds).
 -- It removes nothing and changes no other privilege. It is a strict subset of the GRANT statements in
--- app-role-sql-correction-draft-v5.sql, so running R afterwards is idempotent.
+-- S10-R-app-role-transition.sql (R V7), so running R afterwards is idempotent.
 --
--- NOT VERIFIED: this file was written after the verification run and has never been parsed or executed.
+-- Written after the V4 verification run; V7 later executed a role-substituted copy of this file (see the banner above).
 -- Preconditions are checked below; run as the owner of the tables. Does not create or alter any role.
 -- Text constraints kept: never names the review table, never uses a schema-wide wildcard grant, never configures automatic grants.
 -- =============================================================================
