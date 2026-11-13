@@ -69,6 +69,23 @@ const ORIGINAL_SHA256: Record<string, string> = {
   "S10-R-app-role-transition.sql": "23c26808253da60b7fee50bdb1c21916b5da88d87087877b26a2fadb97a70dd2",
   "verify-roles-and-final.sql": "a88de6de1299c86a45242a9dc0d5a2fba76179cda9e19588b8cd88f488d37b7a",
 };
+/** How the banner names each manifest step. */
+const STEP_LABEL: Record<Step, string> = { S2: "S2", S3: "S3", S4: "S4", S6: "S6", S7: "S7", S10: "S10", verify: "verification" };
+
+/** Draft-era status claims that must not survive in a staged header (the banner states the real execution status). */
+const STALE_HEADER_CLAIMS: RegExp[] = [
+  /never (been )?(executed|parsed)/i,
+  /is unexecuted/i,
+  /UNVERIFIED/,
+  /NOT VERIFIED/,
+  /NOT EXECUTED/,
+  /NOT APPLIED/,
+  /Proposed REPLACEMENT/i,
+  /lives OUTSIDE the repository/i,
+  /authorised no SQL/i,
+  /This task forbade/i,
+];
+
 const FILES_BY_STEP: Record<Step, string[]> = {
   S2: ["021_v4_delivery_guard_and_reconciliation.sql"],
   S4: ["022_v4_ledger_and_settlement_security.sql"],
@@ -529,11 +546,22 @@ describe("the staged folder", () => {
       expect(readme).toMatch(/not applied merely because they exist/i);
     });
 
-    it("warns about the historical headers and gives the deployment order", () => {
-      expect(readme).toMatch(/historical headers/i);
-      expect(readme).toMatch(/Do not repeat those statements/i);
+    it("describes the provenance banner and its three separate execution facts, and gives the deployment order", () => {
+      expect(readme).toMatch(/provenance banner/i);
+      expect(readme).toMatch(/three separate facts/i);
+      expect(readme).toMatch(/Disposable PostgreSQL:/);
+      expect(readme).toMatch(/Original role names:/);
+      expect(readme).toMatch(/Production:/);
+      expect(readme).toMatch(/Do not repeat the original draft-era claims/i);
+      expect(readme).toMatch(/Only comments differ from the source drafts/i);
       expect(readme).toMatch(/S2[\s\S]*S3[\s\S]*S4[\s\S]*S6[\s\S]*S7[\s\S]*S10/);
       expect(readme).toMatch(/does not\s+replace that document/i);
+    });
+
+    it("explains that sha256 now differs from originalSha256 while strippedSha256 is the evidence the SQL is unchanged", () => {
+      expect(readme).toMatch(/`sha256` now differs from `originalSha256`/);
+      expect(readme).toMatch(/`strippedSha256` is the evidence/);
+      expect(readme).not.toMatch(/`sha256` equals `originalSha256`/);
     });
   });
 });
@@ -565,6 +593,48 @@ describe("each staged file", () => {
 
       it("has the comment-stripped hash the manifest records", () => {
         expect(strippedSha256(fs.readFileSync(file))).toBe(entry.strippedSha256);
+      });
+
+      describe("header", () => {
+        const text = () => fs.readFileSync(file, "utf8");
+        /** Everything before the first line that is neither blank nor a `--` comment. */
+        const headerOf = (sql: string): string[] => {
+          const lines = sql.split("\n");
+          const end = lines.findIndex((l) => l.trim() !== "" && !l.startsWith("--"));
+          return lines.slice(0, end === -1 ? lines.length : end);
+        };
+
+        it("starts with the provenance banner: the step, the source draft with its hash prefix, and the staged name", () => {
+          const header = headerOf(text());
+          expect(header[0]).toMatch(/^-- =+$/);
+          expect(header[1]).toContain("STAGED V7 CONTRACT ARTIFACT");
+          expect(header[1]).toContain(`step ${STEP_LABEL[entry.step]}`);
+          expect(header[1]).toContain("not applied by the migration runner");
+          expect(header[1]).toContain("NOT production-approved");
+          const joined = header.join("\n");
+          expect(joined).toContain(`database/staged/phase-2c-v7/${entry.file}`);
+          expect(joined).toContain(`source draft ${entry.originalSource} (sha256 ${entry.originalSha256.slice(0, 16)}`);
+        });
+
+        it("states the execution status as three separate facts: disposable PostgreSQL, original role names, production", () => {
+          const joined = headerOf(text()).join("\n");
+          expect(joined).toContain("Execution status, three separate facts:");
+          expect(joined).toContain("Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database");
+          expect(joined).toContain("moleculestudio_ replaced by v7v_20261109_");
+          expect(joined).toContain("Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.");
+          expect(joined).toContain("Production: not executed in production or in any other non-disposable database; not production-approved.");
+          expect(joined).toContain("Only comments differ from the source draft; the executable SQL is frozen");
+        });
+
+        it("repeats none of the draft-era status claims", () => {
+          const joined = headerOf(text()).join("\n");
+          for (const stale of STALE_HEADER_CLAIMS) expect(joined, String(stale)).not.toMatch(stale);
+        });
+
+        it("marks the point of no return in the R transition's header, and in no other file's", () => {
+          const joined = headerOf(text()).join("\n");
+          expect(joined.includes("POINT OF NO RETURN")).toBe(entry.file === POINT_OF_NO_RETURN_FILE);
+        });
       });
 
       it("carries the point-of-no-return flag if and only if it is the R transition", () => {

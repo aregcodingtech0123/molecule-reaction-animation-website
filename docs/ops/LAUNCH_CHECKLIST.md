@@ -379,6 +379,11 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' O
 The service may run as the schema owner at launch (accepted — LAUNCH_NOTES). To switch, **rehearse it on a branch
 first**, following [`DB_ROLES.md`](../security/DB_ROLES.md):
 
+> This section covers the legacy role only. The staged Phase 2C V7 contract (`database/staged/phase-2c-v7/`, not applied,
+> not production-approved) ends in an R transition (S10) that is a point of no return and breaks the build in this
+> repository (`42501` on capture, release, signup bonus, purchase crediting and webhook inbox handling); it is not part of
+> this checklist.
+
 - [ ] On the rehearsal branch: create the login role `moleculestudio_app`, run `database/roles/app-role.sql` as the
       owner (the script refuses to run before migration 012), point a staging Express `DATABASE_URL` at the role.
 - [ ] Walk §4 completely against staging — registration, verification, login, profile, password reset, Google
@@ -389,7 +394,8 @@ first**, following [`DB_ROLES.md`](../security/DB_ROLES.md):
 - [ ] Production switch: migrations, `db:reconcile` and the cron SQL keep the **owner** URL
       (`MIGRATION_DATABASE_URL`); only the Express `DATABASE_URL` changes. Rollback = point it back at the owner.
 - [ ] Re-run `app-role.sql` after any future migration that adds a table the service uses (015 added
-      `lemon_webhook_events`: the role needs `SELECT, INSERT, UPDATE` on it, which the current script grants).
+      `lemon_webhook_events`: the role needs `SELECT, INSERT, UPDATE` on it, which the current script grants). **Never
+      re-run it after the Phase 2C R transition (S10):** it would grant back what R removes (see `DB_ROLES.md`).
 
 ### 2.5 Backups and point-in-time restore
 

@@ -1,7 +1,15 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL      (STEP V: read-only verification of ALL service roles — NO DDL, NO GRANT)
+-- STAGED V7 CONTRACT ARTIFACT — step verification (S3 roles_created, S10 final) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/verify-roles-and-final.sql; source draft phase-2c-step-5-2-2-migration-021-deployment-role-draft-v7.sql (sha256 a88de6de1299c86a…, MANIFEST.json).
+-- Purpose: V (draft V7): read-only verification of ALL service roles, NO DDL, NO GRANT.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
--- Why this file keeps the name "migration-021-deployment-role" (requested artifact name) but no longer creates or grants:
+-- Staged as verify-roles-and-final.sql (source draft name migration-021-deployment-role-draft-v7.sql). Why the draft kept that name but no longer creates or grants:
 -- D-12 forbids a combined create+grant script. The V3 file of this name created the ack and webhook roles AND granted
 -- privileges. In V4 those responsibilities are separate, explicitly ordered files:
 --     W1 webhook-role-creation   W2 webhook-role-privileges   A1 ack-role-creation   A2 ack-role-deployment (privileges)
@@ -32,7 +40,7 @@
 --   (c) the acknowledgement role can SELECT exactly its nine columns and no other.
 -- Nothing else differs from V6 (V6 = V4 + removal of ledger_reconciliation from the EXECUTE-matrix list + the general contract assertion).
 --
--- Never executed (no SQL execution was authorised). Run it after EACH stage and at the end:
+-- Execution status: see the banner above. Run it after EACH stage and at the end:
 --     SET moleculestudio.verify_stage = 'roles_created';   -- after W1 and A1: attributes, memberships, ownership only
 --     SET moleculestudio.verify_stage = 'final';           -- default: everything, including privilege matrices
 -- Run as any role that can read the catalogs (the schema owner is typical). No password and no connection string appears here.

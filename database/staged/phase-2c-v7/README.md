@@ -38,6 +38,11 @@ reversible migration.
   application instance running.
 - From that point the old application build is retired. **A rollback to the old build is not possible**, and the generic
   ledger writer (`post_credit_transaction`) must never be granted back, for any reason.
+- **The legacy build is not compatible with the post-R permission model.** R removes `EXECUTE` on `post_credit_transaction`
+  and the table-level writes on holds, the webhook inbox and `user_balances`, and grants `EXECUTE` on only the six narrow operations (the ordinary table grants are unchanged).
+  The legacy build's direct `post_credit_transaction` calls and direct hold and inbox writes are not substitutes for them.
+  Applying R while that build still serves the database makes capture, release, signup bonus, purchase crediting and
+  webhook inbox handling fail with PostgreSQL `42501` (an outage). The legacy build is not a valid rollback target after R.
 - Exactly one manifest entry may carry the flag, and it must be that file.
 - It is kept separate from `database/roles/app-role.sql`, which stays unchanged until S10. **Never re-run
   `database/roles/app-role.sql` after R**: it grants back the privileges R removes. Neutralising or replacing that script
@@ -45,7 +50,8 @@ reversible migration.
 
 ## Deployment order
 
-The approved deployment document named in the manifest defines the order. In outline:
+The approved deployment document named in the manifest defines the order. In outline (S0, a read-only pre-flight with a
+restorable snapshot, and S1, an optional out-of-band index pre-build, come first):
 
 - **S2:** migration 021.
 - **S3:** role creation (the acknowledgement and webhook roles), followed by the read-only verification at stage
@@ -53,22 +59,34 @@ The approved deployment document named in the manifest defines the order. In out
 - **S4:** migration 022.
 - **S5:** the owner fills the policy tables.
 - **S6:** the webhook and acknowledgement privileges.
-- **S7:** the additive grants (R0).
-- **S8:** the new service build is deployed. **S9:** the soak.
-- **S10:** the R transition, immediately followed by the final verification.
+- **S7:** the additive grants (R0): exactly seven privileges added, none removed.
+- **S8:** the new service build is deployed next to the old one. **S9:** the pre-R soak, at least 24 hours and every
+  listed criterion met; old and new builds may coexist until R.
+- **S10:** the R transition, only when the soak criterion is met and no old instance is running, immediately followed by
+  the final verification. **Point of no return.**
 
 This outline does not replace that document, and listing a step here does not approve it for any environment. The
 migration runner has no stop-at option, so it cannot by itself pause between S2 and S4. That is a question for the later
 move-in step, not for this folder.
 
-## Historical headers in the staged SQL
+## Headers in the staged SQL
 
-The staged SQL files are verbatim copies and still carry their **historical headers**. Those headers were written before
-V7 verification and may not describe a file's current provenance or execution history. In particular they call the files
-drafts and say that they were never executed or parsed, and the header of the R file describes it as a replacement for
-`database/roles/app-role.sql`. Do not repeat those statements. What is frozen is the executable SQL, and V7 did run
-role-substituted copies of it. Replacing the headers is a later, separately approved change (comments only, outside
-dollar-quoted bodies); until then, this README and the manifest describe the corpus, not the file headers.
+Each staged SQL file starts with a **provenance banner**. It names the deployment step, says that the file is not applied by
+the migration runner and not production-approved, and gives the execution status as **three separate facts**:
+
+1. **Disposable PostgreSQL:** the V7 verification executed a copy of the file in a disposable PostgreSQL 18.6 test database,
+   with the role prefix `moleculestudio_` replaced by `v7v_20261109_`.
+2. **Original role names:** the file as staged, with the `moleculestudio_` role names, has not been executed anywhere.
+3. **Production:** it has not been executed in production or in any other non-disposable database.
+
+These three must never be merged into one statement such as "verified" or "never executed".
+
+The banner and a small number of status sentences are the only header changes. The older version-history paragraphs (for
+example "CHANGES IN v4" and the "V7 CORRECTION" notes) are kept because they record how each draft evolved, and they
+describe the draft versions, not the staged state. Do not repeat the original draft-era claims that a file was never
+executed or parsed. Only comments differ from the source drafts; the executable SQL is frozen. The one known wording
+defect left in executable text is the message in migration 021 that mentions "migration 022" for goodwill; it stays
+unchanged because executable text is frozen.
 
 ## Conditions that travel with the corpus
 
@@ -89,13 +107,15 @@ dollar-quoted bodies); until then, this README and the manifest describe the cor
 
 - `originalSha256`: the original draft file, which V7 ran only as a role-substituted copy (see above).
 - `sha256`: the staged file, with CRLF normalised to LF first. A checkout with `core.autocrlf=true` turns LF into CRLF,
-  and the normalisation makes the two agree. Until a provenance-header edit is approved, the staged files are verbatim
-  copies and `sha256` equals `originalSha256`.
+  and the normalisation makes the two agree. The staged files are the source drafts plus comment-only header corrections,
+  so `sha256` now differs from `originalSha256`: the comments changed the bytes, and with them the raw SHA-256. The
+  executable SQL did not change, and `strippedSha256` is the evidence for that.
 - `strippedSha256`: the file with comments removed and whitespace normalised by
   `services/auth-billing-service/tests/support/sql-comment-stripper.ts`, **only outside protected regions**. String
   literals, quoted identifiers and dollar-quoted bodies are kept exactly as written (after CRLF to LF), so a change to a
   blank line, a space or a comment inside a function body or a string literal changes this hash. A change to a header
-  comment, or to the blank lines and trailing spaces between statements, does not.
+  comment, or to the blank lines and trailing spaces between statements, does not. It is unchanged by the header
+  corrections described above.
 
 **The comment stripper is a narrow tool for this fixed corpus. It is not a general-purpose PostgreSQL SQL parser** and
 must not be used or described as one. It refuses constructs outside its rules (escape strings, Unicode-escape strings, a
@@ -107,5 +127,6 @@ guessing.
 `services/auth-billing-service/tests/unit/staged-contract-manifest.test.ts` reads these files as text. It checks the
 manifest schema (no unknown keys, file names consistent with `kind` and `step`, the point-of-no-return flag only on S10),
 that every `.sql` file here is listed and no listed file is missing, that no listed file is in `database/init`, each file's
-hashes, the completed nine-file corpus, and the stripper's behaviour on synthetic SQL. It does not read anything outside
-the repository and contacts no database.
+hashes, the completed nine-file corpus, that every file starts with the provenance banner (with its step, the three
+execution facts and the source draft) and no header repeats the old "never executed or parsed" claims, and the stripper's
+behaviour on synthetic SQL. It does not read anything outside the repository and contacts no database.

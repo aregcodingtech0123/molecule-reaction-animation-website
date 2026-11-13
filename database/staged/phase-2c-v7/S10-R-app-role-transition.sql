@@ -1,9 +1,20 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL                 (v7 replacement draft for database/roles/app-role.sql)
+-- STAGED V7 CONTRACT ARTIFACT — step S10 (R) — POINT OF NO RETURN — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S10-R-app-role-transition.sql; source draft phase-2c-step-5-2-2-app-role-sql-correction-draft-v7.sql (sha256 23c26808253da60b…, MANIFEST.json).
+-- Purpose: R (draft V7): the application-role transition.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
+-- POINT OF NO RETURN: apply only at S10, under a separately approved deployment plan, after the soak, with no old instance running.
 -- =============================================================================
--- Proposed REPLACEMENT for database/roles/app-role.sql. The real file was NOT modified. Supersedes the v3 correction draft.
--- This V4 text has NEVER been executed or even parsed by PostgreSQL (the task that produced it authorised no SQL execution).
--- Text checks only: balanced dollar quoting, quotes and parentheses; no transaction-control line outside the wrapper.
+-- Separate transition artifact, not a replacement file: database/roles/app-role.sql stays unchanged until S10, is neutralised
+-- or replaced at S10, and must never be re-run after R (it would grant back what R removes). Supersedes the v3 correction draft.
+-- When the V4 text was written it had not been executed; this V7 text was later executed by V7 as a role-substituted copy
+-- (see the execution status above). At the time of writing only text checks had been done: balanced dollar quoting, quotes and
+-- parentheses; no transaction-control line outside the wrapper.
 --
 -- V5 CORRECTION (one change, found by the V4 disposable verification, failure F-1): the v4 text of the sequence-privilege assertion was
 --   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'S' AND has_sequence_privilege(...)

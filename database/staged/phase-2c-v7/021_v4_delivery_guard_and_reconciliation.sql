@@ -1,14 +1,23 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL                                   (SQL DRAFT v4)
+-- STAGED V7 CONTRACT ARTIFACT — step S2 — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/021_v4_delivery_guard_and_reconciliation.sql; source draft phase-2c-step-5-2-2-migration-021-draft-v4.sql (sha256 3f1d0879230172f3…, MANIFEST.json).
+-- Purpose: write-once delivery guards, review amendments, reconciliation read functions (SQL draft v4).
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
 -- MoleculeStudio — Phase 2C step 5.2.2: write-once delivery fields with role-aware and insert guards, append-only review
 -- records without a goodwill outcome, and the reconciliation read functions (page, deferred, window, windowed deferred,
 -- summary) with the four-guard status contract, a bounded grace period and a lossless cursor column.
 --
 -- Supersedes the v3 and v2 drafts (kept unchanged; v2 and v3 were executed only in disposable verification databases:
--- 686 and 341 recorded results). THIS V4 TEXT HAS NEVER BEEN PARSED OR EXECUTED: the task that produced it authorised no SQL.
+-- 686 and 341 recorded results). When written, this V4 text had not been executed; V7 later executed a role-substituted
+-- copy of it (see the execution status above).
 --
--- CHANGES IN v4 (design finalisation; everything below is UNVERIFIED until a separately authorised disposable run)
+-- CHANGES IN v4 (design finalisation; exercised by V7 on a role-substituted copy, see the execution status above)
 --   HORIZON ABOVE XMIN  a fifth condition inside the existing guard negative_horizon_age: p_horizon > pg_snapshot_xmin of the
 --                  reader's current snapshot. An honest horizon is the snapshot xmin captured at run start; the xmin of any later
 --                  snapshot can only be equal or larger (the oldest transaction still in progress never moves backwards), so an
@@ -41,11 +50,10 @@
 --                  migration 022 (ledger and settlement security), which must be applied before this one is adopted.
 --
 -- STATUS OF THIS FILE
---   * A DRAFT for human review. It lives OUTSIDE the repository on purpose: copied into database/init/ it would be applied
---     by the migration runner. Do not copy it there, and do not execute it against any database, until the owner has
---     approved it in writing.
---   * It has NEVER been parsed or executed by PostgreSQL. This task forbade DDL against any existing database and no
---     disposable database was authorised. Everything below was checked by reading and by text-level checks only.
+--   * Staged in database/staged/phase-2c-v7/, outside database/init: the migration runner does not apply it. Moving it into
+--     database/init is a later, separately approved step (Step 7.3); until then do not copy it there.
+--   * Execution status: see the banner at the top of this file. It has not been executed under the original role names,
+--     in production, or in any non-disposable database.
 --   * The read functions are production-named, production-columned variants of the harness verified earlier (PostgreSQL
 --     18.6, clone tables). They differ from it (see the package v2, section 10.2) and must be re-verified.
 --
@@ -54,6 +62,8 @@
 --        role-aware (only the acknowledgement role or the table owner may record the first attempt).
 --   F-I  grace is bounded: at least 5 minutes, at most 24 hours; anything else, including infinity, is rejected.
 --   F-O  'goodwill_credited' is NOT an allowed review outcome until migration 022 exists.
+--        Staging note: 022 does not implement goodwill either (its header says "023 or later"). The RAISE message in this file
+--        that says "Goodwill is not implemented (migration 022)" is executable text and is left unchanged (known wording defect).
 --   F-D  every paged function returns cursor_settled_at, an exact UTC text form of settled_at (microseconds).
 --   F-B  an OPTIONAL settlement-freeze trigger is included as a COMMENTED-OUT block (section G); approving this file does
 --        not enable it.
@@ -67,10 +77,10 @@
 --
 -- WHAT THIS FILE DOES NOT DO
 --   * It adds neither answer_delivery_attempted_at nor delivery_tracking_enabled: migration 019 already did. It protects them.
---   * It creates no role and no GRANT (roles: the deployment draft; the application role's column grants: the corrected
---     app-role.sql draft). It creates no index. It touches no ledger, balance, post_credit_transaction() or settlement
---     constraint. It has no SECURITY DEFINER function. It has no review/amend/goodwill WRITE function. Goodwill (022) is
---     separate and not authorised.
+--   * It creates no role and no GRANT (roles: the S3 and S6 role files; the application role's column grants: the S7 and
+--     S10 files). It creates no index. It touches no ledger, balance, post_credit_transaction() or settlement
+--     constraint. It has no SECURITY DEFINER function. It has no review/amend/goodwill WRITE function. Goodwill is not in
+--     022 either ("023 or later") and is out of scope.
 --
 -- LOCKS: CREATE TRIGGER on ai_credit_holds takes SHARE ROW EXCLUSIVE (blocks reservations/captures until commit); every lock
 -- wait is bounded by lock_timeout below, and no trigger DDL here takes ACCESS EXCLUSIVE on that table. Run off-peak.

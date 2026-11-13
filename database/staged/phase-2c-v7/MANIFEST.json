@@ -18,7 +18,7 @@
       "step": "S2",
       "originalSource": "phase-2c-step-5-2-2-migration-021-draft-v4.sql",
       "originalSha256": "3f1d0879230172f3548e19dc599de9d755497738bb99b2efc94cd32cfa297167",
-      "sha256": "3f1d0879230172f3548e19dc599de9d755497738bb99b2efc94cd32cfa297167",
+      "sha256": "3081d5ff69a90a1d3dfd517742a507419177163dcbb55ff41d38a593118e1683",
       "strippedSha256": "873b9580c41da23af2f30dc513578b36f4e1f9cf1951092649a04b9b61534e1c"
     },
     {
@@ -27,7 +27,7 @@
       "step": "S4",
       "originalSource": "phase-2c-step-5-2-2-migration-022-ledger-security-draft-v4.sql",
       "originalSha256": "6c185a3608226814c6e20ca5315a5acd0764f7fad822025f7b6c5450be92558c",
-      "sha256": "6c185a3608226814c6e20ca5315a5acd0764f7fad822025f7b6c5450be92558c",
+      "sha256": "0a3e502fe97693401ba044f3a5ef5e7c3562a3d5f0a73969d970b9c45cb5af49",
       "strippedSha256": "233a5f1d2040841548a60408ad86fc8cfaab7df1351e53983d63212b68a70daa"
     },
     {
@@ -36,7 +36,7 @@
       "step": "S3",
       "originalSource": "phase-2c-step-5-2-2-ack-role-creation-draft-v4.sql",
       "originalSha256": "faba1da5b8ab72e94cb893e703650452e871c71de4fa7c586a649aba29f56d04",
-      "sha256": "faba1da5b8ab72e94cb893e703650452e871c71de4fa7c586a649aba29f56d04",
+      "sha256": "70f8f8874c1fee11d89cec40fec76b2a0940eed698ec9f2c82587078d04e17e2",
       "strippedSha256": "876e7203ad0966bec83b76021efabf65005ae126151b5fb5a8f06123f137d7c7"
     },
     {
@@ -45,7 +45,7 @@
       "step": "S3",
       "originalSource": "phase-2c-step-5-2-2-webhook-role-creation-draft-v6.sql",
       "originalSha256": "96a8c14ce0b07b63e9b930d350f865b419f20af9dde35c720d5aaec8ba4ac66c",
-      "sha256": "96a8c14ce0b07b63e9b930d350f865b419f20af9dde35c720d5aaec8ba4ac66c",
+      "sha256": "f2a2d429600f02c1b1bbd35c84f78dfdc90d41ffe8ce7d4ce7c3701deafbd4d0",
       "strippedSha256": "6e3ec7b484d746ffcbf793e015f84ed3a84f444fd7d6a91bc6114953aed5c32e"
     },
     {
@@ -54,7 +54,7 @@
       "step": "S6",
       "originalSource": "phase-2c-step-5-2-2-webhook-role-privileges-draft-v4.sql",
       "originalSha256": "3918aa236a844fb4b4c04fd8b19241160fbbec45637b8c45d248cca50b0add85",
-      "sha256": "3918aa236a844fb4b4c04fd8b19241160fbbec45637b8c45d248cca50b0add85",
+      "sha256": "bce46c49b2d60ab12a65de0cc501c446f096db1113ea17243a4ca07aa37d2f95",
       "strippedSha256": "643d0c6a6c47a1e9d51dc0fef20d1dfe33fd6a0def257e92ddee4ac08a55fc89"
     },
     {
@@ -63,7 +63,7 @@
       "step": "S6",
       "originalSource": "phase-2c-step-5-2-2-ack-role-deployment-draft-v4.sql",
       "originalSha256": "72607d8b207744f59400267d8eb36d110c53de8ca8b816c0f3bc7bc1388f4747",
-      "sha256": "72607d8b207744f59400267d8eb36d110c53de8ca8b816c0f3bc7bc1388f4747",
+      "sha256": "291b760293a713a6e475259ea41844440ff97b49d4852c42b17fbf9cd009eacf",
       "strippedSha256": "bde947515e4a87eabcf150b2583c099daf61aa8bea7463868a47eb80f5b335ab"
     },
     {
@@ -72,7 +72,7 @@
       "step": "S7",
       "originalSource": "phase-2c-step-5-2-2-app-role-additive-grants-draft-v5.sql",
       "originalSha256": "b3dc400e6e29d0a5322d8a71b4c247058a5e52fae797ea2d4cdecb58e7e67204",
-      "sha256": "b3dc400e6e29d0a5322d8a71b4c247058a5e52fae797ea2d4cdecb58e7e67204",
+      "sha256": "e44d59455fc580d773e58cccbd1cb745e08747ef0c60eb9bf272ccba4f97433e",
       "strippedSha256": "1efd65ebee420b024ce8ec951f8b89273e0d483c031048388aa7db44af9c81cb"
     },
     {
@@ -81,7 +81,7 @@
       "step": "S10",
       "originalSource": "phase-2c-step-5-2-2-app-role-sql-correction-draft-v7.sql",
       "originalSha256": "23c26808253da60b7fee50bdb1c21916b5da88d87087877b26a2fadb97a70dd2",
-      "sha256": "23c26808253da60b7fee50bdb1c21916b5da88d87087877b26a2fadb97a70dd2",
+      "sha256": "87f9b38c86aa00eccf09952b90341d379bfad78e551f62bd5a232e53436d3630",
       "strippedSha256": "48e027eb79e867043bc00ace052f1ab744269e2c14165659c68a9ea9365098c1",
       "pointOfNoReturn": true
     },
@@ -91,7 +91,7 @@
       "step": "verify",
       "originalSource": "phase-2c-step-5-2-2-migration-021-deployment-role-draft-v7.sql",
       "originalSha256": "a88de6de1299c86a45242a9dc0d5a2fba76179cda9e19588b8cd88f488d37b7a",
-      "sha256": "a88de6de1299c86a45242a9dc0d5a2fba76179cda9e19588b8cd88f488d37b7a",
+      "sha256": "c7985a22a4f2f5d715206b98ef6aeacb4681a2800267782c72e25bd53548d173",
       "strippedSha256": "e4a9856ccb4de213c7611946e38b9a1eec9fd5bf1d637cdec4efcb0e144f853a"
     }
   ]

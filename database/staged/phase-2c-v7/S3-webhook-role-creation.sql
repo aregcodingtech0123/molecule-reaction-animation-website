@@ -1,5 +1,13 @@
 -- =============================================================================
--- DRAFT V6 — NOT APPLIED to any real database — REQUIRES EXPLICIT APPROVAL      (STEP W1: create/verify the webhook ingest role — CREATION AND ATTRIBUTE VERIFICATION ONLY)
+-- STAGED V7 CONTRACT ARTIFACT — step S3 (W1) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S3-webhook-role-creation.sql; source draft phase-2c-step-5-2-2-webhook-role-creation-draft-v6.sql (sha256 96a8c14ce0b07b63…, MANIFEST.json).
+-- Purpose: W1 (draft V6): create/verify the webhook ingest role, CREATION AND ATTRIBUTE VERIFICATION ONLY.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
 -- Supersedes webhook-role-creation-draft-v4.sql (unchanged). Correction for failure F-3 of the V4 disposable verification:
 --   V4 asserted, UNCONDITIONALLY, that "a freshly created moleculestudio_webhook must hold no table privilege". Re-running the script after
@@ -14,7 +22,7 @@
 --      roles), and it owns nothing. Any deviation raises 42501 and the whole script rolls back. Privileges are NOT judged here: W2 states and asserts them,
 --      and the read-only verification checks the combined result.
 --   4. Sets no password, prints none, stores none. Grants nothing.
--- Never executed against a real database. Run by hand as a role allowed to create roles. Set the password out of band afterwards.
+-- Execution status: see the banner above. Run by hand as a role allowed to create roles. Set the password out of band afterwards.
 -- =============================================================================
 
 BEGIN;

@@ -1,8 +1,16 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL          (STEP A1: create the acknowledgement role — CREATION ONLY)
+-- STAGED V7 CONTRACT ARTIFACT — step S3 (A1) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S3-ack-role-creation.sql; source draft phase-2c-step-5-2-2-ack-role-creation-draft-v4.sql (sha256 faba1da5b8ab72e9…, MANIFEST.json).
+-- Purpose: A1: create the acknowledgement role, CREATION ONLY.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
--- Extra artifact (not in the requested list): D-12 forbids combining creation and privileges, and the requested
--- ack-role-deployment file is the PRIVILEGE step (A2). Never executed.
+-- Step S3 (A1), creation only: D-12 forbids combining creation and privileges; the privileges are in
+-- S6-ack-role-deployment.sql (A2). Execution status: see the banner above.
 --
 -- Precondition   : the role does not exist, or exists with exactly these attributes. Run as a role allowed to create roles.
 -- Postcondition  : moleculestudio_ack exists; LOGIN (production requires it: it connects through ACK_DATABASE_URL); NOINHERIT;

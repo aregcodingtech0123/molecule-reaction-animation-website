@@ -1,7 +1,15 @@
 -- =============================================================================
--- DRAFT — NOT APPLIED — REQUIRES EXPLICIT APPROVAL      (STEP W2: grant the webhook ingest role its minimum privileges — GRANTS ONLY)
+-- STAGED V7 CONTRACT ARTIFACT — step S6 (W2) — not applied by the migration runner — NOT production-approved
+-- Staged as database/staged/phase-2c-v7/S6-webhook-role-privileges.sql; source draft phase-2c-step-5-2-2-webhook-role-privileges-draft-v4.sql (sha256 3918aa236a844fb4…, MANIFEST.json).
+-- Purpose: W2: grant the webhook ingest role its minimum privileges, GRANTS ONLY.
+-- Execution status, three separate facts:
+--   * Disposable PostgreSQL: the V7 verification executed a copy of this file in a disposable PostgreSQL 18.6 test database,
+--     with the role prefix moleculestudio_ replaced by v7v_20261109_ (V7 substitution record).
+--   * Original role names: this file as staged, with the moleculestudio_ role names, has not been executed anywhere.
+--   * Production: not executed in production or in any other non-disposable database; not production-approved.
+-- Only comments differ from the source draft; the executable SQL is frozen (MANIFEST.json strippedSha256).
 -- =============================================================================
--- Never executed. Run by hand as the owner of lemon_webhook_events. It creates no role (webhook-role-creation-draft-v4.sql did),
+-- Run by hand as the owner of lemon_webhook_events. It creates no role (S3-webhook-role-creation.sql, draft V6, does),
 -- sets no password, and changes no other role.
 --
 -- Precondition  : migration 022 v4 applied (typed columns, ingested_by, eligible exist); the role exists with the W1 attributes.
@@ -17,7 +25,8 @@
 --   INSERT INTO lemon_webhook_events (...) VALUES (...)
 --   ON CONFLICT ON CONSTRAINT uq_lemon_webhook_events_body DO NOTHING RETURNING id::text, status;
 --   -- if no row returned: SELECT id::text, status FROM lemon_webhook_events WHERE body_sha256 = $1;  (duplicate delivery)
--- (UNVERIFIED: that DO NOTHING by constraint name needs no privilege beyond INSERT; the V4 matrix tests it.)
+-- (V7 exercised ON CONFLICT ... DO NOTHING with webhook-role sessions on the role-substituted copy (test CC-5g, PASS). The V7
+-- results do not record the ON CONSTRAINT <name> form as tested, and nothing was re-verified under the original role names.)
 -- =============================================================================
 
 BEGIN;
