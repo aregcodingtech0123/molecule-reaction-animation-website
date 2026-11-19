@@ -8,7 +8,7 @@
  *   node scripts/perf/run.mjs metering [--concurrency 1,2,5,10,20]
  */
 import { randomUUID } from "node:crypto";
-import { rotatingUser } from "../lib/requests.mjs";
+import { captureCapabilityFrom, rotatingUser } from "../lib/requests.mjs";
 
 export const defaults = { concurrency: [1, 2, 5, 10, 20], duration: 15, warmup: 3 };
 export const stack = {
@@ -22,7 +22,7 @@ function meteringFlow(ctx, pickUser) {
     method: "POST",
     path: `/api/billing/${path}`,
     headers: {
-      authorization: `Bearer ${token}`,
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
       "content-type": "application/json",
       "x-internal-service-key": ctx.internalKey,
     },
@@ -33,7 +33,8 @@ function meteringFlow(ctx, pickUser) {
     const referenceId = randomUUID();
     const reserved = await it.send(call(token, "consume", { operationType: "AI_CHAT_QUERY", referenceId }));
     if (reserved.status !== 200) return;
-    await it.send(call(token, "capture", { referenceId }));
+    // As the BFF does since Step 7.4 (C6): the capture carries the capability /consume returned, and no session.
+    await it.send(call(null, "capture", { referenceId, settlementCapability: captureCapabilityFrom(reserved.body) }));
   };
 }
 

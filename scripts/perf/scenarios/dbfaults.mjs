@@ -17,7 +17,7 @@ import { createRequire } from "node:module";
 import { perfDatabaseUrl, serviceRoot } from "../config.mjs";
 import { assertTestDatabaseUrl } from "../../test/db-guard.mjs";
 import { startTcpProxyProcess } from "../lib/tcp-proxy.mjs";
-import { browserRequest, rotatingUser } from "../lib/requests.mjs";
+import { browserRequest, captureCapabilityFrom, rotatingUser } from "../lib/requests.mjs";
 
 const pg = createRequire(path.join(serviceRoot, "package.json"))("pg");
 
@@ -75,7 +75,7 @@ function meteringFlow(ctx, pickUser) {
   const call = (token, p, body) => ({
     method: "POST",
     path: `/api/billing/${p}`,
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json", "x-internal-service-key": ctx.internalKey },
+    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json", "x-internal-service-key": ctx.internalKey },
     body: JSON.stringify(body),
   });
   return async (it) => {
@@ -83,7 +83,8 @@ function meteringFlow(ctx, pickUser) {
     const referenceId = randomUUID();
     const reserved = await it.send(call(token, "consume", { operationType: "AI_CHAT_QUERY", referenceId }));
     if (reserved.status !== 200) return;
-    await it.send(call(token, "capture", { referenceId }));
+    // As the BFF does since Step 7.4 (C6): the capture carries the capability /consume returned, and no session.
+    await it.send(call(null, "capture", { referenceId, settlementCapability: captureCapabilityFrom(reserved.body) }));
   };
 }
 

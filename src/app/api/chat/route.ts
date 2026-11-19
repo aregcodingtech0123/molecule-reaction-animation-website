@@ -5,6 +5,7 @@ import {
   LAB_ASSISTANT_SYSTEM_INSTRUCTION,
 } from "@/lib/ai/lab-assistant-prompt";
 import type { ChatRequestBody } from "@/lib/ai/chat-types";
+import { providerErrorLogFields } from "@/lib/ai/provider-error-log";
 import { validateAiOutput } from "@/lib/ai/validate-ai-output";
 import { resolveSessionTokenFromRequest } from "@/lib/auth/resolve-session-token";
 import { isJwtConfigured, verifyJwtToken } from "@/lib/auth/verify-jwt";
@@ -256,7 +257,8 @@ export async function POST(request: Request) {
     console.error("[api/chat] Gemini failed — releasing the reservation", {
       userId: session.sub,
       referenceId: chatTurnId,
-      err,
+      // E.17: never the error itself. Its message, stack, request and response body can hold the prompt and provider text.
+      ...providerErrorLogFields(err),
     });
     await refund("ai_generation_error");
     return Response.json({ error: "AI_SERVICE_UNAVAILABLE" }, { status: 502 });

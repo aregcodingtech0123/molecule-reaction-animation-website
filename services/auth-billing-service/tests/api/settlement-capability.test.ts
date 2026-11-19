@@ -1,7 +1,7 @@
 /**
  * Phase 2C step 2: /consume mints capture and refund capabilities, and /capture and /refund accept them without a live
- * user session. Runs the real routes against the real database. The legacy session path must keep working unchanged
- * until step 6, and an invalid capability must never fall back to it.
+ * user session. Runs the real routes against the real database. Since Step 7.4 (C6) the capability is the only way in: a
+ * request without one gets the same uniform 403 as an invalid one, and neither ever falls back to a session.
  */
 import { randomUUID } from "node:crypto";
 import pg from "pg";
@@ -293,15 +293,15 @@ describe("B: the capture capability", () => {
     expect(await debits(u, referenceId)).toHaveLength(1);
   });
 
-  it("settles after the session was revoked, where the legacy path answers 401", async () => {
+  it("settles after the session was revoked; a session-only request (no capability) is refused 403 and changes nothing", async () => {
     const u = await fundedUser();
     const stale = bearer(u);
     const { referenceId, captureToken } = await reserve(u);
     await db.query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1`, [u.id]);
 
-    const legacy = await post("/capture", { referenceId }, { authorization: stale });
-    expect(legacy.status).toBe(401);
-    expect(legacy.body.code).toBe("TOKEN_REVOKED");
+    const sessionOnly = await post("/capture", { referenceId }, { authorization: stale });
+    expect(sessionOnly.status).toBe(403);
+    expect(sessionOnly.body).toEqual(NOT_AUTHORIZED);
     expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
 
     const res = await capture(referenceId, captureToken);
@@ -448,13 +448,9 @@ describe("B: the refund capability", () => {
   });
 });
 
-describe("the refund contract: every outcome, on both authentication paths", () => {
-  type Path = "capability" | "legacy session";
-  const PATHS: Path[] = ["capability", "legacy session"];
-
-  /** One refund, through the path under test. The legacy path has no capability; the capability path has no session. */
-  async function refundVia(path: Path, u: U, referenceId: string) {
-    if (path === "legacy session") return post("/refund", { referenceId }, { authorization: bearer(u) });
+describe("the refund contract: every outcome, through the capability (the only path since C6)", () => {
+  /** One refund, with a capability and no session. A reference with no hold gets a token minted for it (the row does not exist). */
+  async function refundVia(u: U, referenceId: string) {
     const row = await db.query(`SELECT 1 FROM ai_credit_holds WHERE user_id = $1 AND reference_id = $2`, [u.id, referenceId]);
     if (row.rowCount === 0) {
       const now = Math.floor(Date.now() / 1000);
@@ -468,70 +464,68 @@ describe("the refund contract: every outcome, on both authentication paths", () 
     return refund(referenceId, await mintForRow(db, "refund", u.id, referenceId));
   }
 
-  describe.each(PATHS)("through the %s path", (path) => {
-    it("released: the first release of a held reservation", async () => {
-      const u = await fundedUser();
-      const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
-      const res = await refundVia(path, u, referenceId);
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: true, amount: 5, balance: 10, ledgerId: null, outcome: "released" });
-      expect(await holdOf(u, referenceId)).toMatchObject({ status: "released" });
-    });
+  it("released: the first release of a held reservation", async () => {
+    const u = await fundedUser();
+    const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
+    const res = await refundVia(u, referenceId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: true, amount: 5, balance: 10, ledgerId: null, outcome: "released" });
+    expect(await holdOf(u, referenceId)).toMatchObject({ status: "released" });
+  });
 
-    it("already_released: a repeat refund (with the compatibility reason)", async () => {
-      const u = await fundedUser();
-      const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
-      await refundVia(path, u, referenceId);
-      const settled = await holdOf(u, referenceId);
-      const res = await refundVia(path, u, referenceId);
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 10, ledgerId: null, outcome: "already_released", reason: "already_refunded", alreadyProcessed: true });
-      expect(await holdOf(u, referenceId)).toEqual(settled);
-    });
+  it("already_released: a repeat refund (with the compatibility reason)", async () => {
+    const u = await fundedUser();
+    const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
+    await refundVia(u, referenceId);
+    const settled = await holdOf(u, referenceId);
+    const res = await refundVia(u, referenceId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 10, ledgerId: null, outcome: "already_released", reason: "already_refunded", alreadyProcessed: true });
+    expect(await holdOf(u, referenceId)).toEqual(settled);
+  });
 
-    it("already_expired: settled by the sweeper, then refunded (with the compatibility reason)", async () => {
-      const u = await fundedUser();
-      const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
-      await expireHold(u, referenceId);
-      await db.query(`SELECT release_expired_ai_holds()`);
-      const res = await refundVia(path, u, referenceId);
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 10, ledgerId: null, outcome: "already_expired", reason: "already_refunded", alreadyProcessed: true });
-      expect(await holdOf(u, referenceId)).toMatchObject({ status: "expired", settle_reason: "expired_unsettled" });
-    });
+  it("already_expired: settled by the sweeper, then refunded (with the compatibility reason)", async () => {
+    const u = await fundedUser();
+    const { referenceId } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
+    await expireHold(u, referenceId);
+    await db.query(`SELECT release_expired_ai_holds()`);
+    const res = await refundVia(u, referenceId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 10, ledgerId: null, outcome: "already_expired", reason: "already_refunded", alreadyProcessed: true });
+    expect(await holdOf(u, referenceId)).toMatchObject({ status: "expired", settle_reason: "expired_unsettled" });
+  });
 
-    it("already_captured: never reverses the charge, is not a repeat refund, and changes nothing", async () => {
-      const u = await fundedUser();
-      const { referenceId, captureToken } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
-      expect((await capture(referenceId, captureToken)).status).toBe(200);
-      const settled = await holdOf(u, referenceId);
-      const res = await refundVia(path, u, referenceId);
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 5, ledgerId: null, outcome: "already_captured", reason: "not_refundable" });
-      expect(res.body.data).not.toHaveProperty("alreadyProcessed");
-      expect(await holdOf(u, referenceId)).toEqual(settled);
-      expect(await debits(u, referenceId)).toHaveLength(1);
-      expect(await balanceOf(db, u.id)).toBe(5);
-    });
+  it("already_captured: never reverses the charge, is not a repeat refund, and changes nothing", async () => {
+    const u = await fundedUser();
+    const { referenceId, captureToken } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
+    expect((await capture(referenceId, captureToken)).status).toBe(200);
+    const settled = await holdOf(u, referenceId);
+    const res = await refundVia(u, referenceId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 5, ledgerId: null, outcome: "already_captured", reason: "not_refundable" });
+    expect(res.body.data).not.toHaveProperty("alreadyProcessed");
+    expect(await holdOf(u, referenceId)).toEqual(settled);
+    expect(await debits(u, referenceId)).toHaveLength(1);
+    expect(await balanceOf(db, u.id)).toBe(5);
+  });
 
-    it("capture_failed: terminal and never charged", async () => {
-      const u = await fundedUser(5);
-      const { referenceId, captureToken } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
-      await db.query(`SELECT post_credit_transaction($1, -5, 'ADMIN_ADJUSTMENT', 'drain')`, [u.id]);
-      expect((await capture(referenceId, captureToken)).body.code).toBe("CAPTURE_FAILED");
-      const res = await refundVia(path, u, referenceId);
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 0, ledgerId: null, outcome: "capture_failed", reason: "nothing_charged" });
-      expect(res.body.data).not.toHaveProperty("alreadyProcessed");
-      expect(await holdOf(u, referenceId)).toMatchObject({ status: "capture_failed", settle_reason: "insufficient_credits_at_capture" });
-    });
+  it("capture_failed: terminal and never charged", async () => {
+    const u = await fundedUser(5);
+    const { referenceId, captureToken } = await reserve(u, randomUUID(), "ARCH_RENDER_STD");
+    await db.query(`SELECT post_credit_transaction($1, -5, 'ADMIN_ADJUSTMENT', 'drain')`, [u.id]);
+    expect((await capture(referenceId, captureToken)).body.code).toBe("CAPTURE_FAILED");
+    const res = await refundVia(u, referenceId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: false, amount: 5, balance: 0, ledgerId: null, outcome: "capture_failed", reason: "nothing_charged" });
+    expect(res.body.data).not.toHaveProperty("alreadyProcessed");
+    expect(await holdOf(u, referenceId)).toMatchObject({ status: "capture_failed", settle_reason: "insufficient_credits_at_capture" });
+  });
 
-    it("not_found: no reservation for this user and reference", async () => {
-      const u = await fundedUser(3);
-      const res = await refundVia(path, u, randomUUID());
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({ refunded: false, amount: 0, balance: 3, ledgerId: null, outcome: "not_found", reason: "nothing_charged" });
-    });
+  it("not_found: no reservation for this user and reference", async () => {
+    const u = await fundedUser(3);
+    const res = await refundVia(u, randomUUID());
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ refunded: false, amount: 0, balance: 3, ledgerId: null, outcome: "not_found", reason: "nothing_charged" });
   });
 });
 
@@ -729,22 +723,26 @@ describe("an invalid capability is refused uniformly, with no state change and n
       expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
     });
 
-    it("the internal key alone authorises nothing: no capability and no session → 401, nothing changes", async () => {
+    it("the internal key alone authorises nothing: no capability and no session → the uniform 403, nothing changes", async () => {
       const u = await fundedUser();
       const { referenceId } = await reserve(u);
       const res = await post(route, { referenceId });
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(NOT_AUTHORIZED);
       expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
+      expect(await debits(u, referenceId)).toEqual([]);
     });
 
-    it("no JSON body at all → 401 from the legacy path, never a crash", async () => {
+    it("no JSON body at all → the uniform 403, never a crash", async () => {
       const res = await post(route, undefined);
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(NOT_AUTHORIZED);
     });
 
     it("a non-object JSON body does not count as a capability", async () => {
       const res = await request(app).post(`/api/billing${route}`).set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send([1, 2]);
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(NOT_AUTHORIZED);
     });
 
     it("an inherited field does not count as a capability: only the body's own property", async () => {
@@ -753,7 +751,8 @@ describe("an invalid capability is refused uniformly, with no state change and n
         .set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET)
         .set("Content-Type", "application/json")
         .send(`{"__proto__":{"${CAPABILITY_FIELD}":"x"},"referenceId":"r"}`);
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(NOT_AUTHORIZED);
     });
   });
 
@@ -799,7 +798,7 @@ describe("keys at request time", () => {
     expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
   });
 
-  it("an unconfigured key at request time: uniform 403 (not a retried 500), even for a token that was once valid, and the session path is not used", async () => {
+  it("an unconfigured key at request time: uniform 403 (not a retried 500), even for a token that was once valid, and a valid session does not rescue it", async () => {
     const u = await fundedUser();
     const { referenceId, captureToken } = await reserve(u);
     await withEnv({ SETTLEMENT_CAPABILITY_SECRET: "" }, async () => {
@@ -812,45 +811,46 @@ describe("keys at request time", () => {
   });
 });
 
-describe("the legacy session path keeps working until step 6", () => {
-  it("capture and refund with the user's JWT and no capability behave as before", async () => {
+describe("the legacy session path is gone (Step 7.4, C6): a session never settles anything", () => {
+  it.each(["/capture", "/refund"])("%s with the user's valid JWT and no capability → the uniform 403; nothing is charged or released", async (route) => {
     const u = await fundedUser();
-    const a = await reserve(u);
-    const captured = await post("/capture", { referenceId: a.referenceId }, { authorization: bearer(u) });
-    expect(captured.status).toBe(200);
-    expect(captured.body.data).toMatchObject({ captured: true, alreadyProcessed: false });
-
-    const b = await reserve(u);
-    const released = await post("/refund", { referenceId: b.referenceId, reason: "x" }, { authorization: bearer(u) });
-    expect(released.status).toBe(200);
-    expect(released.body.data).toMatchObject({ refunded: true, outcome: "released" });
+    const { referenceId } = await reserve(u);
+    const before = await holdOf(u, referenceId);
+    const res = await post(route, { referenceId, reason: "x" }, { authorization: bearer(u) });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual(NOT_AUTHORIZED);
+    expect(await holdOf(u, referenceId)).toEqual(before);
+    expect(before).toMatchObject({ status: "held" });
+    expect(await debits(u, referenceId)).toEqual([]);
+    expect(await balanceOf(db, u.id)).toBe(10);
+    expect(logs.lines().join("\n")).toMatch(/SETTLEMENT_AUTH_REJECTED.*capability_missing/);
   });
 
-  it.each(["/capture", "/refund"])("%s without a capability still enforces the session: revoked 401, unverified 403, another user's hold untouched", async (route) => {
+  it.each(["/capture", "/refund"])("%s without a capability: a revoked, an unverified and a foreign session all get the same 403, and the hold is untouched", async (route) => {
     const u = await fundedUser();
     const stale = bearer(u);
     const { referenceId } = await reserve(u);
     await db.query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1`, [u.id]);
-    const revoked = await post(route, { referenceId }, { authorization: stale });
-    expect(revoked.status).toBe(401);
-    expect(revoked.body.code).toBe("TOKEN_REVOKED");
-
     const unverified = await fundedUser(5, { verified: false });
-    const refused = await post(route, { referenceId }, { authorization: bearer(unverified) });
-    expect(refused.status).toBe(403);
-    expect(refused.body.code).toBe("EMAIL_NOT_VERIFIED");
-
     const other = await fundedUser();
-    const res = await post(route, { referenceId }, { authorization: bearer(other) });
-    if (route === "/capture") expect(res.status).toBe(404);
-    else expect(res.body.data).toMatchObject({ refunded: false, outcome: "not_found" });
+
+    for (const authorization of [stale, bearer(unverified), bearer(other)]) {
+      const res = await post(route, { referenceId }, { authorization });
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(NOT_AUTHORIZED);
+    }
     expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
+    expect(await debits(u, referenceId)).toEqual([]);
+    expect(await holdOf(other, referenceId)).toBeNull();
   });
 
-  it.each(["/capture", "/refund"])("%s without the internal key is still 404, with a valid session", async (route) => {
+  it.each(["/capture", "/refund"])("%s without the internal key is still 404 (the key is checked before the capability), with or without a session", async (route) => {
     const u = await fundedUser();
     const { referenceId } = await reserve(u);
     expect((await post(route, { referenceId }, { key: null, authorization: bearer(u) })).status).toBe(404);
+    const bare = await post(route, { referenceId }, { key: null });
+    expect(bare.status).toBe(404);
+    expect(bare.body).toEqual({ success: false, error: "Route not found." });
     expect(await holdOf(u, referenceId)).toMatchObject({ status: "held" });
   });
 });

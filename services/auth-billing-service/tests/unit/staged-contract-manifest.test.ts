@@ -596,7 +596,7 @@ describe("each staged file", () => {
       });
 
       describe("header", () => {
-        const text = () => fs.readFileSync(file, "utf8");
+        const text = () => normaliseLineEndings(fs.readFileSync(file, "utf8"));
         /** Everything before the first line that is neither blank nor a `--` comment. */
         const headerOf = (sql: string): string[] => {
           const lines = sql.split("\n");

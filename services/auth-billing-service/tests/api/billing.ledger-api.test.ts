@@ -8,6 +8,7 @@ import { bearer } from "../support/auth";
 import { TEST_ENV } from "../setup/env";
 import { spyConsole } from "../support/console";
 import { balanceOf, createTestPool, createUser, ledgerOf, waitFor } from "../support/db";
+import { capabilityFor } from "../support/settlement";
 
 const app = createApp();
 let db: pg.Pool;
@@ -36,8 +37,13 @@ function internalPost(path: string, u: U, body: Record<string, unknown>, key: st
   return req.send(body);
 }
 const consume = (u: U, body: Record<string, unknown>) => internalPost("/api/billing/consume", u, body);
-const capture = (u: U, referenceId: string) => internalPost("/api/billing/capture", u, { referenceId });
-const refund = (u: U, body: Record<string, unknown>) => internalPost("/api/billing/refund", u, body);
+/** Settlement as the BFF makes it since Step 7.4 (C6): the internal key and a capability for the reservation, no user session. */
+async function settle(path: "/api/billing/capture" | "/api/billing/refund", purpose: "capture" | "refund", u: U, body: { referenceId: string } & Record<string, unknown>) {
+  const settlementCapability = await capabilityFor(db, purpose, u.id, body.referenceId);
+  return request(app).post(path).set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send({ ...body, settlementCapability });
+}
+const capture = (u: U, referenceId: string) => settle("/api/billing/capture", "capture", u, { referenceId });
+const refund = (u: U, body: { referenceId: string } & Record<string, unknown>) => settle("/api/billing/refund", "refund", u, body);
 const deduct = (u: U, body: Record<string, unknown>, key: string | null = null) => internalPost("/api/billing/deduct", u, body, key);
 
 async function holdOf(u: U, referenceId: string) {

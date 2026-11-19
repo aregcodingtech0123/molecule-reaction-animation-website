@@ -19,6 +19,7 @@ import { bearer } from "../support/auth";
 import { spyConsole, type ConsoleSpies } from "../support/console";
 import { createTestPool, createUser } from "../support/db";
 import { newOrderId, orderCreatedEvent, sign, signedBody } from "../support/lemon";
+import { capabilityFor } from "../support/settlement";
 
 const MARKER = "SENSITIVE-DB-MARKER-41c9";
 const WEBHOOK = "/api/billing/webhooks/lemonsqueezy";
@@ -205,6 +206,10 @@ describe("raw database text on the paths found during step 4", () => {
 
   it("errorHandler: a database error whose message contains \"Lemon\" does not take the payment path, and no raw message is logged", async () => {
     const u = await createUser(db, { balance: 10, verified: true });
+    // Step 7.4 (C6): a refund is authorised by its capability alone. Signed before the spy below, so only the service's own
+    // hold read (the statement the spy replaces) is affected.
+    const referenceId = randomUUID();
+    const settlementCapability = await capabilityFor(db, "refund", u.id, referenceId);
     const real = pg.Client.prototype.query;
     const broken = vi.spyOn(pg.Client.prototype, "query").mockImplementation(function (this: pg.Client, ...args: unknown[]) {
       const sql = typeof args[0] === "string" ? args[0] : "";
@@ -215,8 +220,7 @@ describe("raw database text on the paths found during step 4", () => {
       await request(app)
         .post("/api/billing/refund")
         .set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET)
-        .set("Authorization", bearer(u))
-        .send({ referenceId: randomUUID() });
+        .send({ referenceId, settlementCapability });
     } finally {
       broken.mockRestore();
     }

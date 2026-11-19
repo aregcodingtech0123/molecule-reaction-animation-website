@@ -288,12 +288,18 @@ describe("the service runs its real flows connected as the app role", () => {
         .set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET)
         .send(body);
 
+    // Settlement as the BFF does it (Step 7.4, C6): the capabilities that /consume returned, no session.
+    const settle = (path: string, body: Record<string, unknown>) =>
+      request(app).post(path).set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send(body);
+
     const a = randomUUID();
-    expect((await internal("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId: a })).status).toBe(200);
-    expect((await internal("/api/billing/capture", { referenceId: a })).status).toBe(200);
+    const reservedA = await internal("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId: a });
+    expect(reservedA.status).toBe(200);
+    expect((await settle("/api/billing/capture", { referenceId: a, settlementCapability: reservedA.body.data.captureCapabilityToken })).status).toBe(200);
     const b = randomUUID();
-    expect((await internal("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId: b })).status).toBe(200);
-    expect((await internal("/api/billing/refund", { referenceId: b, reason: "test" })).status).toBe(200);
+    const reservedB = await internal("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId: b });
+    expect(reservedB.status).toBe(200);
+    expect((await settle("/api/billing/refund", { referenceId: b, reason: "test", settlementCapability: reservedB.body.data.refundCapabilityToken })).status).toBe(200);
     expect(await balance(id)).toBe(4);
 
     await expect(releaseExpiredHolds()).resolves.toEqual(expect.any(Number));
