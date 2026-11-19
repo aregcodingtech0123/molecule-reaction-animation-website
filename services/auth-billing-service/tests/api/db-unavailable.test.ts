@@ -50,8 +50,16 @@ describe("pool exhaustion → 503 DATABASE_UNAVAILABLE + Retry-After on every mo
     const u = await createUser(db, { balance: 0, verified: true });
     await db.query(`SELECT post_credit_transaction($1, 20, 'SIGNUP_BONUS', 'signup')`, [u.id]);
     // A reservation to capture and one to release, made while the pool is healthy.
-    expect((await internal("/api/billing/consume", u, { operationType: "AI_CHAT_QUERY", referenceId: "r18-capture" })).status).toBe(200);
-    expect((await internal("/api/billing/consume", u, { operationType: "AI_CHAT_QUERY", referenceId: "r18-refund" })).status).toBe(200);
+    const reservedForCapture = await internal("/api/billing/consume", u, { operationType: "AI_CHAT_QUERY", referenceId: "r18-capture" });
+    const reservedForRefund = await internal("/api/billing/consume", u, { operationType: "AI_CHAT_QUERY", referenceId: "r18-refund" });
+    expect(reservedForCapture.status).toBe(200);
+    expect(reservedForRefund.status).toBe(200);
+    // Settlement as the BFF makes it (Step 7.4, C6): the internal key and the capability from /consume, no session. The
+    // capability check passes first, so the 503 below is the database check that follows it.
+    const settle = (path: string, body: Record<string, unknown>) =>
+      request(app).post(path).set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send(body);
+    const captureBody = { referenceId: "r18-capture", settlementCapability: reservedForCapture.body.data.captureCapabilityToken };
+    const refundBody = { referenceId: "r18-refund", settlementCapability: reservedForRefund.body.data.refundCapabilityToken };
     const ledgerBefore = await ledgerOf(db, u.id);
 
     const routes: Array<[string, () => request.Test]> = [
@@ -59,8 +67,8 @@ describe("pool exhaustion → 503 DATABASE_UNAVAILABLE + Retry-After on every mo
       ["GET /history", () => request(app).get("/api/billing/history").set("Authorization", bearer(u))],
       ["POST /checkout", () => request(app).post("/api/billing/checkout").set("Authorization", bearer(u)).send({ packageId: "starter" })],
       ["POST /consume", () => internal("/api/billing/consume", u, { operationType: "AI_CHAT_QUERY", referenceId: "r18-new" })],
-      ["POST /capture", () => internal("/api/billing/capture", u, { referenceId: "r18-capture" })],
-      ["POST /refund", () => internal("/api/billing/refund", u, { referenceId: "r18-refund" })],
+      ["POST /capture", () => settle("/api/billing/capture", captureBody)],
+      ["POST /refund", () => settle("/api/billing/refund", refundBody)],
     ];
     const results = await withPoolExhausted(() => Promise.all(routes.map(([, send]) => send())));
 
@@ -78,8 +86,8 @@ describe("pool exhaustion → 503 DATABASE_UNAVAILABLE + Retry-After on every mo
     // Nothing was written while the database was unavailable; the same calls succeed afterwards.
     expect(await ledgerOf(db, u.id)).toEqual(ledgerBefore);
     expect((await db.query(`SELECT count(*)::int AS n FROM ai_credit_holds WHERE user_id = $1`, [u.id])).rows[0].n).toBe(2);
-    expect((await internal("/api/billing/capture", u, { referenceId: "r18-capture" })).status).toBe(200);
-    expect((await internal("/api/billing/refund", u, { referenceId: "r18-refund" })).status).toBe(200);
+    expect((await settle("/api/billing/capture", captureBody)).status).toBe(200);
+    expect((await settle("/api/billing/refund", refundBody)).status).toBe(200);
     expect(await balanceOf(db, u.id)).toBe(20 - 1);
   });
 });

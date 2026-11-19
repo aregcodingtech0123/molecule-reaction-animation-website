@@ -170,11 +170,12 @@ describe.each(ROUTES)("the capability is read from the JSON body only, on %s", (
     ["a query parameter", (t) => ({ query: `?${CAPABILITY_FIELD}=${t}` })],
     ["a custom header", (t) => ({ headers: { "X-Settlement-Capability": t, [CAPABILITY_FIELD]: t } })],
     ["the Authorization header", (t) => ({ authorization: `Bearer ${t}` })],
-  ])("in %s it authorises nothing: the legacy path answers 401", async (_label, where) => {
+  ])("in %s it authorises nothing: no capability in the body is the uniform 403", async (_label, where) => {
     const u = await fundedUser();
     const r = await reserve(u);
     const res = await post(route, { referenceId: r.referenceId }, where(tokenFor(route, r)));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual(NOT_AUTHORIZED);
     expect(await holdOf(u, r.referenceId)).toMatchObject({ status: "held" });
     expect(everythingLogged()).not.toContain(tokenFor(route, r));
   });
@@ -211,7 +212,7 @@ describe.each(ROUTES)("the reference in the body, on %s", (route) => {
     expect(await holdOf(u, r.referenceId)).toMatchObject({ status: "held" });
   });
 
-  it("surrounding whitespace is trimmed, as on the legacy path", async () => {
+  it("surrounding whitespace around the reference is trimmed", async () => {
     const u = await fundedUser();
     const r = await reserve(u);
     const res = await post(route, { referenceId: `  ${r.referenceId} `, [CAPABILITY_FIELD]: tokenFor(route, r) });

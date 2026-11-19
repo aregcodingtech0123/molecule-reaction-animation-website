@@ -18,6 +18,7 @@ import { bearer } from "../support/auth";
 import { spyConsole, type ConsoleSpies } from "../support/console";
 import { createTestPool, createUser } from "../support/db";
 import { everythingLogged, markedRaise, payloadOf } from "../support/marked-errors";
+import { capabilityFor } from "../support/settlement";
 
 const MARKER = "SENSITIVE-PAY-MARKER-a07e";
 const INTERNAL_ERROR = { success: false, error: "Internal server error.", code: "INTERNAL_ERROR" };
@@ -86,8 +87,12 @@ describe("free text does not make a payment error", () => {
     expect(payloadOf(logs, "Unhandled error")).toMatchObject({ event: "UNHANDLED_ERROR", sqlstate: "XX000", severity: "ERROR" });
   });
 
-  it("the same error from a real route, the legacy refund: the generic 500, with no text logged", async () => {
+  it("the same error from a real route, the capability refund: the generic 500, with no text logged", async () => {
     const u = await createUser(db, { balance: 10, verified: true });
+    // Step 7.4 (C6): a refund is authorised by its capability alone. Signed before the spy below, so only the service's own
+    // hold read (the statement the spy replaces) is affected.
+    const referenceId = randomUUID();
+    const settlementCapability = await capabilityFor(db, "refund", u.id, referenceId);
     const { default: pgModule } = await import("pg");
     const real = pgModule.Client.prototype.query;
     const broken = vi.spyOn(pgModule.Client.prototype, "query").mockImplementation(function (this: pg.Client, ...args: unknown[]) {
@@ -100,8 +105,7 @@ describe("free text does not make a payment error", () => {
       res = await request(createApp())
         .post("/api/billing/refund")
         .set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET)
-        .set("Authorization", bearer(u))
-        .send({ referenceId: randomUUID() });
+        .send({ referenceId, settlementCapability });
     } finally {
       broken.mockRestore();
     }

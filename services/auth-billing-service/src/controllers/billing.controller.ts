@@ -154,19 +154,18 @@ export async function acknowledgeDelivery(req: Request, res: Response, next: Nex
 /**
  * POST /api/billing/capture — internal only (BFF). Charges a held reservation
  * exactly once after the AI operation succeeded.
- * Body: { referenceId, settlementCapability? }
+ * Body: { referenceId, settlementCapability }
  *
- * With a capability (req.settlement), the user and reference come from its verified claims only. Without one, this is
- * the legacy session path, with the user from the JWT.
+ * The user and the reference come from the verified capability claims (req.settlement) only. The route requires the
+ * capability, so a request without claims cannot get here; if one ever does, it is refused like any unauthorised one.
  */
 export async function captureCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const claims = req.settlement;
-    const userId = claims?.sub ?? req.user?.sub;
-    if (!userId) {
-      throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
+    if (!claims) {
+      throw settlementNotAuthorized();
     }
-    const result = await captureOperation(userId, claims ? claims.ref : req.body?.referenceId, claims);
+    const result = await captureOperation(claims.sub, claims.ref, claims);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -176,23 +175,22 @@ export async function captureCredits(req: Request, res: Response, next: NextFunc
 /**
  * POST /api/billing/refund — internal only (BFF). Releases a held reservation
  * after the AI operation failed. Never refunds a captured (successful) charge.
- * Body: { referenceId, reason?, settlementCapability? }
+ * Body: { referenceId, reason?, settlementCapability }
  *
  * Always 200 once authorized: "nothing charged", "already released" and "not refundable" are normal outcomes
  * reported in the body, and `outcome` names the hold's state as read under the lock.
  *
- * With a capability (req.settlement), the user and reference come from its verified claims only. Without one, this is
- * the legacy session path, with the user from the JWT.
+ * The user and the reference come from the verified capability claims (req.settlement) only; the body supplies just the
+ * reason. A request without claims is refused like any unauthorised one (the route requires the capability).
  */
 export async function refundCredits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const claims = req.settlement;
-    const userId = claims?.sub ?? req.user?.sub;
-    if (!userId) {
-      throw new AppError(401, "Unauthorized.", "UNAUTHORIZED");
+    if (!claims) {
+      throw settlementNotAuthorized();
     }
-    const { referenceId, reason } = req.body ?? {};
-    const result = await releaseOperation(userId, claims ? claims.ref : referenceId, String(reason ?? "ai_operation_failed"), claims);
+    const { reason } = req.body ?? {};
+    const result = await releaseOperation(claims.sub, claims.ref, String(reason ?? "ai_operation_failed"), claims);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

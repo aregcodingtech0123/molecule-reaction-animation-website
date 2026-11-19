@@ -15,19 +15,16 @@ import { requireVerified } from "../middlewares/requireVerified.js";
  *
  * /consume: the BFF forwards the user's JWT, so the user identity comes from requireAuth.
  *
- * /capture and /refund have two paths (Phase 2C):
- *  - Capability: the first route of each pair. The body carries a reservation-bound capability, the user comes from its
- *    signed claims, and no session is needed. A capability that is present but invalid gets a 403 here.
- *  - Legacy session: the second route of each pair, reached only through `next("route")` when the body has no
- *    capability field at all. Removed in Phase 2C step 6.
+ * /capture and /refund have one path (Phase 2C step 7.4, C6): a reservation-bound capability in the body. The user and the
+ * reference come from its signed claims, and no session is involved. A missing capability and an invalid one get the same
+ * uniform 403; there is no fall-through to a session route. The internal-key check still runs first, so a caller without
+ * the key gets the 404 whatever the body holds. (The legacy session routes were removed in C6.)
  */
 export const internalBillingRouter = Router();
 const internalOnly = [requireInternalService, requireDatabase, requireAuth, requireVerified];
 internalBillingRouter.post("/consume", ...internalOnly, billingController.consumeCredits);
-internalBillingRouter.post("/capture", requireInternalService, requireSettlementCapability("capture"), requireDatabase, billingController.captureCredits);
-internalBillingRouter.post("/capture", ...internalOnly, billingController.captureCredits);
-internalBillingRouter.post("/refund", requireInternalService, requireSettlementCapability("refund"), requireDatabase, billingController.refundCredits);
-internalBillingRouter.post("/refund", ...internalOnly, billingController.refundCredits);
+internalBillingRouter.post("/capture", requireInternalService, requireSettlementCapability("capture", { required: true }), requireDatabase, billingController.captureCredits);
+internalBillingRouter.post("/refund", requireInternalService, requireSettlementCapability("refund", { required: true }), requireDatabase, billingController.refundCredits);
 // Delivery tracking (Phase 2C step 5.2.2). Internal key AND a delivery_ack capability; no legacy session path, so a missing
 // capability is a 403 here (required), never a fall-through. The Next.js gateway lists this path as internal-only.
 internalBillingRouter.post("/delivery-attempt", requireInternalService, requireSettlementCapability("delivery_ack", { required: true }), requireDatabase, billingController.acknowledgeDelivery);

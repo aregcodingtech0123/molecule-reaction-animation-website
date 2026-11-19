@@ -280,7 +280,7 @@ describe("load and soak harness (Part 3)", () => {
     webhookSecret: "whsec-test",
     internalKey: "internal-test",
   };
-  type Arrival = { kind: string; origin: string; spec: { method?: string; path: string; headers: Record<string, string>; body?: string; then?: () => Arrival["spec"] } };
+  type Arrival = { kind: string; origin: string; spec: { method?: string; path: string; headers: Record<string, string>; body?: string; then?: (responseBody: string) => Arrival["spec"] } };
 
   it("every 100 arrivals follow the mix weights, interleaved; webhooks are signed over the raw body with unique order ids", () => {
     const pick = mixedTraffic(ctx, { runTag: "t" }) as (i: number) => Arrival;
@@ -307,9 +307,17 @@ describe("load and soak harness (Part 3)", () => {
       if (r.kind !== "webhook") expect(r.spec.headers).toMatchObject({ "x-internal-service-key": "internal-test", "x-client-ip": expect.stringMatching(/^10\./) });
     }
     const chat = arrivals.find((r) => r.kind === "chat")!;
-    const next = chat.spec.then!();
+    // Step 7.4 (C6): the capture is authorised by the capability that /consume returned, with no session.
+    const consumeAnswer = JSON.stringify({ success: true, data: { captureCapabilityToken: "capture-token-from-consume", refundCapabilityToken: "refund-token" } });
+    const next = chat.spec.then!(consumeAnswer);
     expect([chat.spec.path, next.path]).toEqual(["/api/billing/consume", "/api/billing/capture"]);
     expect(JSON.parse(next.body ?? "{}").referenceId).toBe(JSON.parse(chat.spec.body ?? "{}").referenceId);
+    expect(JSON.parse(next.body ?? "{}").settlementCapability).toBe("capture-token-from-consume");
+    expect(next.headers.authorization).toBeUndefined();
+    expect(next.headers).toMatchObject({ "x-internal-service-key": "internal-test" });
+    // A /consume answer with no capability does not hide the problem: the capture goes out without one (a 403 in the run's error rate).
+    expect(JSON.parse(chat.spec.then!("{}").body ?? "{}")).not.toHaveProperty("settlementCapability");
+    expect(JSON.parse(chat.spec.then!("not json").body ?? "{}")).not.toHaveProperty("settlementCapability");
     expect(arrivals.find((r) => r.kind === "login")!.spec.headers.authorization).toBeUndefined();
   });
 
@@ -317,7 +325,7 @@ describe("load and soak harness (Part 3)", () => {
     const seen: string[] = [];
     const server = http.createServer((req, res) => {
       seen.push(req.url ?? "");
-      setTimeout(() => res.end("ok"), req.url === "/slow" ? 300 : 0);
+      setTimeout(() => res.end(req.url === "/a" ? "body-of-a" : "ok"), req.url === "/slow" ? 300 : 0);
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -328,7 +336,7 @@ describe("load and soak harness (Part 3)", () => {
       const run = await runOpenLoop({
         ratePerSec: 50,
         durationMs: 400,
-        pick: (i: number) => ({ kind: i % 2 ? "slow" : "pair", origin, spec: i % 2 ? { path: "/slow" } : { path: "/a", then: () => ({ path: "/b" }) } }),
+        pick: (i: number) => ({ kind: i % 2 ? "slow" : "pair", origin, spec: i % 2 ? { path: "/slow" } : { path: "/a", then: (body: string) => ({ path: body === "body-of-a" ? "/b" : "/follow-up-got-no-body" }) } }),
         onResult: (r: { status: number }) => results.push(r.status),
       });
       expect(run.total).toBe(20);

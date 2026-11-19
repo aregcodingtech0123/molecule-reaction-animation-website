@@ -27,6 +27,21 @@ export function apiRequest(token, method, path) {
 }
 
 /**
+ * The capture capability for a reservation, read from Express's /consume response body (`data.captureCapabilityToken`, the
+ * field the BFF reads in src/lib/billing/server-billing.ts). Since Step 7.4 (C6) /capture accepts nothing else. A response
+ * without one gives `undefined`, so the follow-up capture goes out without a capability and answers 403: it shows in the
+ * error rate instead of being skipped.
+ */
+export function captureCapabilityFrom(consumeResponseBody) {
+  try {
+    const token = JSON.parse(consumeResponseBody)?.data?.captureCapabilityToken;
+    return typeof token === "string" && token !== "" ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Rotates virtual users over seeded users 1..N (0 is the hot user) so no user exceeds the BFF's
  * per-user chat limit (10 / min) or its daily cap; the result records the rotation.
  */

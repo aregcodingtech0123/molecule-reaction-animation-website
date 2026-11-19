@@ -138,8 +138,9 @@ export async function runClosedLoop(o) {
  * @param {number} o.ratePerSec
  * @param {number} o.durationMs   measured window
  * @param {number} [o.warmupMs]   discarded window before it (same rate)
- * @param {(i: number) => { kind: string, origin: string, spec: { method?: string, path: string, headers?: object, body?: string, then?: () => object | null } }} o.pick
- *   `then` (optional): the next request of the same arrival, sent after a 2xx answer (same origin)
+ * @param {(i: number) => { kind: string, origin: string, spec: { method?: string, path: string, headers?: object, body?: string, then?: (responseBody: string) => object | null } }} o.pick
+ *   `then` (optional): the next request of the same arrival, sent after a 2xx answer (same origin); it receives that
+ *   answer's body as text (the capture capability of a reservation travels in it)
  * @param {number} [o.maxInFlight]
  * @param {number} [o.timeoutMs]
  * @param {(r: { kind: string, status: number, error: string | null, scheduledAt: number, ms: number, measured: boolean, origin: string, spec: object }) => void} [o.onResult]
@@ -192,10 +193,15 @@ export async function runOpenLoop(o) {
         const req = http.request(
           { agent: agentFor(origin), host: url.hostname, port: url.port, method: spec.method ?? "GET", path: spec.path, headers },
           (res) => {
-            res.on("data", () => {});
+            // The response body is kept only when a follow-up needs it (reserve → capture: the capture capability is in it).
+            const chunks = [];
+            const keepBody = typeof spec.then === "function";
+            res.on("data", (chunk) => {
+              if (keepBody) chunks.push(chunk);
+            });
             res.on("end", () => {
               // A follow-up request of the same arrival (reserve → capture); latency runs to its end.
-              const next = res.statusCode >= 200 && res.statusCode < 300 ? spec.then?.() : null;
+              const next = res.statusCode >= 200 && res.statusCode < 300 ? spec.then?.(keepBody ? Buffer.concat(chunks).toString("utf8") : undefined) : null;
               if (next) fire(next);
               else finish(res.statusCode);
             });

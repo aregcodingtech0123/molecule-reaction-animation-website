@@ -10,9 +10,10 @@ export const SETTLEMENT_CAPABILITY_FIELD = "settlementCapability";
  * Authorises one capture or refund by a reservation-bound capability instead of the user's live session (Phase 2C).
  * Runs after requireInternalService, which stays mandatory: neither the key nor the capability is enough alone.
  *
- *  - No capability field in the body: not this path. Continues with the route's legacy session chain (until step 6).
- *    A route with no legacy path passes `{ required: true }`: then a missing capability is the same uniform 403, never a
- *    fall-through to another route or a 404.
+ *  - No capability field in the body: with `{ required: true }` (every route that uses this middleware today: /capture,
+ *    /refund and /delivery-attempt) the same uniform 403, never a fall-through to another route or a 404. Without
+ *    `required` the request continues to the next matching route (`next("route")`); no route uses that since C6 removed the
+ *    legacy session routes, and a new route should pass `required: true`.
  *  - A capability field that is present but invalid in any way: the uniform 403. NEVER falls back to the session.
  *  - Valid: sets req.settlement, and the user and reference come from the signed claims from here on.
  *
