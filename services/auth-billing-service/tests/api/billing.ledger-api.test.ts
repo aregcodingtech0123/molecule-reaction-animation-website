@@ -482,7 +482,7 @@ describe("POST /api/billing/capture", () => {
   it("an expired reservation cannot be captured: 409 HOLD_EXPIRED, settled as expired, never written to the ledger", async () => {
     const u = await fundedUser(10);
     await consume(u, { operationType: "ARCH_RENDER_STD", referenceId: "late" });
-    await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'late'`, [u.id]);
+    await db.query(`UPDATE ai_credit_holds SET created_at = NOW() - interval '1 hour', expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'late'`, [u.id]);
     const res = await capture(u, "late");
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("HOLD_EXPIRED");
@@ -496,7 +496,7 @@ describe("POST /api/billing/capture", () => {
     await consume(u, { operationType: "AI_CHAT_QUERY", referenceId: "nc" });
     if (state === "released") await refund(u, { referenceId: "nc" });
     else {
-      await db.query(`UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
+      await db.query(`UPDATE ai_credit_holds SET created_at = NOW() - interval '1 hour', expires_at = NOW() - interval '1 second' WHERE user_id = $1`, [u.id]);
       await db.query(`SELECT release_expired_ai_holds()`);
     }
     const res = await capture(u, "nc");
