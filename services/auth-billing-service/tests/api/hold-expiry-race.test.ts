@@ -12,6 +12,7 @@ import { TEST_ENV } from "../setup/env";
 import { bearer } from "../support/auth";
 import { spyConsole } from "../support/console";
 import { balanceOf, createTestPool, createUser, ledgerOf, waitFor } from "../support/db";
+import { capabilityFor } from "../support/settlement";
 
 const app = createApp();
 let db: pg.Pool;
@@ -29,6 +30,9 @@ beforeEach(() => {
 type U = { id: string; email: string };
 const internal = (path: string, u: U, body: Record<string, unknown>) =>
   request(app).post(path).set("Authorization", bearer(u)).set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send(body);
+/** A capture as the BFF makes it since Step 7.4 (C6): the internal key and a capability for the hold as it is now, no session. */
+const captureWith = (ref: string, settlementCapability: string) =>
+  request(app).post("/api/billing/capture").set("X-Internal-Service-Key", TEST_ENV.INTERNAL_SERVICE_SECRET).send({ referenceId: ref, settlementCapability });
 
 async function heldUser(ref: string) {
   const u = await createUser(db, { balance: 0, verified: true });
@@ -88,8 +92,10 @@ describe("expiry sweeper vs capture on the same reservation", () => {
       `UPDATE ai_credit_holds SET expires_at = clock_timestamp() + interval '1500 milliseconds' WHERE user_id = $1 AND reference_id = 'race-capture-first'`,
       [u.id],
     );
+    // Signed for the row after the fixture change above, and before the race starts, so the 1.5 s window is not spent here.
+    const token = await capabilityFor(db, "capture", u.id, "race-capture-first");
     const lock = await rowLocker(u, "race-capture-first");
-    const capture = internal("/api/billing/capture", u, { referenceId: "race-capture-first" }).then((r) => r);
+    const capture = captureWith("race-capture-first", token).then((r) => r);
     await lock.queued(1);
     // The capture's transaction started before expiry; now let the reservation expire for everyone else.
     await waitFor(
@@ -112,13 +118,15 @@ describe("expiry sweeper vs capture on the same reservation", () => {
   it("sweeper first on an expired reservation, capture queued behind it: never charged, capture refused", async () => {
     const u = await heldUser("race-sweep-first");
     await db.query(
-      `UPDATE ai_credit_holds SET expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'race-sweep-first'`,
+      // created_at moves too: a capability's reservation expiry can never precede its issue time (as in expireHold elsewhere).
+      `UPDATE ai_credit_holds SET created_at = NOW() - interval '1 hour', expires_at = NOW() - interval '1 second' WHERE user_id = $1 AND reference_id = 'race-sweep-first'`,
       [u.id],
     );
+    const token = await capabilityFor(db, "capture", u.id, "race-sweep-first");
     const lock = await rowLocker(u, "race-sweep-first");
     const sweep = sweeper();
     await lock.queued(1);
-    const capture = internal("/api/billing/capture", u, { referenceId: "race-sweep-first" }).then((r) => r);
+    const capture = captureWith("race-sweep-first", token).then((r) => r);
     await lock.queued(2);
     await lock.release();
 

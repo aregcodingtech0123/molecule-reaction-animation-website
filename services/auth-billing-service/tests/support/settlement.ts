@@ -43,6 +43,23 @@ export async function mintForRow(
   return mintSettlementCapability(purpose, { ...(await persistedBinding(db, userId, referenceId)), ...overrides }, keys);
 }
 
+/**
+ * The capability a BFF would hold for this reservation, for a test that settles through /capture or /refund (Step 7.4, C6:
+ * a capability is the only way in). If the hold row exists, it is signed for the row as it is now (so a test that moved the
+ * row, e.g. its expiry, still gets a matching token). If there is no such row, it is signed for a synthetic binding, so the
+ * service answers exactly as for an unknown reservation (404 / not_found) and the test keeps its meaning.
+ */
+export async function capabilityFor(db: pg.Pool, purpose: SettlementPurpose, userId: string, referenceId: string): Promise<string> {
+  const { rowCount } = await db.query(`SELECT 1 FROM ai_credit_holds WHERE user_id = $1 AND reference_id = $2`, [userId, referenceId]);
+  if (rowCount && rowCount > 0) return mintForRow(db, purpose, userId, referenceId);
+  const now = Math.floor(Date.now() / 1000);
+  return mintSettlementCapability(
+    purpose,
+    { userId, referenceId, amount: 1, operationType: "AI_CHAT_QUERY", createdAtSeconds: now, reservationExpiresAtSeconds: now + 600 },
+    TEST_SETTLEMENT_KEYS,
+  );
+}
+
 /** The claims inside a token, without verifying it. */
 export function claimsOf(token: string): SettlementClaims {
   return JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString("utf8")) as SettlementClaims;

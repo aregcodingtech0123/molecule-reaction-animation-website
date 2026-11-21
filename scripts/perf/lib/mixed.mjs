@@ -17,7 +17,7 @@
  */
 import { createHmac, randomUUID } from "node:crypto";
 import { PERF_PASSWORD, PERF_VARIANTS } from "../config.mjs";
-import { apiRequest, browserRequest, clientIp } from "./requests.mjs";
+import { apiRequest, browserRequest, captureCapabilityFrom, clientIp } from "./requests.mjs";
 
 export const MIX = [
   ["page", 35],
@@ -130,7 +130,11 @@ function apiSpec(ctx, kind, user, ip) {
       return get("/api/billing/history");
     case "chat": {
       const referenceId = randomUUID();
-      return { ...post("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId }), then: () => post("/api/billing/capture", { referenceId }) };
+      // As the BFF does since Step 7.4 (C6): the capture carries the capability that /consume returned, and no session.
+      return {
+        ...post("/api/billing/consume", { operationType: "AI_CHAT_QUERY", referenceId }),
+        then: (consumeBody) => post("/api/billing/capture", { referenceId, settlementCapability: captureCapabilityFrom(consumeBody) }, false),
+      };
     }
     case "login":
       return post("/api/auth/login", { email: ctx.users[user].email, password: PERF_PASSWORD }, false);
