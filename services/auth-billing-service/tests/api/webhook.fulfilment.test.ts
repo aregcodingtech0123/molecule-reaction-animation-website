@@ -113,6 +113,38 @@ describe("user resolution", () => {
   });
 });
 
+describe("anonymised accounts (Step 7.5)", () => {
+  it("custom_data.user_id of an anonymised account → missing_user, nothing credited", async () => {
+    const buyer = await createUser(db);
+    await db.query(`UPDATE users SET anonymised_at = NOW() WHERE id = $1`, [buyer.id]);
+    const orderId = await deliver({ customData: { user_id: buyer.id }, email: uniqueEmail("ghost") });
+    await waitFor(async () => (await inboxRows(orderId))[0]?.outcome === "missing_user");
+    expect(await ledgerOf(db, buyer.id)).toHaveLength(0);
+  });
+
+  it("an account anonymised between its lookup and the credit: the credit waits for it, then refuses", async () => {
+    const buyer = await createUser(db);
+    const locker = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await locker.connect();
+    try {
+      await locker.query("BEGIN");
+      await locker.query(`UPDATE users SET anonymised_at = NOW() WHERE id = $1`, [buyer.id]);
+      const running = processLemonSqueezyEvent(orderCreatedEvent({ customData: { user_id: buyer.id } }));
+      await waitFor(async () => {
+        const { rows } = await db.query(
+          `SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%FOR SHARE%' AND pid <> pg_backend_pid()`,
+        );
+        return rows[0].n >= 1;
+      });
+      await locker.query("COMMIT");
+      expect(await running).toMatchObject({ processed: false, reason: "missing_user" });
+      expect(await ledgerOf(db, buyer.id)).toHaveLength(0);
+    } finally {
+      await locker.end();
+    }
+  });
+});
+
 describe("package resolution", () => {
   it.each([
     ["starter", VARIANTS.starter, PRICES.starter, CREDITS.starter],
@@ -125,18 +157,18 @@ describe("package resolution", () => {
     expect(await balanceOf(db, buyer.id)).toBe(credits);
   });
 
-  it("unknown variant → falls back to custom_data.package_id", async () => {
+  it("unknown variant → not credited, even when custom_data.package_id names a pack of the same price (Step 7.5)", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "pro" }, variantId: 424242, total: PRICES.pro });
-    await credited(orderId);
-    expect(await balanceOf(db, buyer.id)).toBe(CREDITS.pro);
+    await logs.waitForLine(new RegExp(`Unable to resolve package.*${orderId}`));
+    expect(await balanceOf(db, buyer.id)).toBe(0);
   });
 
-  it("missing order item / variant → falls back to custom_data.package_id", async () => {
+  it("missing order item / variant → not credited, whatever custom_data.package_id says (Step 7.5)", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter" }, variantId: null });
-    await credited(orderId);
-    expect(await balanceOf(db, buyer.id)).toBe(CREDITS.starter);
+    await logs.waitForLine(new RegExp(`Unable to resolve package.*${orderId}`));
+    expect(await balanceOf(db, buyer.id)).toBe(0);
   });
 
   it("unknown variant and no custom package → unresolved_package logged, nothing credited", async () => {
@@ -146,14 +178,14 @@ describe("package resolution", () => {
     expect(await balanceOf(db, buyer.id)).toBe(0);
   });
 
-  it("unknown custom package id → invalid_package_id logged, nothing credited", async () => {
+  it("unknown custom package id and unknown variant → unresolved_package logged, nothing credited", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "platinum" }, variantId: 424242 });
-    await logs.waitForLine(new RegExp(`Invalid package_id.*${orderId}`));
+    await logs.waitForLine(new RegExp(`Unable to resolve package.*${orderId}`));
     expect(await balanceOf(db, buyer.id)).toBe(0);
   });
 
-  it("custom_data.package_id cannot upgrade a cheaper purchase: the amount check rejects it", async () => {
+  it("custom_data.package_id cannot upgrade a cheaper purchase: the pack that was bought is credited", async () => {
     // Attacker buys Starter ($5) via a store link with ?checkout[custom][package_id]=enterprise.
     const buyer = await createUser(db);
     const orderId = await deliver({
@@ -161,8 +193,8 @@ describe("package resolution", () => {
       variantId: VARIANTS.starter,
       total: PRICES.starter,
     });
-    await logs.waitForLine(new RegExp(`Amount mismatch.*${orderId}`));
-    expect(await balanceOf(db, buyer.id)).toBe(0);
+    await credited(orderId);
+    expect(await balanceOf(db, buyer.id)).toBe(CREDITS.starter);
   });
 
   it("variant ids formerly hard-coded in source no longer map to packs when the env uses different ids (FINDING-13)", async () => {
@@ -183,7 +215,8 @@ describe("package resolution", () => {
 describe("order validation", () => {
   it.each([
     ["non-paid status", { status: "pending" }, "Ignoring non-paid order"],
-    ["refunded order", { refunded: true }, "Ignoring refunded order"],
+    // V8 P3.2: a paid order flagged refunded is contradictory: a review stop, never credited.
+    ["paid but flagged refunded", { refunded: true }, "Order stopped for review"],
     ["non-USD currency", { currency: "EUR" }, "Unexpected currency"],
     ["amount not matching the pack price", { total: 499, subtotal: 499, price: 499 }, "Amount mismatch"],
   ] as const)("%s → not credited", async (_label, overrides, logFragment) => {
@@ -252,6 +285,20 @@ describe("pending checkout orders", () => {
     },
   );
 
+  it("another user's pending order is never completed by this purchase (Step 7.5)", async () => {
+    const buyer = await createUser(db);
+    const other = await createUser(db);
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO pending_checkout_orders (user_id, package_id, provider, currency, amount_minor, credits)
+       VALUES ($1, 'starter', 'lemonsqueezy', 'USD', 500, 50) RETURNING id::text`,
+      [other.id],
+    );
+    const orderId = await deliver({ customData: { user_id: buyer.id, pending_order_id: rows[0]!.id } });
+    await credited(orderId);
+    const after = await db.query(`SELECT status FROM pending_checkout_orders WHERE id = $1`, [rows[0]!.id]);
+    expect(after.rows[0].status).toBe("pending");
+  });
+
   it("a well-formed but unknown pending_order_id is harmless: credited, no pending row touched", async () => {
     const buyer = await createUser(db);
     const orderId = await deliver({ customData: { user_id: buyer.id, package_id: "starter", pending_order_id: randomUUID() } });
@@ -277,7 +324,7 @@ describe("idempotency", () => {
     const differing = orderCreatedEvent({ orderId, customData: { user_id: buyer.id, package_id: "starter" } });
     const { raw, signature } = signedBody({ ...differing, meta: { ...differing.meta, resent: true } });
     expect((await request(app).post(WEBHOOK).set("Content-Type", "application/json").set("X-Signature", signature).send(raw)).status).toBe(200);
-    await logs.waitForLine(/Not credited.*already_processed/);
+    await logs.waitForLine(/Order already credited — not credited again/);
     await waitFor(async () => (await inboxRows(orderId)).length === 2 && (await inboxRows(orderId))[1]!.status === "processed");
     expect((await inboxRows(orderId)).map((r) => r.outcome)).toEqual(["credited", "already_processed"]);
 
@@ -292,7 +339,7 @@ describe("idempotency", () => {
     await deliver({ orderId, customData: { user_id: a.id, package_id: "starter" } });
     await credited(orderId);
     await deliver({ orderId, customData: { package_id: "starter" }, email: b.email });
-    await logs.waitForLine(/Not credited.*already_processed/);
+    await logs.waitForLine(/Order already credited — not credited again/);
     expect([await balanceOf(db, a.id), await balanceOf(db, b.id)]).toEqual([50, 0]);
   });
 
@@ -369,13 +416,9 @@ describe("non-order events", () => {
   });
 
   it("order_refunded is no longer ignored: it goes to the refund recorder, never to crediting (SEC-14, TC-47)", async () => {
-    // This fixture still says status "paid": the refund gate refuses it, and nothing is credited.
+    // This fixture still says status "paid": the state contradicts the event (V8 P3.3), a review stop; nothing is recorded or credited.
     const event = orderCreatedEvent({ eventName: "order_refunded" });
-    await expect(processLemonSqueezyEvent(event as never)).resolves.toEqual({
-      processed: false,
-      reason: "unexpected_refund_status",
-      orderId: event.data.id,
-    });
+    await expect(processLemonSqueezyEvent(event as never)).rejects.toMatchObject({ message: "review:refund_event_state_mismatch" });
   });
 });
 

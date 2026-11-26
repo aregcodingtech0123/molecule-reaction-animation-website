@@ -28,6 +28,18 @@ describe("classifyCaptureError", () => {
     expect(isTransientDatabaseError(pgError(code))).toBe(false);
   });
 
+  // C12: what the narrow database operations raise for a privilege, state or check failure. A retry cannot fix any of
+  // them, and none may be read as "nothing was charged, refund" or as transient. They are indeterminate by decision,
+  // not merely because no list names them.
+  it.each([
+    ["42501", "insufficient_privilege: a missing grant or a refused role"],
+    ["55000", "object_not_in_prerequisite_state: a contract guard or a hold in the wrong state"],
+    ["23514", "check_violation: a constraint the operation refuses to break"],
+  ])("%s (%s) is indeterminate and never retried", (code) => {
+    expect(classifyCaptureError(pgError(code))).toBe("indeterminate");
+    expect(isTransientDatabaseError(pgError(code))).toBe(false);
+  });
+
   // Terminal handling exists only inside the debit's savepoint. Anywhere else these prove nothing, so they are not terminal.
   it.each(["P0001", "23505"])("%s outside the debit is indeterminate here: the debit's savepoint handles the terminal case", (code) => {
     expect(classifyCaptureError(pgError(code))).toBe("indeterminate");

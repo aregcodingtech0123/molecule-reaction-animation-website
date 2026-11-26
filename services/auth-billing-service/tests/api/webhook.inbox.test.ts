@@ -162,7 +162,7 @@ describe("webhook inbox (R19)", () => {
       [orderId],
     );
     await retryStoredWebhookEvents({ all: true });
-    expect(await stored(orderId)).toEqual([expect.objectContaining({ status: "failed", attempts: 1, last_error: "stored payload is missing" })]);
+    expect(await stored(orderId)).toEqual([expect.objectContaining({ status: "failed", attempts: 1, last_error: "review:payload_cleared" })]);
     await db.query(`DELETE FROM lemon_webhook_events WHERE provider_order_id = $1`, [orderId]);
   });
 

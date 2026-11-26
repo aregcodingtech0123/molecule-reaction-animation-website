@@ -2,11 +2,15 @@ import "./config/loadEnv.js";
 import { assertEnv, env, lemonVariantConfigProblem } from "./config/env.js";
 import { createApp } from "./app.js";
 import { safeErrorLogFields } from "./db/diagnostics.js";
-import { closePool, isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
+import { ackDatabaseStatus } from "./db/ackPool.js";
+import { isDatabaseReady, verifyDatabaseConnection } from "./db/index.js";
+import { closeDatabasePools } from "./db/lifecycle.js";
 import { weakSecretReason } from "./config/secretStrength.js";
 import { productionConfigProblems } from "./config/productionConfig.js";
 import { enforceSettlementSecret } from "./config/settlementStartupGuard.js";
+import { enforceNoWebhookCredential } from "./config/webhookCredentialGuard.js";
 import { releaseExpiredHolds } from "./services/aiCredits.service.js";
+import { CLEANUP_INTERVAL_MS, clearPayloadsThroughFunction, consumeIngestedWebhookEvents, throttled } from "./services/v8Consumer.service.js";
 import { clearOldWebhookPayloads, retryStoredWebhookEvents } from "./services/webhookInbox.service.js";
 
 const PORT = env.port;
@@ -22,6 +26,9 @@ function enforceProductionSecurityGuards(): void {
 
   // Every mode too: without this key no AI reservation can be made or settled.
   enforceSettlementSecret();
+
+  // Every mode too: the ingest credential must never be in this process (C14a).
+  enforceNoWebhookCredential();
 
   // Production rules apply unless NODE_ENV is explicitly development/test (SEC-08): every secret
   // and URL is validated up front and the whole list is reported, so a misconfigured deploy fails
@@ -92,6 +99,41 @@ function startWebhookRetryWorker(): void {
   timer.unref();
 }
 
+/**
+ * Step 7.5 V8, WEBHOOK_INGEST_MODE=external only (contract 5.2, X3): consume the events stored by the ingestion process every
+ * WEBHOOK_CONSUMER_POLL_MS (default 5 s), single-flight, then clear old payloads through the V8 owner function. Replaces the
+ * legacy retry worker in that mode; legacy rows are left to the old build (F3).
+ */
+function startV8ConsumerWorker(): void {
+  const intervalMs = env.webhookConsumerPollMs;
+  if (intervalMs <= 0) return;
+  let running = false;
+  // F-3: the clean-up is housekeeping, at most once an hour (through the owner function, as before).
+  const cleanup = throttled(clearPayloadsThroughFunction, CLEANUP_INTERVAL_MS);
+  const timer = setInterval(() => {
+    if (running) return;
+    if (!isDatabaseReady()) {
+      void verifyDatabaseConnection();
+      return;
+    }
+    running = true;
+    void consumeIngestedWebhookEvents()
+      .then(async (r) => {
+        // F-4: not ready (the V8 schema is missing): nothing was consumed, it was reported once, and nothing else runs.
+        if (r.notReady) return;
+        if (r.processed + r.failed > 0) {
+          console.warn(`[V8 consumer] Pass: ${r.processed} processed, ${r.failed} failed (see db:reconcile).`);
+        }
+        await cleanup().catch((err) => console.error("[V8 consumer] Payload clean-up failed:", safeErrorLogFields(err)));
+      })
+      .catch((err) => console.error("[V8 consumer] Pass failed:", safeErrorLogFields(err)))
+      .finally(() => {
+        running = false;
+      });
+  }, intervalMs);
+  timer.unref();
+}
+
 function resolveListenHost(): string {
   if (process.env.HOST?.trim()) {
     return process.env.HOST.trim();
@@ -147,11 +189,22 @@ async function bootstrap(): Promise<void> {
       console.log(
         `[auth-billing-service] database: ${isDatabaseReady() ? "connected" : "unavailable — auth/billing routes may return 503"}`,
       );
+      // Configuration only: no connection is made here. The identity of the ack connection is checked lazily, before the first
+      // tracked reservation; until it passes, tracked reservations and acknowledgements are refused (503).
+      const ack = ackDatabaseStatus();
+      console.log(
+        `[auth-billing-service] delivery-attempt database (ACK_DATABASE_URL): ${ack.configured ? "configured, identity not yet verified" : `not usable (${ack.problem}) — tracked reservations will be refused`}`,
+      );
       console.log(
         "[auth-billing-service] POST /api/billing/checkout · POST /api/billing/webhooks/lemonsqueezy",
       );
       startExpiredHoldSweeper();
-      startWebhookRetryWorker();
+      if (env.webhookIngestMode === "external") {
+        console.log("[auth-billing-service] webhook ingest mode: external (V8 consumer; needs migration 022 V8)");
+        startV8ConsumerWorker();
+      } else {
+        startWebhookRetryWorker();
+      }
       resolve();
     });
 
@@ -162,7 +215,11 @@ async function bootstrap(): Promise<void> {
     async function shutdown(signal: string) {
       console.log(`[auth-billing-service] ${signal} — shutting down`);
       server.close(async () => {
-        await closePool();
+        try {
+          await closeDatabasePools();
+        } catch {
+          // Each failure was already logged with safe fields; exit anyway.
+        }
         process.exit(0);
       });
     }

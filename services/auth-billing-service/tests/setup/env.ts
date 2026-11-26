@@ -3,8 +3,16 @@
  * module is imported, so `env.ts` captures these values (JWT_SECRET is read
  * once at import time).
  */
+import { inject } from "vitest";
 import { loadTestEnvFile } from "../../../../scripts/test/test-env-file.mjs";
 import { testDatabaseUrl } from "./test-db-url";
+
+declare module "vitest" {
+  export interface ProvidedContext {
+    /** The verified `moleculestudio_ack` URL for this project's test database (tests/setup/global-db.ts), or null. */
+    ackDatabaseUrl: string | null;
+  }
+}
 
 loadTestEnvFile();
 
@@ -44,7 +52,8 @@ for (const [key, value] of Object.entries(TEST_ENV)) {
 
 // Discrete DB_* vars would be ignored when DATABASE_URL is set, but clear them
 // so nothing from a developer shell can leak into connection resolution.
-for (const key of ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "HOST"]) {
+// ACK_DATABASE_URL too: a suite that needs the delivery-attempt pool sets it explicitly.
+for (const key of ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "HOST", "ACK_DATABASE_URL"]) {
   delete process.env[key];
 }
 
@@ -52,3 +61,10 @@ process.env.DATABASE_URL = process.env.TEST_DB_NAME
   ? testDatabaseUrl()
   : // Unit project: point at a guarded URL that is never connected to.
     testDatabaseUrl("moleculestudio_unit_unused_test");
+
+// O-21: the delivery-attempt pool connects as the REAL moleculestudio_ack login that tests/setup/global-db.ts provisioned and
+// verified for this project's database. Database projects only; the unit project never gets one.
+if (process.env.TEST_DB_NAME) {
+  const ackUrl = inject("ackDatabaseUrl");
+  if (ackUrl) process.env.ACK_DATABASE_URL = ackUrl;
+}

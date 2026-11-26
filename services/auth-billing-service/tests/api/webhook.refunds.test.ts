@@ -152,9 +152,10 @@ describe("order_refunded gate (SEC-14)", () => {
 
   it.each([
     ["another store", { store_id: 99999 }, "Order from another store"],
-    ["an unexpected status", { status: "paid" }, "Ignoring refund event with unexpected status"],
-    ["a missing refunded_amount", { refunded_amount: undefined }, "Malformed refund payload"],
-    ["a negative refunded_amount", { refunded_amount: -5 }, "Malformed refund payload"],
+    // V8 P3.3: a state that is not a confirmed refund is a review stop; nothing is stored.
+    ["an unexpected status", { status: "paid" }, "Refund event stopped for review"],
+    ["a missing refunded_amount", { refunded_amount: undefined }, "Refund event stopped for review"],
+    ["a negative refunded_amount", { refunded_amount: -5 }, "Refund event stopped for review"],
   ])("%s → logged, nothing stored", async (_label, attrs, line) => {
     const orderId = newOrderId();
     const event = refundEvent(orderId, attrs);

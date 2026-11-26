@@ -63,3 +63,9 @@ Registration runs in a single SQL transaction:
 3. `SELECT post_credit_transaction(id, 10, 'SIGNUP_BONUS', 'signup')` — allocates 10 credits + immutable ledger entry
 
 Step 2 starts at `0` so step 3 does not double-count (the DB function increments balance by `+10`).
+
+## Webhook ingestion process (Step 7.5, not yet switched on)
+
+`npm run start:ingest` (after `npm run build`; `npm run dev:ingest` for development) runs the Lemon Squeezy webhook endpoint as its own process. It holds the webhook signing secret and the `moleculestudio_webhook` database login, and nothing of the main service: its environment comes from `.env.ingest` (template: `.env.ingest.example`), never from `.env`, and it refuses to start when `DATABASE_URL`, `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, the settlement or tombstone secrets, the Lemon API key or the other main-service credentials are set. It stores each verified delivery as a typed row (`eligible` only for a paid, unrefunded, live order of this store with a configured variant, USD and the list price) through the one insert the S6 grants allow, and answers 503 (so Lemon redelivers) while the role, its grants or migration 022's columns are not in place.
+
+It needs migration 022 and the S3/S6 role scripts, which are staged and not applied. Until the cutover the main service keeps serving the webhook route. Code and tests: `src/ingest/`, `src/ingestIndex.ts`, `tests/unit/ingest.test.ts`.

@@ -155,7 +155,7 @@ describe("other failures", () => {
     await retryStoredWebhookEvents({ all: true });
 
     expect((await stored(notJson))[0]).toMatchObject({ status: "failed", attempts: 1, last_error: "Invalid Lemon Squeezy webhook JSON." });
-    expect((await stored(noPayload))[0]).toMatchObject({ status: "failed", attempts: 1, last_error: "stored payload is missing" });
+    expect((await stored(noPayload))[0]).toMatchObject({ status: "failed", attempts: 1, last_error: "review:payload_cleared" });
     expect(everythingLogged(logs)).not.toContain(MARKER);
     await db.query(`DELETE FROM lemon_webhook_events WHERE provider_order_id = ANY($1)`, [[notJson, noPayload]]);
   });

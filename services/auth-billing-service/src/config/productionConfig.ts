@@ -106,6 +106,7 @@ export function aiDailyTurnLimits(source: NodeJS.ProcessEnv = process.env): { pe
 /** Resend's shared sandbox sender: it only delivers to the Resend account owner. */
 const SANDBOX_SENDER = /@resend\.dev\b/i;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+const TEST_MODE_TRUTHY = new Set(["true", "1", "yes", "y", "on"]);
 const PLACEHOLDERS = new Set(["your_api_key", "your_store_id", "your_webhook_secret", "changeme", "replace-me"]);
 
 function frontendUrlProblem(raw: string | undefined): string | null {
@@ -149,6 +150,10 @@ export function productionConfigProblems(source: NodeJS.ProcessEnv = process.env
       ? null
       : "LEMONSQUEEZY_STORE_ID must be a numeric Lemon Squeezy store id.",
     lemonVariantConfigProblem(source),
+    // O-3 (Step 7.5): production test mode is OFF. Any truthy value is refused, not only the one the service reads as "on".
+    TEST_MODE_TRUTHY.has(source.LEMONSQUEEZY_ALLOW_TEST_MODE?.trim().toLowerCase() ?? "")
+      ? "LEMONSQUEEZY_ALLOW_TEST_MODE must not be enabled in production."
+      : null,
     requiredValue("RESEND_API_KEY", source.RESEND_API_KEY),
     ...emailTombstoneConfigProblems(source),
   ];

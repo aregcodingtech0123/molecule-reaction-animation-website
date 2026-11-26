@@ -3,11 +3,12 @@ import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
 import billingRoutes, { internalBillingRouter } from "./routes/billing.routes.js";
 import usersRoutes from "./routes/users.routes.js";
-import { lemonSqueezyWebhook } from "./controllers/billing.controller.js";
+import { lemonSqueezyWebhook, rejectWebhookInExternalMode } from "./controllers/billing.controller.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler.js";
 import { resolveClientIp } from "./middlewares/resolveClientIp.js";
 import { isDatabaseReady, getDatabaseError } from "./db/index.js";
+import { getConsumerReadiness } from "./services/v8Consumer.service.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -71,11 +72,15 @@ export function createApp() {
 
   app.get("/health", (_req, res) => {
     const dbReady = isDatabaseReady();
+    // F-4: in external mode the webhook consumer's readiness is reported, never assumed. It does not change the HTTP status:
+    // auth and billing routes do not depend on it. Fixed sentences only.
+    const consumer = env.webhookIngestMode === "external" ? getConsumerReadiness() : null;
     res.status(dbReady ? 200 : 503).json({
       success: dbReady,
       service: "auth-billing-service",
-      status: dbReady ? "ok" : "degraded",
+      status: dbReady && (consumer === null || consumer.ready) ? "ok" : "degraded",
       database: dbReady ? "connected" : "unavailable",
+      ...(consumer ? { webhookConsumer: consumer.ready ? "ready" : "not_ready", ...(consumer.ready ? {} : { webhookConsumerProblems: consumer.problems }) } : {}),
       ...(process.env.NODE_ENV === "development" && !dbReady
         ? { databaseError: getDatabaseError() }
         : {}),
@@ -85,6 +90,7 @@ export function createApp() {
   // ── Provider webhook (raw body BEFORE express.json, for HMAC verification) ─
   app.post(
     "/api/billing/webhooks/lemonsqueezy",
+    rejectWebhookInExternalMode,
     express.raw({ type: "application/json", limit: "256kb", verify: captureRawBody }),
     lemonSqueezyWebhook,
   );

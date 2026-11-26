@@ -4,13 +4,16 @@
  * credits are still in the ledger and not reviewed yet (refunded_orders_to_review(),
  * migration 013), and every stored webhook event not processed after 15 minutes
  * (webhook_events_to_review(), migration 015), and every purchase that credited nobody because no account matched
- * (webhook_missing_user_to_review(), migration 018); exit code 2 when any lists anything,
+ * (webhook_missing_user_to_review(), migration 018), and every paid order refused for its pack or amount
+ * (lib/uncredited-purchases.mjs); exit code 2 when any lists anything,
  * so it can gate a cron/CI job.
  *
  * Usage: node scripts/reconcile.mjs
  */
 import pg from "pg";
 import { loadServiceEnv, resolveMigrationUrl } from "./lib/cli-env.mjs";
+import { MISSING_USER_SQL, REFUNDS_SQL, reportUnprocessedEvents } from "./lib/reconcile-sections.mjs";
+import { reportUncreditedPurchases } from "./lib/uncredited-purchases.mjs";
 
 loadServiceEnv();
 
@@ -34,11 +37,8 @@ try {
   // Before migration 013 the function does not exist yet: nothing to report.
   const { rows: fn } = await client.query(`SELECT to_regprocedure('refunded_orders_to_review()') IS NOT NULL AS present`);
   if (fn[0].present) {
-    const { rows: refunds } = await client.query(
-      `SELECT provider_order_id, user_id::text, credits, current_balance, order_status, refunded_amount, currency,
-              refunded_at::text, test_mode
-       FROM refunded_orders_to_review()`,
-    );
+    // One row per order with its authoritative refund state (V8 contract P3.3); the 013 presence check above is kept.
+    const { rows: refunds } = await client.query(REFUNDS_SQL);
     if (refunds.length === 0) {
       console.log("[reconcile] OK — no unreviewed refunded orders.");
     } else {
@@ -53,32 +53,15 @@ try {
 
   // R19 (migration 015): stored webhook deliveries not processed 15 minutes after they arrived. Lemon got
   // a 200 for each, so it will not resend them: their credits may be missing until they are processed.
-  const { rows: inbox } = await client.query(`SELECT to_regprocedure('webhook_events_to_review(interval)') IS NOT NULL AS present`);
-  if (inbox[0].present) {
-    const { rows: events } = await client.query(
-      `SELECT id::text, event_name, provider_order_id, status, attempts, last_error, received_at::text
-       FROM webhook_events_to_review()`,
-    );
-    if (events.length === 0) {
-      console.log("[reconcile] OK — every stored Lemon webhook event is processed.");
-    } else {
-      console.log(
-        `[reconcile] ${events.length} stored Lemon webhook event(s) not processed (webhook_unprocessed). ` +
-          "Fix the cause (last_error), then run `npm run webhooks:replay`.",
-      );
-      console.table(events);
-      process.exitCode = 2;
-    }
-  }
+  // Review stops are listed apart; on a V8 schema closed events are only counted (V8 contract P6.3).
+  if ((await reportUnprocessedEvents(client)) > 0) process.exitCode = 2;
 
   // Migration 018: a signed purchase that credited nobody because no account matched (including an account that was
   // deleted/anonymised). The buyer has paid and received nothing; Lemon got a 200, so it will not resend it.
   const { rows: missing } = await client.query(`SELECT to_regprocedure('webhook_missing_user_to_review()') IS NOT NULL AS present`);
   if (missing[0].present) {
-    const { rows: orders } = await client.query(
-      `SELECT id::text, event_name, provider_order_id, received_at::text, processed_at::text
-       FROM webhook_missing_user_to_review()`,
-    );
+    // Orders credited by the contract 5.1 definition are not listed (site 7, Q6 B); an ambiguous order stays listed.
+    const { rows: orders } = await client.query(MISSING_USER_SQL);
     if (orders.length === 0) {
       console.log("[reconcile] OK — no purchase is waiting because its buyer matched no account.");
     } else {
@@ -90,6 +73,8 @@ try {
       process.exitCode = 2;
     }
   }
+
+  if ((await reportUncreditedPurchases(client)) > 0) process.exitCode = 2;
 } finally {
   await client.end();
 }

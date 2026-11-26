@@ -30,7 +30,9 @@ internalBillingRouter.post("/refund", requireInternalService, requireSettlementC
 internalBillingRouter.post("/refund", ...internalOnly, billingController.refundCredits);
 // Delivery tracking (Phase 2C step 5.2.2). Internal key AND a delivery_ack capability; no legacy session path, so a missing
 // capability is a 403 here (required), never a fall-through. The Next.js gateway lists this path as internal-only.
-internalBillingRouter.post("/delivery-attempt", requireInternalService, requireSettlementCapability("delivery_ack", { required: true }), requireDatabase, billingController.acknowledgeDelivery);
+// No requireDatabase: the acknowledgement never uses the main pool. It runs only on the delivery-attempt pool (ACK_DATABASE_URL),
+// whose readiness and identity withAckTransaction checks itself (503 DELIVERY_TRACKING_UNAVAILABLE when not ready).
+internalBillingRouter.post("/delivery-attempt", requireInternalService, requireSettlementCapability("delivery_ack", { required: true }), billingController.acknowledgeDelivery);
 
 const router = Router();
 

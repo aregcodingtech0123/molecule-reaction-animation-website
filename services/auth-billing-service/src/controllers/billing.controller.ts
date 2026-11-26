@@ -230,6 +230,23 @@ function withTimeout<T>(ms: number, work: Promise<T>): Promise<T> {
  *   by the service (retryStoredWebhookEvents) — never lost: before R19 the 200 came first and a
  *   failed allocation needed a manual resend from Lemon's dashboard.
  */
+/**
+ * F-1 / G-R1 (owner decision, Step 7.5 V8): in `WEBHOOK_INGEST_MODE=external` the stored-event path belongs to the separate
+ * ingestion process and the V8 consumer. This route must not store, parse, verify or process anything: 503 and nothing else
+ * (Lemon retries a 503 delivery: 5 s, 25 s, 125 s). It runs BEFORE the body parser, so even a malformed, oversized or
+ * non-JSON request gets the same answer, and the answer carries no payload, secret or error detail. `legacy` (the default)
+ * keeps today's behaviour. The mode comes from the validated configuration (`env.webhookIngestMode`), the only interpretation.
+ */
+export function rejectWebhookInExternalMode(_req: Request, res: Response, next: NextFunction): void {
+  if (env.webhookIngestMode !== "external") {
+    next();
+    return;
+  }
+  console.warn("[Webhook] Refused (503): WEBHOOK_INGEST_MODE=external — deliveries belong to the ingestion process, not this route");
+  res.setHeader("Retry-After", "5");
+  res.status(503).json({ error: "Webhook endpoint not available here" });
+}
+
 export async function lemonSqueezyWebhook(req: Request, res: Response): Promise<void> {
   const rawBody = req.rawBody ?? (Buffer.isBuffer(req.body) ? req.body : null);
   if (!rawBody?.length) {

@@ -8,7 +8,7 @@ import pg from "pg";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
-import { closePool } from "../../src/db/index.js";
+import { closeDatabasePools } from "../../src/db/lifecycle.js";
 import { mintSettlementCapability, verifySettlementCapability } from "../../src/utils/settlementCapability.js";
 import { TEST_ENV } from "../setup/env";
 import { bearer } from "../support/auth";
@@ -25,7 +25,8 @@ beforeAll(() => {
 });
 afterAll(async () => {
   await db.end();
-  await closePool();
+  // Both pools: the main one and the delivery-attempt (moleculestudio_ack) one.
+  await closeDatabasePools();
 });
 beforeEach(() => {
   logs = spyConsole();

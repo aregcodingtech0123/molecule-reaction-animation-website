@@ -1,4 +1,5 @@
 import type { PoolClient } from "../db/index.js";
+import { deliveryTrackingUnavailable, ensureAckDatabaseReady } from "../db/ackPool.js";
 import { safeDbErrorFields } from "../db/diagnostics.js";
 import { isAmbiguousCommitError, isConnectionLossError, pool, withTransaction } from "../db/index.js";
 import { isDatabaseUnavailableError, isTransientDatabaseError } from "../db/unavailable.js";
@@ -174,8 +175,19 @@ function assertValidReference(referenceId: unknown): string {
   return trimmed;
 }
 
-async function lockUser(client: PoolClient, userId: string): Promise<void> {
-  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
+const UUID_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The text the per-user advisory lock is keyed on. The database's narrow operations lock hashtext(p_user_id::text), and
+ * PostgreSQL prints a uuid in lower case, so a canonical (lower-case) UUID is the only form that takes the same lock. A
+ * UUID in another letter case is folded to it; anything that is not a UUID is returned unchanged (never guessed at).
+ */
+export function canonicalLockKey(userId: string): string {
+  return UUID_TEXT.test(userId) ? userId.toLowerCase() : userId;
+}
+
+export async function lockUser(client: PoolClient, userId: string): Promise<void> {
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [canonicalLockKey(userId)]);
 }
 
 async function findHold(client: PoolClient, userId: string, referenceId: string): Promise<HoldRow | null> {
@@ -263,6 +275,8 @@ async function cachedBalance(client: PoolClient, userId: string): Promise<number
  * @throws 409 OPERATION_ALREADY_EXISTS — the reference was already used (any status);
  *         references are single-use, so the caller must not run the operation
  * @throws 402 INSUFFICIENT_CREDITS with requiredCredits + balance (available)
+ * @throws 503 DELIVERY_TRACKING_UNAVAILABLE — trackDelivery was asked for but the delivery-attempt database is not ready (not
+ *         configured, or not authenticated as the ack role). Nothing is reserved.
  * @throws SettlementCapabilityConfigError when the signing key is not configured. The reservation rolls back: a hold
  *         must never exist without its tokens, because nothing could then settle it before it expires.
  *
@@ -282,6 +296,18 @@ export async function reserveCreditsForOperation(
   const referenceId = assertValidReference(referenceIdInput);
   const cost = costForOperation(operationType);
   const trackDelivery = options.trackDelivery === true;
+
+  // A tracked reservation is only useful if its acknowledgement can later be recorded, which needs the delivery-attempt pool
+  // authenticated as the ack role (migration 021). Checked BEFORE the reservation transaction: when it is not ready nothing is
+  // reserved, written or minted, so there is nothing to release and nothing can be charged. Refused, never downgraded to an
+  // untracked reservation. Untracked reservations never reach this check.
+  if (trackDelivery) {
+    const ack = await ensureAckDatabaseReady();
+    if (!ack.ready) {
+      console.warn("[billing] TRACKED_RESERVATION_REFUSED: the delivery-attempt database is not ready", { reason: ack.reason, operationType });
+      throw deliveryTrackingUnavailable();
+    }
+  }
 
   const result = await withTransaction(async (client) => {
     await lockUser(client, userId);

@@ -1,13 +1,16 @@
 import { env } from "../config/env.js";
-import { ACTIVE_PAYMENT_PROVIDER, resolveCreditPackage } from "../config/packages.js";
+import { ACTIVE_PAYMENT_PROVIDER, CREDIT_PACKAGES } from "../config/packages.js";
 import {
+  lemonOrderId,
   packageIdForLemonVariant,
   parseLemonSqueezyEvent,
   readCustomDataString,
+  readLemonOrderFields,
   verifyLemonSqueezySignature,
   type LemonOrderCreatedEvent,
 } from "../lib/lemonsqueezy.js";
-import { fulfillVerifiedPurchase } from "./checkout.service.js";
+import { REVIEW_DESCRIPTIONS, orderCreatedStateVerdict, readOrderPaymentState, refundEventVerdict } from "../lib/lemonEvent.js";
+import { findOrderCredit, fulfillVerifiedPurchase, reviewStop } from "./checkout.service.js";
 import { sendPurchaseReceiptEmail } from "./email.service.js";
 import { pool } from "../db/index.js";
 import { safeEmailErrorFields } from "../lib/email.js";
@@ -65,7 +68,7 @@ export async function loadReceiptRecipient(userId: string): Promise<{
 /**
  * Fire-and-forget receipt — never blocks or fails webhook fulfilment.
  */
-function queuePurchaseReceipt(params: {
+export function queuePurchaseReceipt(params: {
   userId: string;
   creditsAdded: number;
   orderId: string;
@@ -127,15 +130,11 @@ async function resolveUserId(
 ): Promise<{ userId: string | null; via: string }> {
   if (customUserId) {
     if (!UUID_RE.test(customUserId)) {
-      console.warn("[Webhook] custom_data.user_id is not a UUID — falling back to email", {
-        customUserId,
-      });
+      console.warn("[Webhook] custom_data.user_id is not a UUID — falling back to email");
     } else if (await userExists(customUserId)) {
       return { userId: customUserId, via: "custom_data.user_id" };
     } else {
-      console.warn("[Webhook] custom_data.user_id not found in users — falling back to email", {
-        customUserId,
-      });
+      console.warn("[Webhook] custom_data.user_id not found in users — falling back to email");
     }
   }
 
@@ -198,36 +197,70 @@ function orderOriginProblem(orderId: string, attrs: LemonOrderAttributes): strin
   return null;
 }
 
-const REFUND_STATUSES = new Set(["refunded", "partial_refund"]);
 const isCents = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
+const timeOf = (v: unknown): number | null => (v == null ? null : v instanceof Date ? v.getTime() : Date.parse(String(v)));
+
+interface RefundEvidence {
+  refundedAmountUsd: number | null;
+  currency: string;
+  refundedAt: string | null;
+  testMode: boolean;
+}
+
+/** Contract P3.3: a duplicate of the same key (order, status, amount) is a no-op only if every other stored field is equal. */
+function sameRefundEvidence(
+  stored: { refunded_amount_usd: unknown; currency: unknown; refunded_at: unknown; test_mode: unknown },
+  incoming: RefundEvidence,
+): boolean {
+  return (
+    (stored.refunded_amount_usd == null ? null : Number(stored.refunded_amount_usd)) === incoming.refundedAmountUsd &&
+    String(stored.currency) === incoming.currency &&
+    timeOf(stored.refunded_at) === timeOf(incoming.refundedAt) &&
+    (stored.test_mode === true) === incoming.testMode
+  );
+}
 
 /**
  * `order_refunded` (full or partial — Lemon documents no dispute/chargeback event): record it for
  * manual review (SEC-14). NEVER changes credits; refunded_orders_to_review() / db:reconcile list it.
  * Idempotent per refund state: Lemon sends no event id, so retries hit the unique key.
+ *
+ * V8 contract P3.3/P3.4: a row only for a confirmed `refunded` or `partial_refund` state (the shared reader), with
+ * `fully_refunded` taken from the state, never from the raw flag. Every other state is a review stop and stores nothing;
+ * the same refund key with different evidence is a review stop too (the first row is kept).
  */
-async function recordLemonRefund(event: LemonOrderCreatedEvent): Promise<ProcessOutcome> {
+/** Origin gate of a refund event: the reason to ignore it, or null (the default reads the environment; the V8 consumer reads the database policy, F-6). */
+export type OriginCheck = (orderId: string, attrs: LemonOrderAttributes) => string | null;
+
+async function recordLemonRefund(event: LemonOrderCreatedEvent, originCheck: OriginCheck = orderOriginProblem): Promise<ProcessOutcome> {
   const order = event.data;
   const attrs = order?.attributes;
-  if (!order?.id || !attrs) {
-    console.error("[Webhook] Malformed refund payload — no data.attributes");
+  const orderId = lemonOrderId(order?.id);
+  if (!orderId || !attrs) {
+    console.error("[Webhook] Malformed refund payload — no usable order id or data.attributes");
     return { processed: false, reason: "malformed_payload" };
   }
-  const orderId = String(order.id);
 
-  const originProblem = orderOriginProblem(orderId, attrs);
+  const originProblem = originCheck(orderId, attrs);
   if (originProblem) return { processed: false, reason: originProblem, orderId };
 
-  if (!REFUND_STATUSES.has(attrs.status)) {
-    console.warn("[Webhook] Ignoring refund event with unexpected status", { orderId, status: attrs.status });
-    return { processed: false, reason: "unexpected_refund_status", orderId };
+  const verdict = refundEventVerdict(readOrderPaymentState(attrs));
+  if (verdict.kind === "review") {
+    console.warn("[Webhook] Refund event stopped for review — nothing recorded", { orderId, review: verdict.description });
+    throw reviewStop(verdict.description);
   }
   const currency = String(attrs.currency ?? "").toUpperCase();
-  if (!isCents(attrs.refunded_amount) || !/^[A-Z]{3}$/.test(currency) || orderId.length > 64) {
+  if (!/^[A-Z]{3}$/.test(currency)) {
     console.error("[Webhook] Malformed refund payload", { orderId, refundedAmount: attrs.refunded_amount ?? null });
     return { processed: false, reason: "malformed_payload", orderId };
   }
-  const refundedAt = typeof attrs.refunded_at === "string" && !Number.isNaN(Date.parse(attrs.refunded_at)) ? attrs.refunded_at : null;
+  const refundedAmount = attrs.refunded_amount as number; // a positive integer: the state rule required it
+  const evidence: RefundEvidence = {
+    refundedAmountUsd: isCents(attrs.refunded_amount_usd) ? attrs.refunded_amount_usd : null,
+    currency,
+    refundedAt: typeof attrs.refunded_at === "string" && !Number.isNaN(Date.parse(attrs.refunded_at)) ? attrs.refunded_at : null,
+    testMode: attrs.test_mode === true,
+  };
 
   const { rowCount } = await pool.query(
     `INSERT INTO lemon_order_refunds
@@ -236,19 +269,28 @@ async function recordLemonRefund(event: LemonOrderCreatedEvent): Promise<Process
      ON CONFLICT ON CONSTRAINT uq_lemon_order_refunds_state DO NOTHING`,
     [
       orderId,
-      attrs.status,
-      attrs.refunded === true,
-      attrs.refunded_amount,
-      isCents(attrs.refunded_amount_usd) ? attrs.refunded_amount_usd : null,
+      verdict.orderStatus,
+      verdict.fullyRefunded,
+      refundedAmount,
+      evidence.refundedAmountUsd,
       currency,
-      refundedAt,
-      attrs.test_mode === true,
+      evidence.refundedAt,
+      evidence.testMode,
     ],
   );
-  const logFields = { orderId, status: attrs.status, refundedAmount: attrs.refunded_amount, currency };
+  const logFields = { orderId, status: verdict.orderStatus, refundedAmount, currency };
   if (!rowCount) {
-    console.log("[Webhook] Refund already recorded", logFields);
-    return { processed: false, reason: "already_recorded", orderId };
+    const { rows } = await pool.query<{ refunded_amount_usd: unknown; currency: unknown; refunded_at: unknown; test_mode: unknown }>(
+      `SELECT refunded_amount_usd, currency, refunded_at, test_mode FROM lemon_order_refunds
+       WHERE provider_order_id = $1 AND order_status = $2 AND refunded_amount = $3`,
+      [orderId, verdict.orderStatus, refundedAmount],
+    );
+    if (rows[0] && sameRefundEvidence(rows[0], evidence)) {
+      console.log("[Webhook] Refund already recorded", logFields);
+      return { processed: false, reason: "already_recorded", orderId };
+    }
+    console.warn("[Webhook] Refund evidence differs from the recorded refund — first row kept, stopped for review", logFields);
+    throw reviewStop(REVIEW_DESCRIPTIONS.refundEvidenceConflict);
   }
   console.warn("[Webhook] Recorded refund — credits NOT changed; review with db:reconcile", logFields);
   return { processed: true, reason: "refund_recorded", orderId };
@@ -259,7 +301,7 @@ async function recordLemonRefund(event: LemonOrderCreatedEvent): Promise<Process
  * so its latency never holds the Lemon Squeezy delivery open.
  *
  * 1) Resolve user from `meta.custom_data.user_id` (fallback: order email)
- * 2) Resolve package from variant_id, falling back to `custom_data.package_id`
+ * 2) Resolve package from variant_id only (`custom_data` never selects what is credited)
  * 3) Credit the user via the immutable ledger (`CREDIT_PURCHASE`)
  *
  * Never throws for business-rule rejections — it returns a reason so the caller
@@ -268,37 +310,80 @@ async function recordLemonRefund(event: LemonOrderCreatedEvent): Promise<Process
  */
 export async function processLemonSqueezyEvent(
   event: LemonOrderCreatedEvent,
+  options: { refundOrigin?: OriginCheck } = {},
 ): Promise<ProcessOutcome> {
   const eventName = event.meta?.event_name;
 
   if (eventName === "order_refunded") {
-    return recordLemonRefund(event);
+    return recordLemonRefund(event, options.refundOrigin);
   }
   if (eventName !== "order_created") {
     return { processed: false, reason: "ignored_event_type" };
   }
 
-  const order = event.data;
-  const attrs = order?.attributes;
-  if (!order?.id || !attrs) {
-    console.error("[Webhook] Malformed order payload — no data.attributes");
+  const usableOrderId = lemonOrderId(event.data?.id);
+  if (!usableOrderId) {
+    console.error("[Webhook] Malformed order payload — missing or invalid order id");
     return { processed: false, reason: "malformed_payload" };
   }
 
-  if (attrs.status !== "paid") {
-    console.log("[Webhook] Ignoring non-paid order", { orderId: order.id, status: attrs.status });
-    return { processed: false, reason: "order_not_paid", orderId: order.id };
+  // F1 ledger-first (contract 5.1, site 5): before state, origin, package and user work. A credited order answers with the
+  // ledger row's own user and amount (Q8), even if its buyer was anonymised since or the policy changed; no receipt is sent.
+  const credit = await findOrderCredit(pool, ACTIVE_PAYMENT_PROVIDER, `ls_order_${usableOrderId}`);
+  if (credit.kind === "credited") {
+    console.log("[Webhook] Order already credited — not credited again", { orderId: usableOrderId, ledgerId: credit.ledgerId });
+    return {
+      processed: false,
+      reason: "already_processed",
+      ledgerId: credit.ledgerId,
+      userId: credit.userId,
+      creditAmount: credit.amount,
+      orderId: usableOrderId,
+    };
+  }
+  if (credit.kind === "ambiguous") {
+    console.error("[Webhook] More than one historical manual credit for this order — stopped for review, nothing credited", {
+      orderId: usableOrderId,
+      historicalCredits: credit.historicalCount,
+    });
+    throw reviewStop(REVIEW_DESCRIPTIONS.historicalCreditAmbiguous);
   }
 
-  if (attrs.refunded) {
-    console.log("[Webhook] Ignoring refunded order", { orderId: order.id });
-    return { processed: false, reason: "order_refunded", orderId: order.id };
+  const fields = readLemonOrderFields(event);
+  if (!fields) {
+    console.error("[Webhook] Malformed order payload — missing or invalid order id, data.attributes or test_mode", {
+      orderId: usableOrderId,
+    });
+    return { processed: false, reason: "malformed_payload", orderId: usableOrderId };
+  }
+  const attrs = event.data.attributes;
+  const order = { id: fields.orderId };
+
+  // The shared provider-state reader (OP-15, contract P3.2): only `paid` continues; not paid and confirmed full refunds are
+  // labels (N-2); partial refunds, fraudulent and unknown or contradictory states are review stops, never credited (OP-16 C).
+  const state = orderCreatedStateVerdict(readOrderPaymentState(attrs));
+  if (state.kind === "label") {
+    console.log(state.outcome === "order_not_paid" ? "[Webhook] Ignoring non-paid order" : "[Webhook] Ignoring refunded order", {
+      orderId: order.id,
+    });
+    return { processed: false, reason: state.outcome, orderId: order.id };
+  }
+  if (state.kind === "review") {
+    console.warn("[Webhook] Order stopped for review — payment state", { orderId: order.id, review: state.description });
+    throw reviewStop(state.description);
   }
 
   const originProblem = orderOriginProblem(order.id, attrs);
   if (originProblem) return { processed: false, reason: originProblem, orderId: order.id };
 
-  const custom = event.meta?.custom_data ?? {};
+  // Contract P6.2: a refund recorded before the credit stops a later automatic credit (full or partial).
+  const refunded = await pool.query(`SELECT 1 FROM lemon_order_refunds WHERE provider_order_id = $1 LIMIT 1`, [order.id]);
+  if ((refunded.rowCount ?? 0) > 0) {
+    console.warn("[Webhook] A refund is recorded for this order — stopped for review, nothing credited", { orderId: order.id });
+    throw reviewStop(REVIEW_DESCRIPTIONS.refundBeforeCredit);
+  }
+
+  const custom = fields.customData;
   const customUserId = readCustomDataString(custom, "user_id");
   const customPackageId = readCustomDataString(custom, "package_id");
   const rawPendingOrderId = readCustomDataString(custom, "pending_order_id");
@@ -309,67 +394,53 @@ export async function processLemonSqueezyEvent(
   } else if (rawPendingOrderId) {
     console.warn("[Webhook] custom_data.pending_order_id is not a UUID — ignoring it", {
       orderId: order.id,
-      pendingOrderId: rawPendingOrderId,
     });
   }
 
-  const variantId = attrs.first_order_item?.variant_id ?? null;
-  const packageFromVariant = packageIdForLemonVariant(variantId);
-
-  // Prefer variant mapping; fall back to custom_data.package_id.
-  // If both exist and disagree, trust custom_data.package_id (checkout intent is authoritative).
-  let packageId = packageFromVariant ?? customPackageId;
-  if (customPackageId && packageFromVariant && customPackageId !== packageFromVariant) {
-    console.warn("[Webhook] package_id / variant mismatch — using custom_data.package_id", {
+  // The purchased variant alone decides the package, through server configuration (the same rule as the V7 contract's
+  // credit_verified_purchase). custom_data is buyer-controlled on a store link (?checkout[custom][package_id]=...): falling back
+  // to it would credit a pack for any product of the store that happens to have the same price.
+  const variantId = fields.variantId;
+  const packageId = packageIdForLemonVariant(variantId);
+  if (packageId && customPackageId && customPackageId !== packageId) {
+    console.warn("[Webhook] package_id / variant mismatch — using the purchased variant", {
       orderId: order.id,
-      customPackageId,
       variantId,
-      packageFromVariant,
+      packageId,
     });
-    packageId = customPackageId;
   }
 
-  const { userId, via } = await resolveUserId(customUserId, attrs.user_email);
+  const { userId, via } = await resolveUserId(customUserId, fields.buyerEmail);
 
   console.log("[Webhook] Processing user:", userId, "for package:", packageId, {
     resolvedVia: via,
     variantId,
-    customUserId,
-    orderEmail: maskEmail(attrs.user_email),
+    orderEmail: maskEmail(fields.buyerEmail),
     orderId: order.id,
   });
 
   if (!packageId) {
-    console.error("[Webhook] Unable to resolve package", { orderId: order.id, variantId, custom });
+    console.error("[Webhook] Unable to resolve package", { orderId: order.id, variantId });
     return { processed: false, reason: "unresolved_package", orderId: order.id };
   }
 
-  let pkg;
-  try {
-    pkg = resolveCreditPackage(packageId);
-  } catch {
-    console.error("[Webhook] Invalid package_id", { orderId: order.id, packageId });
-    return { processed: false, reason: "invalid_package_id", orderId: order.id };
-  }
+  const pkg = CREDIT_PACKAGES[packageId]!;
 
   if (!userId) {
     console.error("[Webhook] Missing user identity — no user_id match and no email match", {
       orderId: order.id,
-      customUserId,
-      userEmail: maskEmail(attrs.user_email),
+      userEmail: maskEmail(fields.buyerEmail),
     });
     return { processed: false, reason: "missing_user", orderId: order.id };
   }
 
-  if (String(attrs.currency ?? "").toLowerCase() !== "usd") {
-    console.error("[Webhook] Unexpected currency", { orderId: order.id, currency: attrs.currency });
+  if (fields.currency?.toLowerCase() !== "usd") {
+    console.error("[Webhook] Unexpected currency", { orderId: order.id, currency: fields.currency });
     return { processed: false, reason: "currency_mismatch", orderId: order.id };
   }
 
   // Lemon `total` may include tax; accept subtotal or line item price when they match list price.
-  const amountCandidates = [attrs.total, attrs.subtotal, attrs.first_order_item?.price].filter(
-    (n): n is number => typeof n === "number" && Number.isFinite(n),
-  );
+  const amountCandidates = [fields.totalCents, fields.subtotalCents, fields.itemPriceCents];
 
   if (!amountCandidates.some((n) => n === pkg.priceUsdCents)) {
     console.error("[Webhook] Amount mismatch", {
@@ -403,9 +474,9 @@ export async function processLemonSqueezyEvent(
     queuePurchaseReceipt({
       userId,
       creditsAdded: pkg.credits,
-      orderId: String(order.id),
+      orderId: order.id,
       amountPaidCents: pkg.priceUsdCents,
-      currency: (attrs.currency || "USD").toUpperCase(),
+      currency: "USD",
     });
   } else {
     console.warn("[Webhook] Not credited", {
@@ -415,13 +486,15 @@ export async function processLemonSqueezyEvent(
     });
   }
 
+  // Q8: an `already_processed` answer carries the ledger row's own user and amount, never this event's (omitted when unknown).
+  const already = result.reason === "already_processed";
   return {
     processed: result.processed,
     reason: result.reason,
     ledgerId: result.ledgerId,
-    userId,
+    userId: already ? result.userId : userId,
     packageId: pkg.id,
-    creditAmount: pkg.credits,
+    creditAmount: already ? result.creditAmount : pkg.credits,
     variantId,
     orderId: order.id,
   };

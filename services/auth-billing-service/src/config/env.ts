@@ -126,6 +126,20 @@ export const env = {
     const v = Number(raw);
     return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 60_000;
   },
+  /**
+   * Step 7.5 V8 (contract 5.2, X3): `legacy` (default) processes stored events with the main service's own fulfilment;
+   * `external` consumes the events stored by the separate ingestion process through credit_verified_purchase() (needs the V8
+   * migration 022). Anything other than `external` is `legacy`.
+   */
+  get webhookIngestMode(): "legacy" | "external" {
+    return readEnv("WEBHOOK_INGEST_MODE").toLowerCase() === "external" ? "external" : "legacy";
+  },
+  /** External mode only (X3): how often the V8 consumer looks for work. Default 5 s; 0 disables the timer. */
+  get webhookConsumerPollMs() {
+    const raw = readEnv("WEBHOOK_CONSUMER_POLL_MS");
+    const v = Number(raw);
+    return raw !== "" && Number.isInteger(v) && v >= 0 ? v : 5_000;
+  },
 
   // ── Email (Resend) ────────────────────────────────────────────────────────
   get resendApiKey() {

@@ -13,7 +13,9 @@
 import { createHash } from "node:crypto";
 import { safeErrorDescription, safeErrorLogFields, safeStackFrames } from "../db/diagnostics.js";
 import { pool } from "../db/index.js";
-import { parseLemonSqueezyEvent, type LemonOrderCreatedEvent } from "../lib/lemonsqueezy.js";
+import { REVIEW_DESCRIPTIONS } from "../lib/lemonEvent.js";
+import { legacyPartitionSql } from "./inboxProvenance.service.js";
+import { lemonOrderId, parseLemonSqueezyEvent, type LemonOrderCreatedEvent } from "../lib/lemonsqueezy.js";
 import { AppError } from "../types/index.js";
 import { processLemonSqueezyEvent, type ProcessOutcome } from "./webhook.service.js";
 
@@ -33,19 +35,32 @@ export interface StoredWebhookEvent {
   inserted: boolean;
 }
 
-/** Store one verified delivery (or return the row of an identical earlier one). */
+/**
+ * Store one verified delivery (or return the row of an identical earlier one).
+ *
+ * DO NOTHING + read, not DO UPDATE (C4): a duplicate must not need UPDATE on the stored hash. DO NOTHING waits for a concurrent
+ * insert of the same body, so the second statement (autocommit, its own snapshot) sees the committed row; rows are never deleted.
+ */
 export async function storeWebhookEvent(rawBody: Buffer, event: LemonOrderCreatedEvent): Promise<StoredWebhookEvent> {
   const hash = createHash("sha256").update(rawBody).digest();
   const eventName = String(event.meta?.event_name ?? "unknown").slice(0, 64);
-  const orderId = event.data?.id == null ? null : String(event.data.id).slice(0, 64);
-  const { rows } = await pool.query<StoredWebhookEvent>(
+  const orderId = lemonOrderId(event.data?.id);
+  const { rows } = await pool.query<{ id: string; status: string }>(
     `INSERT INTO lemon_webhook_events (body_sha256, event_name, provider_order_id, payload)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (body_sha256) DO UPDATE SET body_sha256 = EXCLUDED.body_sha256
-     RETURNING id::text, status, (xmax = 0) AS inserted`,
+     ON CONFLICT ON CONSTRAINT uq_lemon_webhook_events_body DO NOTHING
+     RETURNING id::text, status`,
     [hash, eventName, orderId, rawBody.toString("utf8")],
   );
-  return rows[0]!;
+  if (rows[0]) return { ...rows[0], inserted: true };
+
+  const existing = await pool.query<{ id: string; status: string }>(
+    `SELECT id::text, status FROM lemon_webhook_events WHERE body_sha256 = $1`,
+    [hash],
+  );
+  // Not stored and not found: never acknowledge it (the caller answers 503 and Lemon retries).
+  if (!existing.rows[0]) throw new AppError(503, "webhook delivery was not stored", "WEBHOOK_NOT_STORED");
+  return { ...existing.rows[0], inserted: false };
 }
 
 /**
@@ -64,15 +79,27 @@ function outcomeLabel(outcome: ProcessOutcome): string {
 export type ProcessResult = "processed" | "failed" | "skipped";
 
 /**
+ * A failed event is claimable only when it is neither closed (`reviewed_at`, contract 17.8) nor a review stop (`last_error`
+ * starting `review:`, owner decision Q-T3). Review stops wait for the owner to close or reopen them (the owner's reopen clears
+ * `last_error`, Q-D1); a skipped event matches no row, so its `attempts` is not incremented. Shared by the claim, the worker's
+ * retry selection and `webhooks:replay`.
+ */
+export const CLAIMABLE_FAILED = `(status = 'failed' AND reviewed_at IS NULL AND COALESCE(last_error, '') NOT LIKE 'review:%')`;
+
+/**
  * Claim one stored event and run fulfilment on it. "skipped": already processed, or being processed by
  * someone else (a fresh claim). The claim is a single UPDATE, so two callers never run it at once.
  */
 export async function processStoredWebhookEvent(id: string): Promise<ProcessResult> {
+  // Provenance partition (G-R1 B, F-2): on a schema with `ingested_by` the legacy path takes only rows the main service stored
+  // itself; rows of the ingestion process belong to the V8 consumer. A failed schema probe throws here: nothing is claimed.
+  const partition = await legacyPartitionSql();
+  // F-5 (owner decision, contract 15.9): the claim increments `attempts` in the same statement; the new value is this claimant's token.
   const { rows } = await pool.query<{ payload: string | null; attempts: number; provider_order_id: string | null }>(
     `UPDATE lemon_webhook_events
      SET status = 'processing', attempts = attempts + 1, claimed_at = NOW()
-     WHERE id = $1
-       AND (status IN ('pending', 'failed')
+     WHERE id = $1 AND ${partition}
+       AND (status = 'pending' OR ${CLAIMABLE_FAILED}
             OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '${STALE_CLAIM}'))
      RETURNING payload, attempts, provider_order_id`,
     [id],
@@ -81,21 +108,35 @@ export async function processStoredWebhookEvent(id: string): Promise<ProcessResu
   if (!claimed) return "skipped";
 
   try {
-    if (claimed.payload == null) throw new AppError(500, "stored payload is missing", "WEBHOOK_PAYLOAD_MISSING");
+    // I-6 ii: the stored message was cleared (OD-2 retention). Never reconstructed; the event stays an open review item.
+    if (claimed.payload == null) throw new AppError(500, REVIEW_DESCRIPTIONS.payloadCleared, "WEBHOOK_PAYLOAD_MISSING");
     const outcome = await processLemonSqueezyEvent(parseLemonSqueezyEvent(Buffer.from(claimed.payload, "utf8")));
-    await pool.query(
+    // F-5: only the claimant that still holds the claim (status 'processing' and the attempts value its claim produced) may finish it.
+    const finished = await pool.query(
       `UPDATE lemon_webhook_events
        SET status = 'processed', processed_at = NOW(), outcome = $2, last_error = NULL
-       WHERE id = $1`,
-      [id, outcomeLabel(outcome)],
+       WHERE id = $1 AND status = 'processing' AND attempts = $3::int`,
+      [id, outcomeLabel(outcome), claimed.attempts],
     );
+    if (finished.rowCount === 0) {
+      console.warn("[Webhook] Claim lost before the result was recorded — another worker owns the event now", { storedEventId: id });
+      return "skipped";
+    }
     return "processed";
   } catch (err) {
     const message = failureText(err);
     // If this update fails too (database gone), the row stays 'processing' and is claimed again later.
-    await pool
-      .query(`UPDATE lemon_webhook_events SET status = 'failed', last_error = $2 WHERE id = $1`, [id, message])
+    const recorded = await pool
+      .query(
+        `UPDATE lemon_webhook_events SET status = 'failed', last_error = $2
+         WHERE id = $1 AND status = 'processing' AND attempts = $3::int`,
+        [id, message, claimed.attempts],
+      )
       .catch(() => undefined);
+    if (recorded && recorded.rowCount === 0) {
+      console.warn("[Webhook] Claim lost before the failure was recorded — another worker owns the event now", { storedEventId: id });
+      return "skipped";
+    }
     const stack = safeStackFrames(err);
     const details = {
       storedEventId: id,
@@ -130,11 +171,12 @@ export async function retryStoredWebhookEvents(options: { all?: boolean; limit?:
   skipped: number;
 }> {
   const all = options.all === true;
+  const partition = await legacyPartitionSql(); // the replay (`all`) takes the same partition: it cannot bypass provenance
   const { rows } = await pool.query<{ id: string }>(
     `SELECT id::text FROM lemon_webhook_events
-     WHERE (status IN ('pending', 'failed')
+     WHERE ${partition} AND (((status = 'pending' OR ${CLAIMABLE_FAILED})
             AND ($1 OR (attempts < $2 AND received_at < NOW() - INTERVAL '${RETRY_GRACE}')))
-        OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '${STALE_CLAIM}' AND ($1 OR attempts < $2))
+        OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '${STALE_CLAIM}' AND ($1 OR attempts < $2)))
      ORDER BY received_at
      LIMIT $3`,
     [all, MAX_AUTOMATIC_ATTEMPTS, options.limit ?? 100],

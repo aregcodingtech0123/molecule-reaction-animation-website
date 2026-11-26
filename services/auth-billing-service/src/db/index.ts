@@ -128,9 +128,18 @@ async function probeDatabase(): Promise<boolean> {
 export { getPool };
 
 export async function closePool(): Promise<void> {
-  if (poolInstance) {
-    await poolInstance.end();
-    poolInstance = null;
+  // Forget the pool before ending it, so a second shutdown after a failed end() does not call end() twice (review finding L5).
+  const p = poolInstance;
+  poolInstance = null;
+  if (p) {
+    try {
+      await p.end();
+    } finally {
+      databaseReady = false;
+      databaseError = null;
+      lastDbErrorCode = null;
+    }
+    return;
   }
   databaseReady = false;
   databaseError = null;
@@ -187,7 +196,19 @@ export function isAmbiguousCommitError(err: unknown): boolean {
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await getPool().connect();
+  return runInTransaction(getPool, fn);
+}
+
+/**
+ * withTransaction on a given pool. The same code path, the same error marking (isConnectionLossError, isAmbiguousCommitError)
+ * and the same release rules; only the pool differs. Used by the delivery-attempt pool (db/ackPool.ts), which must never fall
+ * back to the main pool.
+ */
+export async function runInTransaction<T>(
+  poolOf: () => pg.Pool,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await poolOf().connect();
   let brokenBy: Error | undefined;
   let committing = false;
   let deadBeforeCommit = false;

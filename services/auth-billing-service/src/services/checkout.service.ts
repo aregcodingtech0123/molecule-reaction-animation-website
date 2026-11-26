@@ -9,6 +9,7 @@ import {
   type BillingCurrency,
   type CreditPackageConfig,
 } from "../config/packages.js";
+import { REVIEW_DESCRIPTIONS, type ReviewDescription } from "../lib/lemonEvent.js";
 import { assertLemonCheckoutConfigured, createLemonSqueezyCheckoutUrl } from "../lib/lemonsqueezy.js";
 import { AppError } from "../types/index.js";
 
@@ -179,6 +180,66 @@ export interface FulfillPurchaseParams {
 
 const PAYMENT_REFERENCE_UNIQUE = "uq_credit_ledger_provider_reference";
 
+/** Whether an order reference is already credited (V8 contract 5.1, decisions Q2 B / N-1 / Q8). */
+export type OrderCredit =
+  | { kind: "none" }
+  | { kind: "credited"; ledgerId: string; userId: string; amount: number }
+  | { kind: "ambiguous"; historicalCount: number };
+
+interface Queryable {
+  query: PoolClient["query"];
+}
+
+/**
+ * The one lookup used at every site of contract 5.1, in ONE statement (one snapshot):
+ *  L1 the provider-keyed row (`provider = <provider>`, this exact reference; at most one, uq_credit_ledger_provider_reference)
+ *     answers first, with that row's own user and amount;
+ *  L2 otherwise the historical provider-less manual credits of this exact reference (`provider IS NULL`, ADMIN_ADJUSTMENT,
+ *     amount > 0): none → not credited; exactly one → credited by that row; more than one → ambiguous, nothing is chosen.
+ * Equality on the whole reference; never LIKE, never ORDER BY + LIMIT. A lookup, not a database-enforced uniqueness: the unique
+ * index does not cover provider IS NULL.
+ */
+export async function findOrderCredit(db: Queryable, provider: string, reference: string): Promise<OrderCredit> {
+  const { rows } = await db.query<{ id: string; user_id: string; amount: number; provider: string | null }>(
+    `SELECT id::text, user_id::text, amount, provider FROM credit_ledger_transactions
+     WHERE reference_id = $2
+       AND (provider = $1 OR (provider IS NULL AND transaction_type = 'ADMIN_ADJUSTMENT' AND amount > 0))`,
+    [provider, reference],
+  );
+  const asCredit = (r: { id: string; user_id: string; amount: number }): OrderCredit => ({
+    kind: "credited",
+    ledgerId: r.id,
+    userId: r.user_id,
+    amount: Number(r.amount),
+  });
+  const keyed = rows.find((r) => r.provider === provider);
+  if (keyed) return asCredit(keyed);
+  const historical = rows.filter((r) => r.provider === null);
+  if (historical.length === 1) return asCredit(historical[0]!);
+  if (historical.length > 1) return { kind: "ambiguous", historicalCount: historical.length };
+  return { kind: "none" };
+}
+
+/** A review stop: the event is stored as failed with this fixed description and is not retried (contract P4.2, P4.3, Q-T3). */
+export function reviewStop(description: ReviewDescription): AppError {
+  return new AppError(500, description, "REVIEW_STOP");
+}
+
+export interface PurchaseResult {
+  processed: boolean;
+  ledgerId: string | null;
+  reason?: string;
+  /** For `already_processed`: the ledger row's own user and amount (Q8); absent when unknown. */
+  userId?: string;
+  creditAmount?: number;
+}
+
+function alreadyProcessed(credit: OrderCredit): PurchaseResult {
+  return credit.kind === "credited"
+    ? { processed: false, ledgerId: credit.ledgerId, reason: "already_processed", userId: credit.userId, creditAmount: credit.amount }
+    : { processed: false, ledgerId: null, reason: "already_processed" };
+}
+
 function isDuplicatePaymentReference(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const { code, constraint } = err as { code?: string; constraint?: string };
@@ -194,26 +255,18 @@ function isDuplicatePaymentReference(err: unknown): boolean {
  * loser is reported as `already_processed`, exactly like a sequential replay —
  * not thrown, which used to be logged as a FAILED fulfilment (FINDING-11).
  */
-export async function fulfillVerifiedPurchase(
-  params: FulfillPurchaseParams,
-): Promise<{ processed: boolean; ledgerId: string | null; reason?: string }> {
+export async function fulfillVerifiedPurchase(params: FulfillPurchaseParams): Promise<PurchaseResult> {
   try {
     return await grantPurchase(params);
   } catch (err) {
     if (!isDuplicatePaymentReference(err)) throw err;
-    const existing = await pool.query<{ id: string }>(
-      `SELECT id::text FROM credit_ledger_transactions
-       WHERE provider = $1 AND reference_id = $2
-       LIMIT 1`,
-      [params.provider, params.paymentReference],
-    );
-    return { processed: false, ledgerId: existing.rows[0]?.id ?? null, reason: "already_processed" };
+    // Site 3 of contract 5.1: the 23505 came from the provider-keyed index, so that row exists; the shared lookup is used for
+    // uniformity and answers with its own user and amount.
+    return alreadyProcessed(await findOrderCredit(pool, params.provider, params.paymentReference));
   }
 }
 
-async function grantPurchase(
-  params: FulfillPurchaseParams,
-): Promise<{ processed: boolean; ledgerId: string | null; reason?: string }> {
+async function grantPurchase(params: FulfillPurchaseParams): Promise<PurchaseResult> {
   if (params.actualAmountMinor !== params.expectedAmountMinor) {
     console.error("[billing] Fraud alert: amount mismatch", {
       provider: params.provider,
@@ -227,15 +280,17 @@ async function grantPurchase(
   }
 
   return withTransaction(async (client) => {
-    const existing = await client.query<{ id: string }>(
-      `SELECT id::text FROM credit_ledger_transactions
-       WHERE provider = $1 AND reference_id = $2
-       LIMIT 1`,
-      [params.provider, params.paymentReference],
-    );
+    // Site 4 of contract 5.1 (inside the crediting transaction).
+    const credit = await findOrderCredit(client, params.provider, params.paymentReference);
+    if (credit.kind === "credited") return alreadyProcessed(credit);
+    if (credit.kind === "ambiguous") throw reviewStop(REVIEW_DESCRIPTIONS.historicalCreditAmbiguous);
 
-    if ((existing.rowCount ?? 0) > 0) {
-      return { processed: false, ledgerId: existing.rows[0]?.id ?? null, reason: "already_processed" };
+    // The account was resolved before this transaction; it may have been anonymised since. The share lock makes a concurrent
+    // anonymise_user() wait (it locks the row FOR UPDATE), so a deleted account is never credited. Taken before the per-user
+    // advisory lock inside post_credit_transaction().
+    const active = await client.query(`SELECT 1 FROM users WHERE id = $1 AND anonymised_at IS NULL FOR SHARE`, [params.userId]);
+    if ((active.rowCount ?? 0) === 0) {
+      return { processed: false, ledgerId: null, reason: "missing_user" };
     }
 
     await client.query(
@@ -251,11 +306,12 @@ async function grantPurchase(
 
     if (params.pendingOrderId) {
       // Also from 'expired' / 'failed': the money arrived, so the order is complete.
+      // Only the credited user's own order: pending_order_id comes from custom_data, which a buyer can set on a store link.
       await client.query(
         `UPDATE pending_checkout_orders
          SET status = 'completed', completed_at = NOW()
-         WHERE id = $1 AND status <> 'completed'`,
-        [params.pendingOrderId],
+         WHERE id = $1 AND user_id = $2 AND status <> 'completed'`,
+        [params.pendingOrderId, params.userId],
       );
     }
 

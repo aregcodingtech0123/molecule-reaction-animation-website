@@ -139,6 +139,36 @@ describe("npm run db:reconcile, section webhook_missing_user", () => {
     }
   });
 
+  it("webhook_uncredited: each refused paid order once, not when credited or already listed, quiet once reviewed (Step 7.5)", async () => {
+    const scratch = await ScratchDb.create({ migrate: true });
+    try {
+      const clean = reconcile(scratch.url);
+      expect(clean.code, clean.out).toBe(0);
+      expect(clean.out).toMatch(/OK — no paid order is waiting/);
+
+      await insertOrder(scratch.pool, "01", "5550001", "unresolved_package", '{"user_email":"buyer.private@example.test"}');
+      await insertOrder(scratch.pool, "02", "5550001", "unresolved_package"); // the same order, delivered with other bytes
+      await insertOrder(scratch.pool, "03", "5550002", "amount_mismatch");
+      await insertOrder(scratch.pool, "04", "5550003", "amount_mismatch"); // credited through another delivery
+      const u = await createUser(scratch.pool);
+      await scratch.pool.query(`SELECT post_credit_transaction($1, 50, 'CREDIT_PURCHASE', 'ls_order_5550003', 'lemonsqueezy')`, [u.id]);
+      await insertOrder(scratch.pool, "05", "5550004", "amount_mismatch"); // listed by webhook_missing_user instead
+      await insertOrder(scratch.pool, "06", "5550004", "missing_user");
+
+      const res = reconcile(scratch.url);
+      expect(res.code).toBe(2);
+      expect(res.out).toMatch(/2 paid order\(s\) credited nobody .*\(webhook_uncredited\)/);
+      expect(res.out).toMatch(/1 purchase\(s\) credited nobody because no account matched/);
+      for (const listed of ["5550001", "5550002", "5550004"]) expect(res.out.split(listed)).toHaveLength(2);
+      expect(res.out).not.toMatch(/5550003|buyer\.private/);
+
+      await scratch.pool.query(`UPDATE lemon_webhook_events SET reviewed_at = NOW() WHERE reviewed_at IS NULL`);
+      expect(reconcile(scratch.url).code).toBe(0);
+    } finally {
+      await scratch.destroy();
+    }
+  });
+
   it("the other sections behave exactly as before: a credited order is not listed here, and a drifting balance is still its own finding", async () => {
     const scratch = await ScratchDb.create({ migrate: true });
     try {

@@ -1,6 +1,16 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { env, lemonVariantForPackage } from "../config/env.js";
 import { AppError } from "../types/index.js";
+import { verifyLemonSignature, type LemonOrderCreatedEvent } from "./lemonEvent.js";
+
+export {
+  lemonOrderId,
+  parseLemonSqueezyEvent,
+  readCustomDataString,
+  readLemonOrderFields,
+  verifyLemonSignature,
+  type LemonOrderCreatedEvent,
+  type LemonOrderFields,
+} from "./lemonEvent.js";
 
 const LEMON_API_BASE = "https://api.lemonsqueezy.com/v1";
 
@@ -13,41 +23,6 @@ export interface LemonCheckoutParams {
   credits: number;
   /** Same-origin pathname to return to after payment (e.g. `/pricing`). */
   returnPath?: string;
-}
-
-export interface LemonOrderCreatedEvent {
-  meta: {
-    event_name: string;
-    custom_data?: Record<string, unknown>;
-  };
-  data: {
-    id: string;
-    type: string;
-    attributes: {
-      store_id: number;
-      customer_id: number;
-      identifier: string;
-      order_number: number;
-      status: string;
-      currency: string;
-      total: number;
-      subtotal: number;
-      tax: number;
-      refunded: boolean;
-      /** true for orders placed in Lemon's test mode (test cards — no money moves). */
-      test_mode?: boolean;
-      /** Refund state (order_refunded): cumulative refunded cents in the order currency / in USD. */
-      refunded_amount?: number;
-      refunded_amount_usd?: number;
-      refunded_at?: string | null;
-      user_email: string;
-      first_order_item?: {
-        variant_id: number;
-        product_name: string;
-        price?: number;
-      };
-    };
-  };
 }
 
 function requireLemonApiConfig(): { apiKey: string; storeId: string } {
@@ -71,46 +46,10 @@ function requireWebhookSecret(): string {
   return webhookSecret;
 }
 
-/**
- * Lemon Squeezy webhook HMAC-SHA256 (hex) over the raw request body.
- * Header: `X-Signature`
- * Docs: https://docs.lemonsqueezy.com/help/webhooks/signing-requests
- *
- * Rejects with 401 when the header is missing or the digest does not match
- * (constant-time compare via `crypto.timingSafeEqual`).
- */
-export function verifyLemonSqueezySignature(
-  rawBody: Buffer,
-  signatureHeader: string | undefined,
-): void {
+/** HMAC check with the configured secret (503 when unset). See verifyLemonSignature. */
+export function verifyLemonSqueezySignature(rawBody: Buffer, signatureHeader: string | undefined): void {
   const webhookSecret = requireWebhookSecret();
-  if (!signatureHeader?.trim()) {
-    throw new AppError(401, "Missing X-Signature header.", "INVALID_SIGNATURE");
-  }
-
-  const digest = createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
-  const provided = signatureHeader.trim();
-
-  const a = Buffer.from(digest, "utf8");
-  const b = Buffer.from(provided, "utf8");
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw new AppError(401, "Invalid Lemon Squeezy webhook signature.", "INVALID_SIGNATURE");
-  }
-}
-
-export function parseLemonSqueezyEvent(rawBody: Buffer): LemonOrderCreatedEvent {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawBody.toString("utf8"));
-  } catch {
-    throw new AppError(400, "Invalid Lemon Squeezy webhook JSON.", "INVALID_WEBHOOK_BODY");
-  }
-
-  if (!parsed || typeof parsed !== "object") {
-    throw new AppError(400, "Invalid Lemon Squeezy webhook payload.", "INVALID_WEBHOOK_BODY");
-  }
-
-  return parsed as LemonOrderCreatedEvent;
+  verifyLemonSignature(rawBody, signatureHeader, webhookSecret);
 }
 
 /** Reverse-map a Lemon variant id to our package id (`starter` | `pro` | `enterprise`). */
@@ -131,18 +70,6 @@ export function packageIdForLemonVariant(variantId: string | number | null | und
     if (variant && variant === id) return packageId;
   }
   return null;
-}
-
-/** Coerce Lemon custom_data values (may arrive as string | number | boolean). */
-export function readCustomDataString(
-  custom: Record<string, unknown> | undefined,
-  key: string,
-): string | null {
-  if (!custom || !(key in custom)) return null;
-  const value = custom[key];
-  if (value === null || value === undefined) return null;
-  const str = String(value).trim();
-  return str.length > 0 ? str : null;
 }
 
 function sanitizeReturnPath(raw: string | undefined): string {

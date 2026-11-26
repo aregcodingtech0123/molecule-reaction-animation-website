@@ -526,8 +526,13 @@ Where to run them, which log lines to alert on and how long logs survive on each
    WHERE provider_order_id = '<order id>' AND outcome = 'missing_user' AND reviewed_at IS NULL;
   ```
 
-  It never changes credits or any existing list. (Other uncredited outcomes — amount/currency mismatch, unknown pack, another store's order —
-  are *not* in this list; they stay log alerts, checklist §5.2.)
+  It never changes credits or any existing list.
+- **Paid orders refused for their pack or amount** (same job, no migration): `webhook_uncredited` lists each signed, paid order whose variant
+  maps to no pack (`unresolved_package`) or whose amount matches no list price (`amount_mismatch`), once per order. An order credited through
+  another delivery, or already in `webhook_missing_user`, is not listed. Open the order in the Lemon dashboard, correct the variant or price
+  configuration if that is the cause, and refund or credit the buyer as above. Then mark **every delivery of the order** reviewed: the same
+  `UPDATE`, with `outcome IN ('unresolved_package', 'amount_mismatch', 'invalid_package_id')`. The first run also lists older refused orders.
+  (Currency mismatch and another store's order are *not* listed; they stay log alerts, checklist §5.2.)
 - **Stored webhook events not processed** (same job, R19): `webhook_unprocessed` lists deliveries Express stored
   and acknowledged (Lemon will not resend them) that were still not processed 15 minutes later — their credits may be
   missing. Express retries them every minute (10 attempts) by itself; when they are listed, fix the cause shown in

@@ -1,4 +1,4 @@
-import { withTransaction } from "../db/index.js";
+import { withAckTransaction } from "../db/ackPool.js";
 import { AppError } from "../types/index.js";
 import { matchesHoldRow, type SettlementClaims } from "../utils/settlementCapability.js";
 import { HOLD_SECONDS_COLUMNS, settlementNotAuthorized } from "./aiCredits.service.js";
@@ -13,6 +13,11 @@ import { HOLD_SECONDS_COLUMNS, settlementNotAuthorized } from "./aiCredits.servi
  *
  * The hold row is read under FOR UPDATE and is authoritative for everything: the signed claims only prove which reservation
  * the caller is talking about (matchesHoldRow), exactly as for capture and refund.
+ *
+ * Connection: ONLY the delivery-attempt pool (ACK_DATABASE_URL, db/ackPool.ts), authenticated as `moleculestudio_ack`. Migration
+ * 021 lets only that role (or the table owner) set the acknowledgement column, and its grants cover exactly the columns read and
+ * written below. There is no fallback to the main pool: when the ack pool is not ready the call is refused with 503 and nothing
+ * is written. This is one self-contained transaction; no other operation shares it.
  */
 
 export interface DeliveryAttemptResult {
@@ -48,7 +53,7 @@ export async function recordDeliveryAttempt(claims: SettlementClaims): Promise<D
   // The middleware already checked the purpose. Checked again here, because this function is the one that writes.
   if (claims.pur !== "delivery_ack") throw settlementNotAuthorized();
 
-  return withTransaction(async (client) => {
+  return withAckTransaction(async (client) => {
     const { rows } = await client.query<AckRow>(
       `SELECT status, amount, operation_type, user_id::text, reference_id, delivery_tracking_enabled,
               answer_delivery_attempted_at IS NOT NULL AS already_recorded, ${HOLD_SECONDS_COLUMNS}

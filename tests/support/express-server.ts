@@ -1,7 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { createApp } from "../../services/auth-billing-service/src/app";
-import { closePool } from "../../services/auth-billing-service/src/db/index";
+import { closeDatabasePools } from "../../services/auth-billing-service/src/db/lifecycle";
 
 export interface RunningService {
   origin: string;
@@ -20,7 +20,8 @@ export async function startAuthBillingService(): Promise<RunningService> {
     origin,
     async close() {
       await new Promise<void>((r) => server.close(() => r()));
-      await closePool();
+      // Both pools: the main one and the delivery-attempt (moleculestudio_ack) one.
+      await closeDatabasePools();
     },
   };
 }
